@@ -13,7 +13,7 @@ export const state = {
   capture: { cameraId: null, micId: null, width: 1920, height: 1080, muted: false },
   bgMode: 'chroma', // chroma | ai | framed
   chroma: { color: '#1eb955', similarity: 0.30, smoothness: 0.08, spill: 0.6 },
-  enhance: { exposure: 1.0, warmth: 0.0, saturation: 1.0, smoothing: 0.0, eyes: 0.0 },
+  enhance: { exposure: 1.0, warmth: 0.0, saturation: 1.0, smoothing: 0.0, eyes: 0.0, erode: 0.0, wrap: 0.0 },
   presenter: { x: 0, y: 0, scale: 1 },
   lighting: { preset: 'newsNight', key: 1, fill: 0.6, back: 1.3, temp: -0.2, accent: 1.35, haze: 0.6, deskGlow: 1 },
   look: { bloom: 0.55, vignette: 0.5, floorReflection: 0.55, ledMedia: null },
@@ -31,6 +31,8 @@ export const state = {
   },
   // Quick scenes: named snapshots of the live look (set, cam, graphics, mood)
   scenes: [],
+  // Ingested asset registry (Asset Manager metadata)
+  assets: [], // { id, name, source, ext, tris, memMB, liveSafe, warnings, media }
   audio: {
     micGain: 1,
     jingleGain: 0.8,

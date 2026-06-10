@@ -124,6 +124,11 @@ export class Studio {
     if (state.look?.ledMedia) this.set.setLedMedia(state.look.ledMedia);
   }
 
+  /** HDRI environment for image-based studio relighting (PBR surfaces). */
+  setEnvironment(envTexture) {
+    this.scene.environment = envTexture || null;
+  }
+
   applyHaze() {
     const def = SETS[state.setId] || SETS.apex;
     this.scene.fog = new THREE.FogExp2(def.theme.fog, 0.022 * (state.lighting.haze ?? 0.5));
@@ -135,9 +140,9 @@ export class Studio {
   }
 
   // ---------- objects ----------
-  addObject(kind, x = 2.4, z = 0.4, existing = null) {
+  addObject(kind, x = 2.4, z = 0.4, existing = null, prebuilt = null) {
     const def = SETS[state.setId] || SETS.apex;
-    const group = buildProp(kind, def.theme, state.brand, existing?.media || null);
+    const group = buildProp(kind, def.theme, state.brand, existing?.media || null, prebuilt);
     const id = existing?.id || nextObjectId();
     group.userData.id = id;
     group.userData.kind = kind;

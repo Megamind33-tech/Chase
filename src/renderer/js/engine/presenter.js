@@ -25,6 +25,10 @@ uniform float warmth;
 uniform float saturation;
 uniform float smoothing;
 uniform float eyeBright;
+uniform float erode;
+uniform float wrapStrength;
+uniform vec3 wrapColor;
+uniform float matteView;
 uniform vec2 texel;
 varying vec2 vUv;
 
@@ -50,6 +54,16 @@ void main() {
     alpha *= texture2D(maskMap, vUv).r;
   }
 
+  // matte cleanup: choke the soft edge band inward (kills dirty fringes)
+  if (erode > 0.01) {
+    alpha = smoothstep(erode * 0.45, 1.0, alpha);
+  }
+
+  if (matteView > 0.5) {
+    gl_FragColor = vec4(vec3(alpha), 1.0);
+    return;
+  }
+
   // skin smoothing: light box blur restricted to mid-tones
   if (smoothing > 0.01) {
     vec3 blur = vec3(0.0);
@@ -73,6 +87,13 @@ void main() {
     c.rgb += hi * eyeBright * 0.35;
   }
 
+  // studio light wrap: tint the semi-transparent edge band with the
+  // set's light colour so the person sits inside the room's light
+  if (wrapStrength > 0.01) {
+    float band = clamp(alpha * (1.0 - alpha) * 4.0, 0.0, 1.0);
+    c.rgb = mix(c.rgb, wrapColor, band * wrapStrength * 0.65);
+  }
+
   if (alpha < 0.02) discard;
   gl_FragColor = vec4(c.rgb, alpha);
 }`;
@@ -93,6 +114,7 @@ export class Presenter {
       vertexShader: VERT,
       fragmentShader: FRAG,
       transparent: true,
+      side: THREE.DoubleSide, // visible in the reflective floor
       uniforms: {
         map: { value: this.texture },
         maskMap: { value: this.blankMask },
@@ -107,6 +129,10 @@ export class Presenter {
         saturation: { value: 1 },
         smoothing: { value: 0 },
         eyeBright: { value: 0 },
+        erode: { value: 0 },
+        wrapStrength: { value: 0 },
+        wrapColor: { value: new THREE.Color('#34c3ff') },
+        matteView: { value: 0 },
         texel: { value: new THREE.Vector2(1 / 1280, 1 / 720) }
       }
     });
@@ -190,6 +216,16 @@ export class Presenter {
     u.saturation.value = e.saturation;
     u.smoothing.value = e.smoothing;
     u.eyeBright.value = e.eyes || 0;
+    u.erode.value = e.erode || 0;
+    u.wrapStrength.value = e.wrap || 0;
+  }
+
+  setWrapColor(hex) {
+    this.material.uniforms.wrapColor.value.set(hex);
+  }
+
+  setMatteView(on) {
+    this.material.uniforms.matteView.value = on ? 1 : 0;
   }
 
   applyPlacement(p) {

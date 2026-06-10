@@ -91,7 +91,8 @@ async function startStudio() {
     editor = initEditor({
       studio, overlay, outputs, audio, compositor,
       setBgMode, resizeOutput, loadProject,
-      reopenCapture: openCapture
+      reopenCapture: openCapture,
+      getSegmenter: () => segmenter
     });
 
     let last = performance.now();

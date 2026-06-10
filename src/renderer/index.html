@@ -306,6 +306,26 @@
           <div class="field slim"><label>Edge softness</label><input type="range" id="key-smooth" min="0.0" max="0.3" step="0.005" value="0.08"></div>
           <div class="field slim"><label>Spill removal</label><input type="range" id="key-spill" min="0" max="1" step="0.01" value="0.6"></div>
         </div>
+        <h3 class="spaced">Person cleanup</h3>
+        <div class="field slim"><label>Edge cleanup (choke) <output id="o-erode">0%</output></label>
+          <input type="range" id="enh-erode" min="0" max="1" step="0.01" value="0"></div>
+        <div class="chipset">
+          <button class="chip" id="chk-matte">Matte preview</button>
+        </div>
+        <h3 class="spaced">Intelligent relighting</h3>
+        <div class="field slim"><label>Studio light wrap <output id="o-wrap">0%</output></label>
+          <input type="range" id="enh-wrap" min="0" max="1" step="0.01" value="0"></div>
+        <button class="btn gold slim" id="btn-autofit" style="width:100%">AUTO-FIT TO SET</button>
+        <p class="hint">Auto-fit grounds the presenter to the floor, scales them to the set,
+        matches the lighting mood, and applies set-coloured light wrap. With AI cutout it
+        measures the body from the live mask.</p>
+        <h3 class="spaced">Environment (HDRI)</h3>
+        <div class="row gap">
+          <button class="btn ghost slim" id="btn-hdri">Load HDRI…</button>
+          <button class="btn ghost slim" id="btn-hdri-clear">Clear</button>
+        </div>
+        <p class="hint">Image-based relighting for the set and 3D objects (the camera feed
+        keeps its own grade controls).</p>
         <h3 class="spaced">Cinematic grade</h3>
         <div class="field slim"><label>LED glow (bloom)</label><input type="range" id="look-bloom" min="0" max="1.4" step="0.01" value="0.55"></div>
         <div class="field slim"><label>Vignette</label><input type="range" id="look-vignette" min="0" max="1" step="0.01" value="0.5"></div>
@@ -450,6 +470,8 @@
     <p class="hint">Enable one or more destinations. One encoder feeds all of them
     (simulcast) — each extra destination costs upload bandwidth, not CPU.</p>
     <div id="live-dest-rows"></div>
+    <h3 class="ls-head">LIVE SAFETY CHECK</h3>
+    <div class="ls-list" id="live-safety"></div>
     <div class="statusbox" id="live-status" hidden></div>
     <footer class="modal-foot">
       <button class="btn ghost" id="live-cancel">Cancel</button>
@@ -475,6 +497,17 @@
     <h2>Multi-view</h2>
     <div class="mv-grid" id="mv-grid"></div>
     <footer class="modal-foot"><button class="btn ghost" id="mv-close">Close</button></footer>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-ingest" hidden>
+  <div class="modal">
+    <h2>Universal Import — validation</h2>
+    <div class="ingest-report" id="ingest-report"></div>
+    <footer class="modal-foot">
+      <button class="btn ghost" id="ingest-cancel">Cancel</button>
+      <button class="btn primary" id="ingest-accept">Add to studio</button>
+    </footer>
   </div>
 </div>
 

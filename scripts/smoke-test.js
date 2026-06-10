@@ -135,6 +135,26 @@ app.whenReady().then(async () => {
   })()`);
   console.log('stage 3 checks:', JSON.stringify(stage3));
 
+  // ---- stage 4: ingestion UI, relighting controls, live safety ----
+  const stage4 = await win.webContents.executeJavaScript(`(async () => {
+    document.getElementById('btn-autofit').click();
+    await new Promise((r) => setTimeout(r, 400));
+    document.getElementById('btn-live').click();
+    await new Promise((r) => setTimeout(r, 600));
+    const safetyItems = document.querySelectorAll('#live-safety .ls-item').length;
+    const safetyOk = document.querySelectorAll('#live-safety .ls-item.ok').length;
+    document.getElementById('live-cancel').click();
+    return {
+      ingestModal: !!document.getElementById('modal-ingest'),
+      erodeSlider: !!document.getElementById('enh-erode'),
+      wrapSlider: !!document.getElementById('enh-wrap'),
+      autofit: !!document.getElementById('btn-autofit'),
+      hdriBtn: !!document.getElementById('btn-hdri'),
+      safetyItems, safetyOk
+    };
+  })()`);
+  console.log('stage 4 checks:', JSON.stringify(stage4));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -158,6 +178,8 @@ app.whenReady().then(async () => {
 
   const ok = stage1 && errors.length === 0 && stage2.editorVisible
     && stage3.builderOn && stage3.gizmoBtns === 3 && stage3.planActive && stage3.camAdded
+    && stage4.ingestModal && stage4.erodeSlider && stage4.wrapSlider && stage4.autofit
+    && stage4.hdriBtn && stage4.safetyItems === 6 && stage4.safetyOk >= 4
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

@@ -2,9 +2,9 @@
 // is a Group with userData: { kind, id, setMedia?, setShadow }, carrying a
 // soft contact shadow so objects sit on the floor instead of floating.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-export function buildProp(kind, theme, brand, media) {
+
+export function buildProp(kind, theme, brand, media, prebuilt) {
   let g;
   switch (kind) {
     case 'screen': g = screenProp(theme, brand, 1.7); break;
@@ -13,7 +13,7 @@ export function buildProp(kind, theme, brand, media) {
     case 'plinth': g = plinthProp(theme); break;
     case 'lightbar': g = lightbarProp(theme, brand); break;
     case 'plant': g = plantProp(); break;
-    case 'model': g = modelProp(media); break;
+    case 'model': g = modelProp(media, prebuilt); break;
     default: g = plinthProp(theme);
   }
   addContactShadow(g, kind === 'lightbar' ? 0 : 0.55);
@@ -43,7 +43,26 @@ function addContactShadow(g, strength) {
 
 // Imported broadcast 3D asset (GLB/GLTF): loaded async, auto-normalised to
 // studio scale, grounded on the floor plane.
-function modelProp(media) {
+function normaliseModel(g, model, ph, clips) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  model.scale.setScalar(1.5 / maxDim);
+  const box2 = new THREE.Box3().setFromObject(model);
+  model.position.y -= box2.min.y;
+  model.position.x -= (box2.min.x + box2.max.x) / 2;
+  model.position.z -= (box2.min.z + box2.max.z) / 2;
+  if (ph) g.remove(ph);
+  g.add(model);
+  g.userData.loading = false;
+  if (clips?.length) {
+    const mixer = new THREE.AnimationMixer(model);
+    mixer.clipAction(clips[0]).play();
+    g.userData.mixer = mixer;
+  }
+}
+
+function modelProp(media, prebuilt) {
   const g = new THREE.Group();
   // lightweight placeholder pedestal while the model loads
   const ph = new THREE.Mesh(
@@ -52,28 +71,17 @@ function modelProp(media) {
   );
   ph.position.y = 0.3;
   g.add(ph);
-  if (media?.url) {
-    new GLTFLoader().load(media.url, (gltf) => {
-      const model = gltf.scene;
-      // normalise: fit the largest dimension to ~1.5 m, ground to y=0
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z) || 1;
-      const k = 1.5 / maxDim;
-      model.scale.setScalar(k);
-      const box2 = new THREE.Box3().setFromObject(model);
-      model.position.y -= box2.min.y;
-      model.position.x -= (box2.min.x + box2.max.x) / 2;
-      model.position.z -= (box2.min.z + box2.max.z) / 2;
-      model.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; } });
-      g.remove(ph);
-      g.add(model);
-      if (gltf.animations?.length) {
-        const mixer = new THREE.AnimationMixer(model);
-        mixer.clipAction(gltf.animations[0]).play();
-        g.userData.mixer = mixer;
-      }
-    }, undefined, () => { ph.material.color.set('#5c2229'); ph.material.opacity = 0.8; });
+  g.userData.loading = true;
+  if (prebuilt) {
+    normaliseModel(g, prebuilt, ph, prebuilt.userData._clips);
+  } else if (media?.url) {
+    // project reload: run the file back through the ingestion pipeline
+    import('../ingest.js').then(({ ingestModel }) =>
+      ingestModel(media).then((report) => {
+        if (report.object) normaliseModel(g, report.object, ph, report.object.userData._clips);
+        else { ph.material.color.set('#5c2229'); ph.material.opacity = 0.8; g.userData.loading = false; }
+      })
+    ).catch(() => { ph.material.color.set('#5c2229'); g.userData.loading = false; });
   }
   return g;
 }

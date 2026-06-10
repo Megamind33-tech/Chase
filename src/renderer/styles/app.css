@@ -1240,3 +1240,45 @@ button:disabled:hover { background: inherit; border-color: var(--line); }
   width: 100%; background: var(--bg-0); border: 1px solid var(--blue); border-radius: 4px;
   font-size: 11.5px; padding: 3px 6px; outline: none; color: var(--txt);
 }
+
+
+/* ============================================================
+   v9 — UNIVERSAL INGESTION, RELIGHTING, LIVE SAFETY
+   ============================================================ */
+.ingest-report { font-size: 11.5px; }
+.ingest-report .ir-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.ingest-report .ir-head b { font-size: 13px; }
+.ingest-report .ir-src {
+  font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+  border: 1px solid rgba(0,199,255,.4); color: var(--cyan); padding: 2px 8px; border-radius: 9px;
+}
+.ir-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.ir-cell {
+  border: 1px solid var(--line-soft); border-radius: var(--r-sm); padding: 7px 9px;
+  background: var(--bg-1);
+}
+.ir-cell span { display: block; font-size: 9px; font-weight: 800; letter-spacing: .08em; color: var(--txt-faint); text-transform: uppercase; }
+.ir-cell b { font-size: 12px; font-variant-numeric: tabular-nums; }
+.ir-warn {
+  display: flex; gap: 8px; align-items: flex-start; padding: 7px 10px; margin-bottom: 5px;
+  border: 1px solid #5c4318; border-radius: var(--r-sm); background: rgba(255,210,77,.06);
+  color: #ffc46e; line-height: 1.45;
+}
+.ir-warn.blocked { border-color: #5c2229; background: rgba(230,57,70,.08); color: #ff9ba3; }
+.ir-ok { color: #7ee2a4; padding: 6px 2px; }
+
+.ls-head { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: var(--txt-faint); margin: 14px 0 7px; }
+.ls-list { display: flex; flex-direction: column; gap: 4px; }
+.ls-item {
+  display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--txt-dim);
+  padding: 5px 9px; border: 1px solid var(--line-soft); border-radius: var(--r-sm); background: var(--bg-1);
+}
+.ls-item .ic { width: 13px; height: 13px; }
+.ls-item.ok .ic { color: var(--green); }
+.ls-item.warn { border-color: #5c4318; color: #ffc46e; }
+.ls-item.warn .ic { color: var(--gold); }
+.ls-item.fail { border-color: #5c2229; color: #ff9ba3; }
+.ls-item.fail .ic { color: var(--red); }
+
+.asset-meta { font-size: 9.5px; color: var(--txt-faint); display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.asset-flag { font-size: 8.5px; font-weight: 800; letter-spacing: .06em; color: #ffc46e; }

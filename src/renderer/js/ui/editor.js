@@ -9,6 +9,7 @@ import { snapshotScene, applyScene, runMacro } from '../scenes.js';
 import { capture } from '../capture.js';
 import { toast } from './toasts.js';
 import { icon } from './icons.js';
+import { ingestModel, ingestHDRI } from '../ingest.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -207,6 +208,68 @@ export function initEditor(ctx) {
     for (const [kind, p] of Object.entries(PROPS)) {
       body.appendChild(libCard(p.ico, p.name, p.desc, 'prop:' + kind, () => addProp(kind)));
     }
+    if (state.assets.length) {
+      const h = document.createElement('p');
+      h.className = 'browser-hint';
+      h.style.borderTop = '1px solid var(--line-soft)';
+      h.textContent = 'INGESTED ASSETS';
+      body.appendChild(h);
+      for (const a of state.assets) {
+        const card = libCard('cube', a.name,
+          `${a.source}`, null, () => {});
+        card.draggable = false;
+        card.querySelector('.l-desc').innerHTML =
+          `${a.source}<span class="asset-meta">${a.tris.toLocaleString()} tris · ${a.memMB} MB · .${a.ext}` +
+          (a.liveSafe ? '' : ' · <span class="asset-flag">RENDER HEAVY</span>') + '</span>';
+        body.appendChild(card);
+      }
+    }
+  }
+
+  /* ---- Universal Import Manager ---- */
+  function openIngestModal(report, media) {
+    const box = $('ingest-report');
+    const blocked = report.status === 'blocked';
+    box.innerHTML = `
+      <div class="ir-head">${icon('cube')}<b>${report.name}</b>
+        <span class="ir-src">${report.source}</span></div>
+      ${blocked ? '' : `
+      <div class="ir-grid">
+        <div class="ir-cell"><span>Triangles</span><b>${report.tris.toLocaleString()}</b></div>
+        <div class="ir-cell"><span>Meshes</span><b>${report.meshes}</b></div>
+        <div class="ir-cell"><span>Materials</span><b>${report.materials}</b></div>
+        <div class="ir-cell"><span>Textures</span><b>${report.textures}${report.maxTex ? ' · ' + report.maxTex + 'px' : ''}</b></div>
+        <div class="ir-cell"><span>Animations</span><b>${report.animations}${report.skinned ? ' · rigged' : ''}</b></div>
+        <div class="ir-cell"><span>Est. GPU</span><b>${report.memMB} MB</b></div>
+      </div>`}
+      ${report.warnings.map((w) => `<div class="ir-warn${blocked ? ' blocked' : ''}">${icon('warn')}<span>${w}</span></div>`).join('')}
+      ${!report.warnings.length ? `<div class="ir-ok">${icon('check')} Validation passed — normalised, Chase-safe materials, ready for the studio.</div>` : ''}
+      ${!blocked && !report.liveSafe ? '' : ''}`;
+    $('ingest-accept').disabled = blocked;
+    $('modal-ingest').hidden = false;
+
+    $('ingest-accept').onclick = () => {
+      $('modal-ingest').hidden = true;
+      pushHistory();
+      const data = {
+        id: nextObjectId(), kind: 'model', x: 2.2, z: 0.6, rotY: 0, scale: 1,
+        height: 0, opacity: 1, shadow: 0.55,
+        media: { url: media.url, path: media.path, type: 'model' }, visible: true
+      };
+      state.objects.push(data);
+      studio.addObject('model', data.x, data.z, data, report.object);
+      state.assets.push({
+        id: data.id, name: report.name, source: report.source, ext: report.ext,
+        tris: report.tris, memMB: report.memMB, liveSafe: report.liveSafe,
+        warnings: report.warnings.length, media: data.media
+      });
+      selectObject(data.id);
+      refreshLayerList();
+      if (activeNav === 'props') buildBrowser();
+      logEvent(`Asset ingested: ${report.name} (${report.tris.toLocaleString()} tris, ${report.source})${report.liveSafe ? '' : ' — RENDER HEAVY'}`, report.liveSafe ? 'ok' : 'err');
+      toast(report.name + ' is now a Chase asset — drag it into position', 'ok');
+    };
+    $('ingest-cancel').onclick = () => { $('modal-ingest').hidden = true; };
   }
 
   /* ---- graphics pane ---- */
@@ -918,7 +981,69 @@ export function initEditor(ctx) {
   for (const [id, field] of [['enh-exposure', 'exposure'], ['enh-warmth', 'warmth'], ['enh-sat', 'saturation'], ['enh-smooth', 'smoothing'], ['enh-eyes', 'eyes']]) {
     bindSlider(id, (v) => { state.enhance[field] = v; applyEnhance(); });
   }
-  function applyEnhance() { studio.presenter.applyEnhance(state.enhance, studio.lights.grade); }
+  function applyEnhance() {
+    studio.presenter.applyEnhance(state.enhance, studio.lights.grade);
+    studio.presenter.setWrapColor(SETS[state.setId].theme.trim);
+  }
+
+  bindSlider('enh-erode', (v) => { state.enhance.erode = v; $('o-erode').value = Math.round(v * 100) + '%'; applyEnhance(); });
+  bindSlider('enh-wrap', (v) => { state.enhance.wrap = v; $('o-wrap').value = Math.round(v * 100) + '%'; applyEnhance(); });
+  $('chk-matte').addEventListener('click', () => {
+    const on = $('chk-matte').classList.toggle('active');
+    studio.presenter.setMatteView(on);
+    toast(on ? 'Matte preview — white = keep, black = removed (also on program output)' : 'Matte preview off', '', 3500);
+  });
+
+  // AUTO-FIT TO SET: ground, scale, relight in one action
+  $('btn-autofit').addEventListener('click', () => {
+    const seg = ctx.getSegmenter?.();
+    const planeH = studio.presenter.planeH;
+    if (state.bgMode === 'ai' && seg?.bounds) {
+      const b = seg.bounds;
+      const scale = Math.min(Math.max(1.75 / (Math.max(b.height, 0.2) * planeH), 0.6), 1.8);
+      state.presenter.scale = +scale.toFixed(2);
+      // feet (mask bottom) land exactly on the studio floor
+      const feetLocalY = (planeH / 2 - 0.12) + planeH * (0.5 - b.bottom);
+      state.presenter.y = +(-feetLocalY * scale + (planeH / 2 - 0.12) * 0).toFixed(2);
+      state.presenter.y = +(-(feetLocalY * scale)).toFixed(2);
+    } else {
+      state.presenter.y = 0;
+      state.presenter.scale = 1;
+    }
+    state.presenter.x = 0;
+    state.enhance.wrap = Math.max(state.enhance.wrap, 0.3);
+    const mood = LIGHT_MOODS[state.lighting.preset];
+    if (mood) { state.enhance.exposure = mood.grade.exposure; state.enhance.warmth = mood.grade.warmth; }
+    refreshEnhanceInputs();
+    $('enh-wrap').value = state.enhance.wrap;
+    $('o-wrap').value = Math.round(state.enhance.wrap * 100) + '%';
+    $('pres-x').value = 0; $('pres-y').value = state.presenter.y; $('pres-scale').value = state.presenter.scale;
+    applyEnhance();
+    logEvent('AUTO-FIT: presenter grounded, scaled and relit to ' + SETS[state.setId].name, 'ok');
+    toast('Auto-fit complete — grounded, scaled and relit to this set', 'ok');
+  });
+
+  // HDRI environment relighting
+  let hdriEnv = null;
+  $('btn-hdri').addEventListener('click', async () => {
+    const media = await window.chase.pickMedia('hdri');
+    if (!media) return;
+    $('btn-hdri').classList.add('loading');
+    try {
+      hdriEnv = await ingestHDRI(media, studio.renderer);
+      studio.setEnvironment(hdriEnv);
+      logEvent('HDRI environment loaded: ' + media.name, 'ok');
+      toast('HDRI relighting active on set and 3D objects', 'ok');
+    } catch (e) {
+      toast('HDRI could not be loaded: ' + (e.message || 'unsupported file'), 'err', 5000);
+    }
+    $('btn-hdri').classList.remove('loading');
+  });
+  $('btn-hdri-clear').addEventListener('click', () => {
+    studio.setEnvironment(null);
+    hdriEnv = null;
+    toast('Environment cleared — studio light rig only');
+  });
 
   /* ---- brand panel ---- */
   $('brand-name').addEventListener('input', (e) => { state.brand.name = e.target.value; studio.refreshBrand(); invalidateThumbs(); });
@@ -1332,6 +1457,7 @@ export function initEditor(ctx) {
       return;
     }
     buildLiveModal();
+    buildLiveSafety();
     $('modal-live').hidden = false;
   });
 
@@ -1358,8 +1484,37 @@ export function initEditor(ctx) {
     }
   }
 
+  function buildLiveSafety() {
+    const items = [];
+    const camOk = !!(capture.stream && capture.stream.active);
+    items.push({ ok: camOk, fail: !camOk, label: camOk ? 'Camera input connected' : 'CAMERA LOST — reconnect before going live' });
+    const fpsOk = !studio.fps || studio.fps >= 20;
+    items.push({ ok: fpsOk, warn: !fpsOk, label: fpsOk ? 'Render performance OK (' + (studio.fps || '—') + ' fps)' : 'Low FPS (' + studio.fps + ') — lower quality or remove heavy assets' });
+    items.push({ ok: !compositor.blackout, fail: compositor.blackout, label: compositor.blackout ? 'PROGRAM IS BLACK — disarm BLACK first' : 'Program output live (not black)' });
+    const loading = [...studio.objects.values()].some((g) => g.userData.loading);
+    items.push({ ok: !loading, warn: loading, label: loading ? '3D model still loading — wait before going live' : 'All 3D assets loaded' });
+    const heavy = state.assets.filter((a) => !a.liveSafe && state.objects.some((o) => o.id === a.id));
+    items.push({ ok: !heavy.length, warn: !!heavy.length, label: heavy.length ? heavy.length + ' RENDER-HEAVY asset(s) in the scene' : 'No render-heavy assets in scene' });
+    items.push({ ok: !state.capture.muted, warn: state.capture.muted, label: state.capture.muted ? 'Microphone is MUTED' : 'Microphone open' });
+    const box = $('live-safety');
+    box.innerHTML = items.map((i) =>
+      `<div class="ls-item ${i.fail ? 'fail' : i.warn ? 'warn' : 'ok'}">${icon(i.fail ? 'close' : i.warn ? 'warn' : 'check')}<span>${i.label}</span></div>`).join('');
+    return items;
+  }
+
   $('live-cancel').addEventListener('click', () => { $('modal-live').hidden = true; });
   $('live-start').addEventListener('click', async () => {
+    const safety = buildLiveSafety();
+    const hardFail = safety.find((i) => i.fail);
+    if (hardFail) return setLiveStatus('err', 'Live safety: ' + hardFail.label);
+    const warns = safety.filter((i) => i.warn);
+    if (warns.length && !$('live-start').dataset.armed) {
+      $('live-start').dataset.armed = '1';
+      $('live-start').textContent = 'Go live anyway';
+      return setLiveStatus('err', warns.length + ' warning(s) above — press again to override and go live.');
+    }
+    delete $('live-start').dataset.armed;
+    $('live-start').textContent = 'Start streaming';
     const dests = state.output.destinations.filter((d) => d.enabled);
     if (!dests.length) return setLiveStatus('err', 'Enable at least one destination.');
     for (const d of dests) {

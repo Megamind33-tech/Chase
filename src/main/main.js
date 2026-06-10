@@ -19,7 +19,8 @@ const MIME = {
   '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2',
   '.data': 'application/octet-stream', '.tflite': 'application/octet-stream',
   '.binarypb': 'application/octet-stream',
-  '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream'
+  '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream',
+  '.fbx': 'application/octet-stream', '.obj': 'text/plain', '.hdr': 'application/octet-stream', '.mtl': 'text/plain'
 };
 
 function mimeFor(file) {
@@ -125,7 +126,9 @@ function registerIpc() {
         : kind === 'audio'
           ? [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a'] }]
           : kind === 'model'
-            ? [{ name: '3D models', extensions: ['glb', 'gltf'] }]
+            ? [{ name: '3D models', extensions: ['glb', 'gltf', 'fbx', 'obj'] }]
+            : kind === 'hdri'
+              ? [{ name: 'HDRI environment', extensions: ['hdr'] }]
             : [{ name: 'Media', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'webm', 'mov'] }];
     const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters });
     if (r.canceled || !r.filePaths[0]) return null;
@@ -133,7 +136,8 @@ function registerIpc() {
     const ext = path.extname(p).toLowerCase();
     const type = ['.mp4', '.webm', '.mov'].includes(ext) ? 'video'
       : ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext) ? 'audio'
-        : ['.glb', '.gltf'].includes(ext) ? 'model' : 'image';
+        : ['.glb', '.gltf', '.fbx', '.obj'].includes(ext) ? 'model'
+          : ext === '.hdr' ? 'hdri' : 'image';
     return { url: 'media://local/?p=' + encodeURIComponent(p), path: p, type, name: path.basename(p) };
   });
 
