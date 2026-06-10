@@ -17,7 +17,7 @@ export const state = {
   presenter: { x: 0, y: 0, scale: 1 },
   lighting: { preset: 'newsNight', key: 1, fill: 0.6, back: 1.3, temp: -0.2, accent: 1.35, haze: 0.6, deskGlow: 1 },
   look: { bloom: 0.55, vignette: 0.5, floorReflection: 0.55, ledMedia: null },
-  camera: { active: 1, mode: 'cut', moveDuration: 1.2, punch: 0, fovScale: 1, drift: false, driftAmount: 1 },
+  camera: { active: 1, mode: 'cut', moveDuration: 1.2, punch: 0, fovScale: 1, drift: false, driftAmount: 1, customAngles: [] },
   preview: { camera: null, sceneId: null }, // staged PVW bus (not pushed live until TAKE)
   transition: { type: 'cut', duration: 0.6 }, // cut | move | fade | wipe
   objects: [], // { id, kind, x, z, rotY, scale, height, opacity, media?, visible }

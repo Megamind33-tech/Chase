@@ -114,6 +114,27 @@ app.whenReady().then(async () => {
   await new Promise((r) => setTimeout(r, 1500));
   console.log('stage 2 checks:', JSON.stringify(stage2));
 
+  // ---- stage 3: BUILDER mode ----
+  const stage3 = await win.webContents.executeJavaScript(`(async () => {
+    document.getElementById('mode-builder').click();
+    await new Promise((r) => setTimeout(r, 1200));
+    const builderOn = !document.getElementById('builder-bar').hidden;
+    const gizmoBtns = document.querySelectorAll('[data-gizmo]').length;
+    document.getElementById('bb-2d').click();
+    await new Promise((r) => setTimeout(r, 600));
+    const planActive = document.getElementById('bb-2d').classList.contains('active');
+    document.getElementById('bb-3d').click();
+    await new Promise((r) => setTimeout(r, 400));
+    const before = document.querySelectorAll('.cam-tile').length;
+    document.getElementById('bb-addcam').click();
+    await new Promise((r) => setTimeout(r, 600));
+    const after = document.querySelectorAll('.cam-tile').length;
+    document.getElementById('mode-studio').click();
+    await new Promise((r) => setTimeout(r, 600));
+    return { builderOn, gizmoBtns, planActive, camAdded: after === before + 1, camsAfter: after };
+  })()`);
+  console.log('stage 3 checks:', JSON.stringify(stage3));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -136,6 +157,7 @@ app.whenReady().then(async () => {
   }
 
   const ok = stage1 && errors.length === 0 && stage2.editorVisible
+    && stage3.builderOn && stage3.gizmoBtns === 3 && stage3.planActive && stage3.camAdded
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

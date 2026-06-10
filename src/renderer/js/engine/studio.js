@@ -7,6 +7,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { buildSet } from './sets.js';
 import { buildProp } from './props.js';
 import { Presenter } from './presenter.js';
@@ -77,6 +78,19 @@ export class Studio {
     this.selRing.rotation.x = -Math.PI / 2;
     this.selRing.visible = false;
     this.scene.add(this.selRing);
+
+    // ---------- BUILDER mode: orbit design camera + transform gizmo ----------
+    this.builder = false;
+    this.builderView = 'orbit';   // 'orbit' | '2d' | cam number
+    this.orbit = { theta: 0.6, phi: 1.15, radius: 9, target: new THREE.Vector3(0, 1.1, 0) };
+    this.designCamera = new THREE.PerspectiveCamera(45, outWidth / outHeight, 0.1, 100);
+    this.planCamera = new THREE.OrthographicCamera(-9, 9, 9 * outHeight / outWidth, -9 * outHeight / outWidth, 0.1, 60);
+    this.planCamera.position.set(0, 25, 0.01);
+    this.planCamera.lookAt(0, 0, 0);
+    this.grid = new THREE.GridHelper(16, 32, 0x2277ff, 0x1a2438);
+    this.grid.position.y = 0.005;
+    this.grid.visible = false;
+    this.scene.add(this.grid);
 
     // CAM-strip thumbnails: tiny renders from each preset, round-robin
     this.thumbCamera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 100);
@@ -254,6 +268,100 @@ export class Studio {
     this._applyScale();
   }
 
+  // ---------- BUILDER mode ----------
+  /** Lazy-create the transform gizmo bound to the visible program canvas. */
+  initGizmo(domElement) {
+    if (this.gizmo) return;
+    this.gizmo = new TransformControls(this.designCamera, domElement);
+    this.gizmo.setSize(0.85);
+    this.scene.add(this.gizmo.getHelper ? this.gizmo.getHelper() : this.gizmo);
+    this.gizmo.enabled = false;
+  }
+
+  setBuilder(on) {
+    this.builder = on;
+    this.grid.visible = on;
+    if (this.gizmo) {
+      this.gizmo.enabled = on;
+      if (!on) this.gizmo.detach();
+    }
+  }
+
+  setBuilderView(view) {
+    this.builderView = view;
+    if (this.gizmo) {
+      this.gizmo.camera = view === '2d' ? this.planCamera : this.designCamera;
+    }
+  }
+
+  attachGizmo(id) {
+    if (!this.gizmo) return;
+    const g = id ? this.objects.get(id) : null;
+    if (g) this.gizmo.attach(g);
+    else this.gizmo.detach();
+  }
+
+  /** Read the gizmo'd transform back into the object's saved data. */
+  commitGizmo(data) {
+    const g = this.objects.get(data.id);
+    if (!g) return;
+    data.x = Math.round(g.position.x * 100) / 100;
+    data.z = Math.round(g.position.z * 100) / 100;
+    data.height = Math.max(0, Math.round(g.position.y * 100) / 100);
+    data.rotY = Math.round(THREE.MathUtils.radToDeg(g.rotation.y));
+    data.scale = Math.round(Math.max(g.scale.x, 0.1) * 100) / 100;
+    this.syncObject(data);
+  }
+
+  orbitRotate(dx, dy) {
+    this.orbit.theta -= dx * 0.005;
+    this.orbit.phi = THREE.MathUtils.clamp(this.orbit.phi - dy * 0.005, 0.15, 1.5);
+  }
+  orbitZoom(delta) {
+    this.orbit.radius = THREE.MathUtils.clamp(this.orbit.radius * (delta > 0 ? 1.1 : 0.9), 2.5, 22);
+  }
+  orbitPan(dx, dy) {
+    const t = this.orbit.target;
+    t.x = THREE.MathUtils.clamp(t.x - dx * 0.01 * Math.cos(this.orbit.theta), -8, 8);
+    t.z = THREE.MathUtils.clamp(t.z + dx * 0.01 * Math.sin(this.orbit.theta) - dy * 0.01, -5, 8);
+  }
+
+  _updateDesignCamera() {
+    const o = this.orbit;
+    this.designCamera.position.set(
+      o.target.x + o.radius * Math.sin(o.phi) * Math.sin(o.theta),
+      o.target.y + o.radius * Math.cos(o.phi),
+      o.target.z + o.radius * Math.sin(o.phi) * Math.cos(o.theta)
+    );
+    this.designCamera.lookAt(o.target);
+    this.designCamera.aspect = this.width / this.height;
+    this.designCamera.updateProjectionMatrix();
+  }
+
+  /** The camera the program canvas currently renders through. */
+  activeCamera() {
+    if (!this.builder) return this.rig.camera;
+    if (this.builderView === '2d') return this.planCamera;
+    if (typeof this.builderView === 'number') {
+      this.rig.poseCamera(this.thumbCamera, this.builderView, state.presenter.x);
+      this.thumbCamera.aspect = this.width / this.height;
+      this.thumbCamera.updateProjectionMatrix();
+      return this.thumbCamera;
+    }
+    this._updateDesignCamera();
+    return this.designCamera;
+  }
+
+  /** Current design view as an angle preset (ADD CAMERA in the builder). */
+  captureAngle() {
+    this._updateDesignCamera();
+    const p = this.designCamera.position;
+    const t = this.orbit.target;
+    return { pos: [+(p.x.toFixed(2)), +(p.y.toFixed(2)), +(p.z.toFixed(2))],
+             look: [+(t.x.toFixed(2)), +(t.y.toFixed(2)), +(t.z.toFixed(2))],
+             fov: 42, anchor: 0.4 };
+  }
+
   // ---------- CAM strip thumbnails ----------
   registerThumb(num, canvas) {
     this.thumbCanvases.set(num, { canvas, ctx: canvas.getContext('2d') });
@@ -346,12 +454,13 @@ export class Studio {
       this._renderThumb();
     }
 
-    if (this.postEnabled) {
+    const cam = this.activeCamera();
+    if (this.postEnabled && !this.builder) {
       this.vignettePass.uniforms.strength.value = state.look?.vignette ?? 0.5;
       this.bloomPass.strength = state.look?.bloom ?? 0.55;
       this.composer.render();
     } else {
-      this.renderer.render(this.scene, this.rig.camera);
+      this.renderer.render(this.scene, cam);
     }
   }
 }

@@ -84,6 +84,28 @@ app.whenReady().then(async () => {
   await wait(400);
   await shot('07-camera-inspector');
 
+  // BUILDER mode: 3D design view with gizmo on selection
+  await js(`document.getElementById('mode-builder').click()`);
+  await wait(1500);
+  await js(`const o = document.querySelectorAll('#layer-list li');
+    o[0]?.click()`);
+  await wait(800);
+  await shot('16-builder-3d');
+
+  // builder 2D floor plan
+  await js(`document.getElementById('bb-2d').click()`);
+  await wait(800);
+  await shot('17-builder-plan');
+
+  // add camera + back to studio
+  await js(`document.getElementById('bb-3d').click()`);
+  await wait(300);
+  await js(`document.getElementById('bb-addcam').click()`);
+  await wait(600);
+  await shot('18-builder-addcam');
+  await js(`document.getElementById('mode-studio').click()`);
+  await wait(800);
+
   // graphics pane + drawer
   await js(`document.querySelector('.irail-btn[data-nav="graphics"]').click();
     document.querySelectorAll('#gfx-list li')[0]?.click()`);

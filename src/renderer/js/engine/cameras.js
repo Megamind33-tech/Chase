@@ -4,6 +4,7 @@
 // Honest by design: this is virtual-set parallax + reframing, not true
 // multi-camera footage of the person.
 import * as THREE from 'three';
+import { state } from '../state.js';
 
 export const ANGLES = [
   { num: 1, name: 'Wide',     pos: [0, 1.85, 8.4],      look: [0, 1.55, -0.8], fov: 42, anchor: 0.25 },
@@ -13,6 +14,10 @@ export const ANGLES = [
   { num: 5, name: '2-shot',   pos: [-4.0, 1.9, 5.4],    look: [0.9, 1.7, -2.4], fov: 44, anchor: 0.45 },
   { num: 6, name: 'Close up', pos: [0.35, 1.5, 2.35],   look: [0, 1.48, 0],    fov: 22, anchor: 1.0 }
 ];
+
+export function allAngles() {
+  return [...ANGLES, ...(state.camera.customAngles || [])];
+}
 
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
@@ -42,7 +47,7 @@ export class CameraRig {
   }
 
   switchTo(num, mode, presenterX) {
-    const a = ANGLES.find((x) => x.num === num) || ANGLES[0];
+    const a = allAngles().find((x) => x.num === num) || ANGLES[0];
     this.active = num;
     if (mode === 'move') {
       this._from = { pos: this._cur.pos.clone(), look: this._cur.look.clone(), fov: this._cur.fov };
@@ -68,7 +73,7 @@ export class CameraRig {
       this._cur.fov = this._from.fov + (this._to.fov - this._from.fov) * k;
       if (this._t >= 1) { this._from = this._to = null; }
     } else {
-      const a = ANGLES.find((x) => x.num === this.active) || ANGLES[0];
+      const a = allAngles().find((x) => x.num === this.active) || ANGLES[0];
       this._applyAngle(a, this._cur, presenterX);
     }
 
@@ -89,7 +94,7 @@ export class CameraRig {
 
   /** Pose a throwaway camera at an angle preset (for the CAM-strip thumbnails). */
   poseCamera(camera, num, presenterX) {
-    const a = ANGLES.find((x) => x.num === num) || ANGLES[0];
+    const a = allAngles().find((x) => x.num === num) || ANGLES[0];
     const tmp = { pos: new THREE.Vector3(), look: new THREE.Vector3(), fov: a.fov };
     this._applyAngle(a, tmp, presenterX);
     camera.position.copy(tmp.pos);

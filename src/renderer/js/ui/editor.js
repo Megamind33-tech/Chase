@@ -4,7 +4,7 @@
 // modals, autosave, health chips, keyboard.
 import { state, serialize, serializeTemplate, nextObjectId } from '../state.js';
 import { SETS, SET_CATEGORIES, PRESETS, LIGHT_MOODS, SKIN_PRESETS, PROPS, GRAPHICS, MACROS } from '../templates.js';
-import { ANGLES } from '../engine/cameras.js';
+import { ANGLES, allAngles } from '../engine/cameras.js';
 import { snapshotScene, applyScene, runMacro } from '../scenes.js';
 import { capture } from '../capture.js';
 import { toast } from './toasts.js';
@@ -41,6 +41,11 @@ export function initEditor(ctx) {
   document.getElementById('tt-rotr').innerHTML = icon('rotate');
   document.getElementById('tt-dup').innerHTML = icon('duplicate');
   document.getElementById('tt-lock').innerHTML = icon('lock');
+  document.querySelectorAll('[data-gizmo]').forEach((b) => {
+    const ic = { translate: 'move', rotate: 'rotate', scale: 'expand' }[b.dataset.gizmo];
+    b.insertAdjacentHTML('afterbegin', icon(ic));
+  });
+  document.getElementById('bb-addcam').insertAdjacentHTML('afterbegin', icon('camera'));
   document.getElementById('tt-del').innerHTML = icon('trash');
   let selectedId = null;
   let activeNav = 'sets';
@@ -190,6 +195,7 @@ export function initEditor(ctx) {
         id: nextObjectId(), kind: 'model', x: 2.2, z: 0.6, rotY: 0, scale: 1,
         height: 0, opacity: 1, shadow: 0.55, media: { url: media.url, path: media.path, type: 'model' }, visible: true
       };
+      pushHistory();
       state.objects.push(data);
       studio.addObject('model', data.x, data.z, data);
       selectObject(data.id);
@@ -258,7 +264,7 @@ export function initEditor(ctx) {
       });
       body.appendChild(es);
     }
-    for (const a of ANGLES) {
+    for (const a of allAngles()) {
       const card = libCard('camera', 'CAM ' + a.num + ' · ' + a.name,
         'Virtual ' + a.name.toLowerCase() + ' angle', null, () => switchCam(a.num));
       card.draggable = false;
@@ -347,6 +353,7 @@ export function initEditor(ctx) {
   }
 
   function addProp(kind, x, z) {
+    pushHistory();
     const data = studio.addObject(kind, x ?? (1.8 + Math.random()), z ?? 0.4);
     selectObject(data.id);
     refreshLayerList();
@@ -442,7 +449,8 @@ export function initEditor(ctx) {
   const camstrip = $('camstrip');
   function buildCamStrip() {
     camstrip.innerHTML = '';
-    for (const a of ANGLES) {
+    studio.thumbCanvases.clear();
+    for (const a of allAngles()) {
       const tile = document.createElement('button');
       tile.className = 'cam-tile' + (a.num === state.camera.active ? ' program' : '');
       tile.dataset.cam = a.num;
@@ -479,11 +487,41 @@ export function initEditor(ctx) {
     }
     camstrip.querySelectorAll('.cam-tile').forEach((b) =>
       b.classList.toggle('program', Number(b.dataset.cam) === num));
-    const a = ANGLES.find((x) => x.num === num);
-    $('vp-cam').textContent = `CAM ${num} · ${a.name.toUpperCase()}`;
+    const a = allAngles().find((x) => x.num === num);
+    $('vp-cam').textContent = `CAM ${num} · ${(a?.name || '').toUpperCase()}`;
     if (activeNav === 'cameras') buildBrowser();
     if (!selectedId) buildStudioOverview();
   }
+
+  /* ---- UNDO / REDO (scene objects) ---- */
+  const undoStack = [];
+  const redoStack = [];
+  function pushHistory() {
+    undoStack.push(JSON.stringify(state.objects));
+    if (undoStack.length > 30) undoStack.shift();
+    redoStack.length = 0;
+  }
+  function restoreObjects(json) {
+    state.objects = JSON.parse(json);
+    studio.rebuildObjects();
+    selectObject(null);
+    refreshLayerList();
+  }
+  function doUndo() {
+    if (!undoStack.length) return toast('Nothing to undo');
+    redoStack.push(JSON.stringify(state.objects));
+    restoreObjects(undoStack.pop());
+  }
+  function doRedo() {
+    if (!redoStack.length) return toast('Nothing to redo');
+    undoStack.push(JSON.stringify(state.objects));
+    restoreObjects(redoStack.pop());
+  }
+  $('btn-undo').addEventListener('click', doUndo);
+  $('btn-redo').addEventListener('click', doRedo);
+  $('btn-new').addEventListener('click', () => {
+    if (confirm('Start a new project? Unsaved changes will be lost.')) location.reload();
+  });
 
   /* ---- PROGRAM / PREVIEW bus ---- */
   function stagePreview(num) {
@@ -640,6 +678,7 @@ export function initEditor(ctx) {
   function selectObject(id) {
     selectedId = id;
     studio.setSelectionGlow(id);
+    if (typeof building !== 'undefined' && building) studio.attachGizmo(id);
     refreshLayerList();
     const props = $('obj-props');
     const data = id ? state.objects.find((o) => o.id === id) : null;
@@ -731,6 +770,7 @@ export function initEditor(ctx) {
   }
   $('obj-delete').addEventListener('click', () => {
     if (!selectedId) return;
+    pushHistory();
     studio.removeObject(selectedId);
     selectObject(null);
   });
@@ -753,6 +793,7 @@ export function initEditor(ctx) {
   $('tt-dup').addEventListener('click', () => {
     const d = selData();
     if (!d) return;
+    pushHistory();
     const copy = studio.addObject(d.kind, d.x + 0.45, d.z + 0.25);
     Object.assign(copy, { rotY: d.rotY, scale: d.scale, height: d.height, opacity: d.opacity });
     studio.syncObject(copy);
@@ -761,6 +802,7 @@ export function initEditor(ctx) {
   });
   $('tt-del').addEventListener('click', () => {
     if (!selectedId) return;
+    pushHistory();
     studio.removeObject(selectedId);
     selectObject(null);
   });
@@ -983,8 +1025,20 @@ export function initEditor(ctx) {
       });
       item.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        const name = prompt('Scene name', sc.name);
-        if (name) { sc.name = name; buildSceneList(); }
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.value = sc.name;
+        inp.className = 'sc-rename';
+        inp.addEventListener('click', (ev) => ev.stopPropagation());
+        inp.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { sc.name = inp.value.trim() || sc.name; buildSceneList(); }
+          if (ev.key === 'Escape') buildSceneList();
+          ev.stopPropagation();
+        });
+        inp.addEventListener('blur', () => { sc.name = inp.value.trim() || sc.name; buildSceneList(); });
+        item.replaceChildren(inp);
+        inp.focus();
+        inp.select();
       });
       list.appendChild(item);
     });
@@ -1110,7 +1164,7 @@ export function initEditor(ctx) {
     pgm.insertAdjacentHTML('beforeend', '<span class="mv-label">PROGRAM</span>');
     grid.appendChild(pgm);
     const cells = [];
-    for (const a of ANGLES) {
+    for (const a of allAngles()) {
       const cell = document.createElement('div');
       cell.className = 'mv-cell';
       const cv = document.createElement('canvas');
@@ -1376,13 +1430,139 @@ export function initEditor(ctx) {
     } catch {}
   }, 2000);
 
+  /* ================= BUILDER MODE ================= */
+  let building = false;
+  let orbiting = false;
+  studio.initGizmo(canvas);
+  if (studio.gizmo) {
+    studio.gizmo.addEventListener('dragging-changed', (e) => {
+      orbiting = false;
+      if (e.value) pushHistory();
+      else {
+        const d = selData();
+        if (d) { studio.commitGizmo(d); selectObject(d.id); }
+      }
+    });
+  }
+
+  function setBuilderMode(on) {
+    if (on && (outputs.streaming || outputs.recording)) {
+      if (!confirm('You are LIVE/RECORDING — the builder design view will be visible on program. Continue?')) return;
+    }
+    building = on;
+    studio.setBuilder(on);
+    document.getElementById('editor').classList.toggle('building', on);
+    $('mode-studio').classList.toggle('active', !on);
+    $('mode-builder').classList.toggle('active', on);
+    $('builder-bar').hidden = !on;
+    if (on) {
+      logEvent('Builder mode opened');
+      document.querySelector('.irail-btn[data-nav="props"]').click();
+      toast('BUILDER — drag to orbit, use the gizmo to place objects, + ADD CAMERA saves your view as an angle.', '', 5200);
+      if (selectedId) studio.attachGizmo(selectedId);
+    } else {
+      studio.attachGizmo(null);
+      logEvent('Builder closed — back to studio');
+      switchCam(state.camera.active, true);
+    }
+  }
+  $('mode-studio').addEventListener('click', () => setBuilderMode(false));
+  $('mode-builder').addEventListener('click', () => setBuilderMode(true));
+
+  // view toggles
+  $('bb-3d').addEventListener('click', () => {
+    studio.setBuilderView($('bb-camsel').value === 'orbit' ? 'orbit' : Number($('bb-camsel').value));
+    $('bb-3d').classList.add('active'); $('bb-2d').classList.remove('active');
+  });
+  $('bb-2d').addEventListener('click', () => {
+    studio.setBuilderView('2d');
+    $('bb-2d').classList.add('active'); $('bb-3d').classList.remove('active');
+  });
+  function refreshBuilderCams() {
+    const sel = $('bb-camsel');
+    sel.innerHTML = '<option value="orbit">Design view</option>' +
+      allAngles().map((a) => `<option value="${a.num}">CAM ${a.num} · ${a.name}</option>`).join('');
+  }
+  $('bb-camsel').addEventListener('change', (e) => {
+    studio.setBuilderView(e.target.value === 'orbit' ? 'orbit' : Number(e.target.value));
+    $('bb-3d').classList.add('active'); $('bb-2d').classList.remove('active');
+  });
+
+  // gizmo modes + snap
+  document.querySelectorAll('[data-gizmo]').forEach((b) => {
+    b.addEventListener('click', () => {
+      studio.gizmo?.setMode(b.dataset.gizmo);
+      document.querySelectorAll('[data-gizmo]').forEach((x) => x.classList.toggle('active', x === b));
+    });
+  });
+  $('bb-snap').addEventListener('click', () => {
+    const on = $('bb-snap').classList.toggle('active');
+    if (studio.gizmo) {
+      studio.gizmo.setTranslationSnap(on ? 0.25 : null);
+      studio.gizmo.setRotationSnap(on ? Math.PI / 12 : null);
+      studio.gizmo.setScaleSnap(on ? 0.1 : null);
+    }
+  });
+
+  // ADD CAMERA: capture the current design view as a real angle preset
+  $('bb-addcam').addEventListener('click', () => {
+    const total = allAngles().length;
+    if (total >= 12) return toast('Camera limit reached (12).', 'err');
+    if ($('bb-camsel').value !== 'orbit' || $('bb-2d').classList.contains('active')) {
+      return toast('Switch to the 3D design view first — ADD CAMERA saves that view.', 'err', 4200);
+    }
+    const preset = studio.captureAngle();
+    const num = Math.max(...allAngles().map((a) => a.num)) + 1;
+    const name = 'Custom ' + num;
+    state.camera.customAngles.push({ num, name, ...preset });
+    buildCamStrip();
+    refreshBuilderCams();
+    if (activeNav === 'cameras') buildBrowser();
+    logEvent('Camera angle created: CAM ' + num + ' · ' + name, 'ok');
+    toast('CAM ' + num + ' · ' + name + ' added to the switcher', 'ok');
+  });
+
+  // orbit interactions on the program canvas (builder, design view only)
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!building) return;
+    if (studio.gizmo?.axis) return; // gizmo handles its own drag
+    const p = toCanvas(e);
+    const id = studio.pick(p.x, p.y);
+    if (id) {
+      selectObject(id);
+      studio.attachGizmo(id);
+    } else if ($('bb-camsel').value === 'orbit' && !$('bb-2d').classList.contains('active')) {
+      orbiting = true;
+    }
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!building || !orbiting) return;
+    if (e.shiftKey) studio.orbitPan(e.movementX, e.movementY);
+    else studio.orbitRotate(e.movementX, e.movementY);
+  });
+  window.addEventListener('pointerup', () => { orbiting = false; });
+  canvas.addEventListener('wheel', (e) => {
+    if (!building) return;
+    e.preventDefault();
+    studio.orbitZoom(e.deltaY);
+  }, { passive: false });
+
+  refreshBuilderCams();
+
   /* ================= KEYBOARD ================= */
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key >= '1' && e.key <= '6') stagePreview(Number(e.key));
     if (e.key === 'Enter') takeProgram('take');
     if (e.key.toLowerCase() === 'b') $('btn-black').click();
-    if (e.key === 'Delete' && selectedId) { studio.removeObject(selectedId); selectObject(null); }
+    if (typeof building !== 'undefined' && building) {
+      if (e.key.toLowerCase() === 'g') document.querySelector('[data-gizmo="translate"]').click();
+      if (e.key.toLowerCase() === 'r') document.querySelector('[data-gizmo="rotate"]').click();
+      if (e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey) document.querySelector('[data-gizmo="scale"]').click();
+    }
+    if (e.key === 'Delete' && selectedId) { pushHistory(); studio.removeObject(selectedId); selectObject(null); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); doUndo(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); doRedo(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveProject(); }
   });
 

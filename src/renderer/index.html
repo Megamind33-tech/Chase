@@ -119,14 +119,23 @@
     <div class="topbar-left">
       <div class="brandmark small"><span class="brandmark-dot"></span>CHASE&nbsp;STUDIO&nbsp;<b>PRO</b></div>
       <span class="topbar-sep"></span>
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="mode-studio">STUDIO</button>
+        <button class="mode-tab" id="mode-builder">BUILDER</button>
+      </div>
+      <span class="topbar-sep"></span>
       <input id="project-name" class="project-name" value="My Studio" spellcheck="false" />
       <span class="autosave" id="autosave-dot" title="Autosave status">●</span>
       <div class="topbar-actions">
+        <button class="tbtn" id="btn-new" title="New project">New</button>
         <button class="tbtn" id="btn-save" title="Save project (Ctrl+S)">Save</button>
         <button class="tbtn" id="btn-open2" title="Open project">Open</button>
         <button class="tbtn" id="btn-import2" title="Import scene template">Import</button>
         <button class="tbtn" id="btn-export-template" title="Export scene template">Export</button>
         <button class="tbtn" id="btn-oplog" title="Operator log">Log</button>
+        <span class="topbar-sep"></span>
+        <button class="tbtn" id="btn-undo" title="Undo object change (Ctrl+Z)">Undo</button>
+        <button class="tbtn" id="btn-redo" title="Redo (Ctrl+Y)">Redo</button>
       </div>
     </div>
     <div class="topbar-center">
@@ -177,6 +186,23 @@
           <span class="vp-live" id="vp-live"><span class="vp-live-dot"></span>LIVE PREVIEW</span>
           <span class="vp-cam" id="vp-cam">CAM 1 · WIDE</span>
           <span class="vp-aspect">16:9</span>
+        </div>
+        <div class="builder-bar" id="builder-bar" hidden>
+          <div class="bb-group">
+            <button class="bb-btn active" id="bb-3d" title="Perspective design view">3D</button>
+            <button class="bb-btn" id="bb-2d" title="Top-down floor plan">2D</button>
+          </div>
+          <select id="bb-camsel" class="bb-sel" title="View through a camera">
+            <option value="orbit">Design view</option>
+          </select>
+          <div class="bb-group">
+            <button class="bb-btn active" data-gizmo="translate" title="Move (G)"></button>
+            <button class="bb-btn" data-gizmo="rotate" title="Rotate (R)"></button>
+            <button class="bb-btn" data-gizmo="scale" title="Scale (S)"></button>
+          </div>
+          <button class="bb-btn" id="bb-snap" title="Snap to 0.25m grid / 15°">SNAP</button>
+          <button class="bb-btn gold" id="bb-addcam" title="Save this design view as a new camera angle">+ ADD CAMERA</button>
+          <span class="bb-hint">Drag: orbit · Wheel: zoom · Shift-drag: pan</span>
         </div>
         <div class="transform-bar" id="transform-bar" hidden>
           <button class="ttool" id="tt-rotl" title="Rotate left 15°"></button>
