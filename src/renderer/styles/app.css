@@ -860,3 +860,155 @@ input[type="checkbox"] { accent-color: var(--blue); width: 14px; height: 14px; }
   animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   SKIN PASS v4 — layered broadcast skin, bevelled controls,
+   control-room polish. Appended rules intentionally override.
+   ============================================================ */
+
+/* -- layer 1: background light falloff (no flat black voids) -- */
+.editor {
+  background:
+    radial-gradient(1200px 600px at 50% -8%, rgba(34,119,255,.07), transparent 60%),
+    radial-gradient(900px 500px at 50% 115%, rgba(0,199,255,.05), transparent 55%),
+    var(--bg-0);
+}
+.stage { background: transparent; }
+
+/* -- layer 2/3: panels get inner top-light + side depth -- */
+.browser, .inspector, .iconrail {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+.ps-block {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), inset 0 -14px 22px rgba(0,0,0,.22);
+}
+.obj-props, .dest-edit, .empty-state {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 2px 8px rgba(0,0,0,.25);
+}
+
+/* -- buttons: production bevel language -- */
+.btn, .tbtn, .btn-rec, .btn-live, .trans-btn, .macro-btn, .ps-add, .vtool, .quick-grid button {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.35);
+}
+.btn:active, .trans-btn:active, .macro-btn:active, .quick-grid button:active {
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.45);
+}
+.btn.ghost, .tbtn { box-shadow: none; }
+.btn.ghost:hover, .tbtn:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+
+/* REC / GO LIVE — serious broadcast keys */
+.btn-rec, .btn-live {
+  height: 32px; padding: 0 17px; border-radius: 7px;
+  background: linear-gradient(180deg, #1a2336, #121a2a);
+  border: 1px solid #2a3650;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 6px rgba(0,0,0,.4);
+  letter-spacing: .1em;
+}
+.btn-rec:hover { border-color: #8c3038; background: linear-gradient(180deg, #241a22, #161018); }
+.btn-live {
+  border-color: #8c2730;
+  background: linear-gradient(180deg, #2a151c, #1a0d12);
+  color: #ffb3b9;
+}
+.btn-live:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 14px rgba(230,57,70,.35); }
+.btn-live.on {
+  background: var(--grad-live); color: #fff; border-color: #ff6b76;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 0 18px rgba(230,57,70,.5);
+}
+.btn-rec.on {
+  background: linear-gradient(180deg, #471218, #2d0c10); border-color: var(--red);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 16px rgba(230,57,70,.4);
+}
+
+/* -- topbar chips: instrument feel -- */
+.statchip {
+  background: linear-gradient(180deg, #0c1422, #080d16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* -- CAM cards: tally pulse, key chip, res tag -- */
+.cam-tile { box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 2px 8px rgba(0,0,0,.4); }
+.cam-tile.program { animation: tallypulse 1.8s ease-in-out infinite; }
+@keyframes tallypulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(230,57,70,.4), 0 0 14px rgba(230,57,70,.25); }
+  50% { box-shadow: 0 0 0 2px rgba(230,57,70,.65), 0 0 22px rgba(230,57,70,.4); }
+}
+.ct-key {
+  display: inline-grid; place-items: center; width: 14px; height: 14px;
+  border: 1px solid rgba(255,255,255,.22); border-radius: 4px;
+  font-size: 8px; font-weight: 800; color: var(--txt-dim);
+  background: rgba(8,12,20,.7);
+}
+.cam-tile.program .ct-key { color: #fff; border-color: rgba(255,255,255,.4); }
+.ct-res {
+  font-size: 7.5px; font-weight: 800; letter-spacing: .06em; color: var(--txt-faint);
+}
+
+/* -- viewport: premium frame + HUD -- */
+#program-canvas {
+  box-shadow:
+    0 0 0 1px #223150,
+    0 0 0 2px rgba(34,119,255,.12),
+    0 18px 60px rgba(0,0,0,.65),
+    0 0 40px rgba(34,119,255,.06);
+}
+.vp-hud {
+  position: absolute; bottom: 16px; left: 26px; display: flex; gap: 6px; pointer-events: none;
+}
+.vp-hud span {
+  font-size: 9px; font-weight: 800; letter-spacing: .08em; color: var(--txt-dim);
+  background: var(--glass); border: 1px solid var(--line); padding: 3px 8px; border-radius: 9px;
+  backdrop-filter: blur(5px); font-variant-numeric: tabular-nums;
+}
+.vp-live { animation: blink 1.2s infinite paused; }
+.vp-live .vp-live-dot { animation: blink 1.2s infinite; }
+
+/* -- inspector: grouped module headers + quick tiles elevation -- */
+.panel h3 { letter-spacing: .14em; }
+.quick-grid button {
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+  border-color: var(--line);
+}
+.quick-grid button:hover { border-color: rgba(0,199,255,.4); box-shadow: 0 3px 10px rgba(0,0,0,.35), 0 0 10px rgba(0,199,255,.12); }
+
+/* -- scenes: live pulse -- */
+.scene-item.live { animation: scenepulse 2s ease-in-out infinite; }
+@keyframes scenepulse {
+  0%, 100% { border-color: rgba(230,57,70,.55); }
+  50% { border-color: rgba(230,57,70,.95); }
+}
+
+/* -- destination cards: stronger card feel + live pulse -- */
+.dest-row {
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  padding: 7px 10px;
+}
+.dest-row.live { animation: destpulse 2.2s ease-in-out infinite; }
+@keyframes destpulse {
+  0%, 100% { border-color: rgba(230,57,70,.5); }
+  50% { border-color: rgba(230,57,70,.9); }
+}
+
+/* -- asset browser: thumbnail frames + drag state -- */
+.bset-thumb { border-bottom: 1px solid rgba(255,255,255,.06); }
+.bset-card { box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 2px 8px rgba(0,0,0,.3); }
+.bset-card:active { cursor: grabbing; transform: scale(.985); }
+.lib-card { box-shadow: inset 0 1px 0 rgba(255,255,255,.03); }
+
+/* -- transitions/macros: instrument cluster -- */
+.trans-btn, .macro-btn { background: linear-gradient(180deg, var(--bg-3), var(--bg-2)); }
+.trans-btn.active {
+  background: linear-gradient(180deg, rgba(34,119,255,.28), rgba(34,119,255,.1));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 0 10px rgba(34,119,255,.18);
+}
+
+/* -- mixer meters: recessed instrument wells -- */
+.mx-meter { box-shadow: inset 0 2px 8px rgba(0,0,0,.7), inset 0 0 0 1px rgba(0,0,0,.4); }
+
+/* -- inspector tab transition -- */
+.panel { animation: panelin .16s ease; }
+@keyframes panelin { from { opacity: .35; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* -- gfx drawer + modal elevation refinement -- */
+.gfx-drawer { background: linear-gradient(180deg, var(--bg-3), var(--bg-2)); }

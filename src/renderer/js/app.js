@@ -90,7 +90,8 @@ async function startStudio() {
   if (!editor) {
     editor = initEditor({
       studio, overlay, outputs, audio, compositor,
-      setBgMode, resizeOutput, loadProject
+      setBgMode, resizeOutput, loadProject,
+      reopenCapture: openCapture
     });
 
     let last = performance.now();

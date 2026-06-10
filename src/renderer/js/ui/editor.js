@@ -222,6 +222,23 @@ export function initEditor(ctx) {
   /* ---- cameras pane ---- */
   function buildCamerasPane(body) {
     $('browser-hint').textContent = 'Click an angle to take it to program. Keys 1–6.';
+    if (!capture.stream || !capture.stream.active) {
+      const es = document.createElement('div');
+      es.className = 'empty-state';
+      es.innerHTML = `${icon('camera')}<h5>No camera connected</h5>
+        <p>The virtual angles work, but your presenter feed is offline.</p>
+        <div class="row gap" style="justify-content:center">
+          <button class="btn primary slim" id="es-cam-retry">${icon('camera')} Reconnect camera</button>
+        </div>`;
+      es.querySelector('#es-cam-retry').addEventListener('click', async (e) => {
+        e.target.classList.add('loading');
+        const ok = await ctx.reopenCapture();
+        e.target.classList.remove('loading');
+        toast(ok ? 'Camera connected' : 'Still no camera — check the cable and permissions.', ok ? 'ok' : 'err');
+        buildBrowser();
+      });
+      body.appendChild(es);
+    }
     for (const a of ANGLES) {
       const card = libCard('camera', 'CAM ' + a.num + ' · ' + a.name,
         'Virtual ' + a.name.toLowerCase() + ' angle', null, () => switchCam(a.num));
@@ -373,6 +390,19 @@ export function initEditor(ctx) {
     }
   });
 
+  // viewport HUD: live engine readout
+  const hud = document.createElement('div');
+  hud.className = 'vp-hud';
+  hud.innerHTML = '<span id="hud-q"></span><span id="hud-cam"></span>';
+  $('viewport-wrap').appendChild(hud);
+  setInterval(() => {
+    const q = state.output.quality === 'auto' ? 'AUTO ' + Math.round(studio.qualityScale * 100) + '%' : state.output.quality.toUpperCase();
+    document.getElementById('hud-q').textContent =
+      (state.output.height === 1080 ? '1080p' : '720p') + state.output.fps + ' · ' + q;
+    document.getElementById('hud-cam').textContent =
+      'FOCAL ' + (2 - (state.camera.fovScale ?? 1)).toFixed(2) + '× · ' + (state.camera.drift ? 'DRIFT ON' : 'LOCKED');
+  }, 1000);
+
   $('btn-safearea').addEventListener('click', () => { $('safe-areas').hidden = !$('safe-areas').hidden; });
   $('btn-fullscreen').addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -392,7 +422,8 @@ export function initEditor(ctx) {
       tile.appendChild(cv);
       const label = document.createElement('span');
       label.className = 'ct-label';
-      label.innerHTML = `<span>CAM ${a.num}</span><span>${a.name.toUpperCase()}</span>`;
+      label.innerHTML = `<span><span class="ct-key">${a.num}</span> CAM ${a.num}</span>
+        <span>${a.name.toUpperCase()} <span class="ct-res">${state.output.height === 1080 ? '1080' : '720'}</span></span>`;
       tile.appendChild(label);
       tile.addEventListener('click', () => switchCam(a.num));
       camstrip.appendChild(tile);
