@@ -14,23 +14,56 @@ export function buildProp(kind, theme, brand) {
   }
 }
 
+// Premium LED media zone: dark-blue panel, pixel grid, media-safe lines,
+// glowing edge — never a flat green block.
 function slateTexture(brand, label) {
   const cv = document.createElement('canvas');
   cv.width = 512; cv.height = 288;
   const ctx = cv.getContext('2d');
   const g = ctx.createLinearGradient(0, 0, 512, 288);
-  g.addColorStop(0, '#101622');
-  g.addColorStop(1, '#1b2536');
+  g.addColorStop(0, '#08111f');
+  g.addColorStop(0.5, '#0c1a32');
+  g.addColorStop(1, '#081120');
   ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
-  ctx.fillStyle = brand.accent || '#e8b220';
-  ctx.fillRect(0, 258, 512, 8);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.font = '800 36px "Segoe UI", system-ui, sans-serif';
+  // LED pixel grid
+  ctx.strokeStyle = 'rgba(80,140,255,0.07)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= 512; x += 16) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 288); ctx.stroke(); }
+  for (let y = 0; y <= 288; y += 16) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke(); }
+  // media-safe guides
+  ctx.strokeStyle = 'rgba(120,180,255,0.22)';
+  ctx.setLineDash([6, 5]);
+  ctx.strokeRect(26, 15, 512 - 52, 288 - 30);
+  ctx.setLineDash([]);
+  // corner handles
+  ctx.strokeStyle = 'rgba(0,199,255,0.85)';
+  ctx.lineWidth = 3;
+  for (const [cx, cy] of [[26, 15], [486, 15], [26, 273], [486, 273]]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + (cx < 256 ? 14 : -14), cy);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(cx, cy + (cy < 144 ? 14 : -14));
+    ctx.stroke();
+  }
+  // glowing border
+  ctx.strokeStyle = 'rgba(34,119,255,0.55)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, 508, 284);
+  // centre media glyph + copy
+  ctx.strokeStyle = 'rgba(160,200,255,0.7)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(226, 96, 60, 44);
+  ctx.beginPath();
+  ctx.moveTo(246, 108); ctx.lineTo(246, 128); ctx.lineTo(264, 118); ctx.closePath();
+  ctx.fillStyle = 'rgba(160,200,255,0.7)';
+  ctx.fill();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText((brand.name || 'CHASE').toUpperCase(), 256, 124);
-  ctx.font = '600 20px "Segoe UI", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.fillText(label, 256, 168);
+  ctx.font = '700 19px "Segoe UI", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(210,228,255,0.85)';
+  ctx.fillText('DROP VIDEO · IMAGE · LIVE FEED', 256, 172);
+  ctx.font = '600 13px "Segoe UI", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(140,170,210,0.55)';
+  ctx.fillText((brand.name || 'CHASE').toUpperCase() + ' · MEDIA ZONE', 256, 196);
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -48,7 +81,10 @@ function screenProp(theme, brand, width) {
 
   const frame = new THREE.Mesh(
     new THREE.BoxGeometry(width + 0.07, h + 0.07, 0.05),
-    new THREE.MeshStandardMaterial({ color: '#0b0d12', roughness: 0.35, metalness: 0.7 })
+    new THREE.MeshStandardMaterial({
+      color: '#0b0d12', roughness: 0.35, metalness: 0.7,
+      emissive: theme.trim || '#2277ff', emissiveIntensity: 0.25
+    })
   );
   frame.position.set(0, cy, -0.03);
   g.add(frame);

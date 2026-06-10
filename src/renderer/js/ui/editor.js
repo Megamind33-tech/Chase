@@ -40,6 +40,7 @@ export function initEditor(ctx) {
   document.getElementById('tt-rotl').innerHTML = icon('undo');
   document.getElementById('tt-rotr').innerHTML = icon('rotate');
   document.getElementById('tt-dup').innerHTML = icon('duplicate');
+  document.getElementById('tt-lock').innerHTML = icon('lock');
   document.getElementById('tt-del').innerHTML = icon('trash');
   let selectedId = null;
   let activeNav = 'sets';
@@ -117,11 +118,13 @@ export function initEditor(ctx) {
         <span class="bset-tag">${s.cat[0]}</span>
         <span class="bset-q">HD · 3D</span>
         ${id === state.setId ? '<span class="bset-live">IN USE</span>' : ''}
+        <div class="bset-actions"><button class="btn primary slim">${icon('check')} Use set</button></div>
         <div class="bset-meta">
           <div class="tcol"><span class="n">${s.name}</span><span class="d">${s.desc}</span></div>
           <button class="bset-fav${favs.has(id) ? ' on' : ''}" title="Favourite">${icon('star')}</button>
         </div>`;
       card.querySelector('.bset-fav').addEventListener('click', (e) => { e.stopPropagation(); toggleFav(id); });
+      card.querySelector('.bset-actions button').addEventListener('click', (e) => { e.stopPropagation(); apply(); });
       const apply = () => {
         compositor.beginTransition(state.transition.type === 'wipe' ? 'wipe' : 'fade', 0.5);
         studio.loadSet(id);
@@ -334,6 +337,7 @@ export function initEditor(ctx) {
     const p = toCanvas(e);
     const pt = studio.floorPoint(p.x, p.y);
     const data = state.objects.find((o) => o.id === selectedId);
+    if (data?.locked) return;
     if (pt && data) {
       data.x = Math.round(pt.x * 100) / 100;
       data.z = Math.round(pt.z * 100) / 100;
@@ -417,6 +421,7 @@ export function initEditor(ctx) {
     const a = ANGLES.find((x) => x.num === num);
     $('vp-cam').textContent = `CAM ${num} · ${a.name.toUpperCase()}`;
     if (activeNav === 'cameras') buildBrowser();
+    if (!selectedId) buildStudioOverview();
   }
 
   /* ================= INSPECTOR TABS ================= */
@@ -430,6 +435,43 @@ export function initEditor(ctx) {
     }));
 
   /* ---- inspect: selection + layers ---- */
+  function buildStudioOverview() {
+    const box = $('inspect-empty');
+    const setDef = SETS[state.setId];
+    const a = ANGLES.find((x) => x.num === state.camera.active);
+    box.innerHTML = `
+      <div class="obj-props" style="border-color:var(--line);background:var(--bg-2)">
+        <h4>${icon('studio')} Studio overview</h4>
+        <div class="ov-row"><span>Set</span><b>${setDef?.name || state.setId}</b></div>
+        <div class="ov-row"><span>Camera</span><b>CAM ${state.camera.active} · ${a?.name || ''}</b></div>
+        <div class="ov-row"><span>Quality</span><b>${state.output.quality === 'auto' ? 'Auto · ' + Math.round(studio.qualityScale * 100) + '%' : state.output.quality}</b></div>
+        <div class="ov-row"><span>Scenes</span><b>${state.scenes.length}</b></div>
+        <div class="ov-row"><span>Objects</span><b>${state.objects.length}</b></div>
+      </div>
+      <h3>Quick add</h3>
+      <div class="quick-grid">
+        <button data-qa="screen">${icon('screen')}<span>Screen</span></button>
+        <button data-qa="monitor">${icon('studio')}<span>Monitor</span></button>
+        <button data-qa="gfx:lowerThird">${icon('lowerthird')}<span>Lower third</span></button>
+        <button data-qa="gfx:logoBug">${icon('logobug')}<span>Logo bug</span></button>
+        <button data-qa="gfx:ticker">${icon('ticker')}<span>Ticker</span></button>
+        <button data-qa="plinth">${icon('cube')}<span>Plinth</span></button>
+      </div>
+      <p class="hint">Select any object in the studio to edit its position, scale, rotation, opacity, media and lock state.</p>`;
+    box.querySelectorAll('[data-qa]').forEach((b) => b.addEventListener('click', () => {
+      const qa = b.dataset.qa;
+      if (qa.startsWith('gfx:')) {
+        const key = qa.slice(4);
+        overlay.toggle(key, true);
+        refreshGfxList();
+        openGfxDrawer(key);
+      } else {
+        addProp(qa);
+      }
+      buildStudioOverview();
+    }));
+  }
+
   function selectObject(id) {
     selectedId = id;
     studio.setSelectionGlow(id);
@@ -439,7 +481,8 @@ export function initEditor(ctx) {
     props.hidden = !data;
     $('inspect-empty').hidden = !!data;
     $('transform-bar').hidden = !data;
-    if (!data) return;
+    if (!data) { buildStudioOverview(); return; }
+    $('tt-lock').classList.toggle('locked', !!data.locked);
     $('obj-props-title').textContent = PROPS[data.kind]?.name || data.kind;
     $('obj-scale').value = data.scale; $('o-scale').value = (+data.scale).toFixed(2);
     $('obj-rot').value = data.rotY; $('o-rot').value = data.rotY + '°';
@@ -453,7 +496,14 @@ export function initEditor(ctx) {
     ul.innerHTML = '';
     if (!state.objects.length) {
       ul.innerHTML = `<div class="empty-state">${icon('cube')}<h5>No objects in the set</h5>
-        <p>Drag desks, screens and props in from the Objects library, or double-click a card.</p></div>`;
+        <p>Drag screens, monitors and props in from the library, or double-click a card.</p>
+        <div class="row gap" style="justify-content:center">
+          <button class="btn primary slim" id="es-add-obj">${icon('plus')} Add 3D object</button>
+          <button class="btn ghost slim" id="es-open-lib">Open library</button>
+        </div></div>`;
+      ul.querySelector('#es-add-obj').addEventListener('click', () => addProp('screen'));
+      ul.querySelector('#es-open-lib').addEventListener('click', () =>
+        document.querySelector('.irail-btn[data-nav="props"]').click());
     }
     for (const o of state.objects) {
       const li = document.createElement('li');
@@ -541,6 +591,13 @@ export function initEditor(ctx) {
     if (!selectedId) return;
     studio.removeObject(selectedId);
     selectObject(null);
+  });
+  $('tt-lock').addEventListener('click', () => {
+    const d = selData();
+    if (!d) return;
+    d.locked = !d.locked;
+    $('tt-lock').classList.toggle('locked', d.locked);
+    toast(d.locked ? 'Object locked — position frozen' : 'Object unlocked');
   });
 
   /* ---- camera panel ---- */
@@ -837,25 +894,28 @@ export function initEditor(ctx) {
     const list = $('dest-list');
     list.innerHTML = '';
     for (const d of state.output.destinations) {
-      if (!d.enabled && !destStates[d.id]) continue;
       const row = document.createElement('div');
       const st = destStates[d.id] || 'idle';
       const pIcon = d.kind === 'youtube' ? 'youtube' : d.kind === 'facebook' ? 'facebook' : 'rtmp';
       row.className = 'dest-row k-' + d.kind + ' ' + (st === 'live' ? 'live' : st === 'connecting' ? 'connecting' : '');
       row.innerHTML = `<span class="dr-ico">${icon(pIcon)}</span><span class="dr-led"></span><span class="dr-name">${d.name}</span>
         <span class="dr-kbps">${st === 'live' ? outputs.bitrateKbps() + ' kbps · ' + (state.output.height === 1080 ? '1080p' : '720p') + state.output.fps : ''}</span>
-        <span class="dr-state">${st === 'live' ? 'LIVE' : st === 'connecting' ? 'CONNECTING' : st === 'error' ? 'ERROR' : d.enabled ? 'READY' : 'OFF'}</span>`;
+        <span class="dr-state">${st === 'live' ? 'LIVE' : st === 'connecting' ? 'CONNECTING' : st === 'error' ? 'ERROR' : d.enabled && d.key ? 'READY' : 'NOT CONNECTED'}</span>`;
+      if (st !== 'live' && st !== 'connecting') {
+        row.classList.add('setup');
+        row.title = 'Click to set up this destination';
+        row.addEventListener('click', () => { buildLiveModal(); $('modal-live').hidden = false; });
+      }
       list.appendChild(row);
     }
-    if (!list.children.length) {
-      list.innerHTML = `<div class="empty-state">${icon('rtmp')}<h5>No destinations enabled</h5>
-        <p>One encoder can feed YouTube, Facebook and custom RTMP at the same time.</p></div>`;
-      const b = document.createElement('button');
-      b.className = 'btn slim';
-      b.innerHTML = icon('plus') + ' Add destination';
-      b.addEventListener('click', () => { buildLiveModal(); $('modal-live').hidden = false; });
-      list.querySelector('.empty-state').appendChild(b);
-    }
+    // website embed — staged, honestly labelled
+    const web = document.createElement('div');
+    web.className = 'dest-row staged';
+    web.innerHTML = `<span class="dr-ico">${icon('globe')}</span><span class="dr-led"></span>
+      <span class="dr-name">Website embed</span>
+      <span class="dr-state">HLS RELAY · NEXT UPDATE</span>`;
+    web.title = 'Website embed output ships with the HLS relay update — until then, embed your YouTube live player.';
+    list.appendChild(web);
   }
   setInterval(() => { if (outputs.streaming) buildDestRows(); }, 2000);
 

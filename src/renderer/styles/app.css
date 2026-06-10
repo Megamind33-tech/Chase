@@ -807,3 +807,56 @@ input[type="checkbox"] { accent-color: var(--blue); width: 14px; height: 14px; }
 }
 .toast.err { border-color: #5c2229; color: #ff9ba3; }
 .toast.ok { border-color: #1d4d2e; color: #7ee2a4; }
+
+/* ============================================================
+   v3 PASS — studio overview, quick add, hover actions, lock,
+   destination setup cards, loading state
+   ============================================================ */
+.ov-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11.5px; color: var(--txt-faint); padding: 4px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ov-row:last-of-type { border-bottom: none; }
+.ov-row b { color: var(--txt); font-weight: 650; font-size: 11.5px; }
+
+.quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.quick-grid button {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  border: 1px solid var(--line-soft); background: var(--bg-2); color: var(--txt-dim);
+  border-radius: var(--r-md); padding: 9px 2px 7px; cursor: pointer;
+  font-size: 9px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase;
+  transition: all .14s;
+}
+.quick-grid button .ic { width: 17px; height: 17px; color: var(--cyan); }
+.quick-grid button:hover { border-color: var(--line-hi); color: var(--txt); transform: translateY(-1px); box-shadow: var(--shadow-1); }
+.quick-grid button:active { transform: translateY(0); }
+
+/* hover USE action on set cards */
+.bset-actions {
+  position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 16/9;
+  display: grid; place-items: center;
+  background: linear-gradient(180deg, rgba(5,9,16,.25), rgba(5,9,16,.6));
+  opacity: 0; transition: opacity .16s ease; pointer-events: none;
+}
+.bset-card:hover .bset-actions { opacity: 1; pointer-events: auto; }
+.bset-card.active .bset-actions { display: none; }
+
+/* transform toolbar lock state */
+.transform-bar .ttool.locked { color: var(--gold); background: rgba(255,210,77,.12); border-color: rgba(255,210,77,.4); }
+
+/* destination setup cards */
+.dest-row.setup { cursor: pointer; }
+.dest-row.setup:hover { border-color: var(--line-hi); background: var(--bg-3); }
+.dest-row.setup .dr-state { color: var(--txt-faint); border-style: dashed; }
+.dest-row.staged { opacity: .55; }
+.dest-row.staged .dr-state { border-style: dashed; font-size: 8px; }
+
+/* button loading state */
+.btn.loading { pointer-events: none; color: transparent; position: relative; }
+.btn.loading::after {
+  content: ""; position: absolute; width: 14px; height: 14px; left: calc(50% - 7px); top: calc(50% - 7px);
+  border: 2px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

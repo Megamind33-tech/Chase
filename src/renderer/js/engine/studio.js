@@ -67,6 +67,15 @@ export class Studio {
     this.raycaster = new THREE.Raycaster();
     this.floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
+    // selection ring shown under the picked object
+    this.selRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.5, 0.56, 48),
+      new THREE.MeshBasicMaterial({ color: '#00c7ff', transparent: true, opacity: 0.85, side: THREE.DoubleSide, toneMapped: false, depthWrite: false })
+    );
+    this.selRing.rotation.x = -Math.PI / 2;
+    this.selRing.visible = false;
+    this.scene.add(this.selRing);
+
     // CAM-strip thumbnails: tiny renders from each preset, round-robin
     this.thumbCamera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 100);
     this.thumbCanvases = new Map(); // num -> {canvas, ctx}
@@ -138,6 +147,9 @@ export class Studio {
   syncObject(data) {
     const g = this.objects.get(data.id);
     if (!g) return;
+    if (this.selRing.visible && this.selRing.userData?.id === data.id) {
+      this.selRing.position.set(data.x, 0.02, data.z);
+    }
     g.position.set(data.x, data.height || 0, data.z);
     g.rotation.y = (data.rotY || 0) * Math.PI / 180;
     g.scale.setScalar(data.scale || 1);
@@ -189,6 +201,15 @@ export class Studio {
   }
 
   setSelectionGlow(id) {
+    const sel = id ? this.objects.get(id) : null;
+    this.selRing.visible = !!sel;
+    if (sel) {
+      const data = state.objects.find((o) => o.id === id);
+      const r = 0.6 * (data?.scale || 1);
+      this.selRing.scale.setScalar(r / 0.5);
+      this.selRing.position.set(sel.position.x, 0.02, sel.position.z);
+      this.selRing.userData.id = id;
+    }
     for (const [oid, g] of this.objects) {
       const on = oid === id;
       g.traverse((m) => {

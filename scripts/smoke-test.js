@@ -77,7 +77,7 @@ app.whenReady().then(async () => {
     document.querySelector('[data-wiz="camera"]').click();
     await new Promise((r) => setTimeout(r, 2500));
     document.querySelector('[data-wiz="background"]').click();
-    document.querySelector('[data-bgmode="framed"]').click();
+    document.querySelector('[data-bgmode="chroma"]').click();
     document.getElementById('btn-enter-studio').click();
   })()`);
   await new Promise((r) => setTimeout(r, 7000)); // engine + thumbnails warm-up

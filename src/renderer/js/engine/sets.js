@@ -215,10 +215,40 @@ export function buildSet(theme, brand, headline, opts = {}) {
   deskGroup.add(deskEdge);
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(1.55, 1.68, 0.92, 32),
-    new THREE.MeshStandardMaterial({ color: theme.desk, roughness: 0.6 })
+    new THREE.MeshStandardMaterial({ color: theme.desk, roughness: 0.55, metalness: 0.35 })
   );
   body.position.y = 0.5;
   deskGroup.add(body);
+  // recessed glass inlay on the desktop
+  const inlay = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.18, 1.18, 0.022, 40, 1, false, Math.PI * 1.3, Math.PI * 0.4),
+    new THREE.MeshStandardMaterial({ color: '#0a1a30', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.92 })
+  );
+  inlay.position.y = 1.032;
+  deskGroup.add(inlay);
+  // brushed metal kick ring at the base
+  const kick = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.7, 1.74, 0.1, 40, 1, true),
+    new THREE.MeshStandardMaterial({ color: '#3a4456', metalness: 0.95, roughness: 0.3, side: THREE.DoubleSide })
+  );
+  kick.position.y = 0.05;
+  deskGroup.add(kick);
+  // soft contact shadow under the desk
+  const shCv = document.createElement('canvas');
+  shCv.width = shCv.height = 128;
+  const shCtx = shCv.getContext('2d');
+  const shG = shCtx.createRadialGradient(64, 64, 18, 64, 64, 64);
+  shG.addColorStop(0, 'rgba(0,0,0,0.5)');
+  shG.addColorStop(1, 'rgba(0,0,0,0)');
+  shCtx.fillStyle = shG;
+  shCtx.fillRect(0, 0, 128, 128);
+  const deskShadow = new THREE.Mesh(
+    new THREE.CircleGeometry(2.3, 32),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(shCv), transparent: true, depthWrite: false })
+  );
+  deskShadow.rotation.x = -Math.PI / 2;
+  deskShadow.position.y = 0.012;
+  deskGroup.add(deskShadow);
   group.add(deskGroup);
 
   // ---------- floor accent chevrons ----------
@@ -330,60 +360,83 @@ function paintLed(cv, theme, brand, headline, t) {
 }
 
 function skyline(ctx, W, H, theme, time) {
-  // stars
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  for (let i = 0; i < 90; i++) {
-    const x = (i * 397.3) % W, y = ((i * 211.7) % (H * 0.4));
-    const tw = 0.3 + 0.7 * Math.abs(Math.sin(time * 0.8 + i));
-    ctx.globalAlpha = tw * 0.5;
-    ctx.fillRect(x, y, 2, 2);
+  // faint stars high in the sky only
+  for (let i = 0; i < 70; i++) {
+    const x = (i * 397.3) % W, y = ((i * 211.7) % (H * 0.3));
+    const tw = 0.3 + 0.7 * Math.abs(Math.sin(time * 0.6 + i));
+    ctx.globalAlpha = tw * 0.35;
+    ctx.fillStyle = 'rgba(220,232,255,0.9)';
+    ctx.fillRect(x, y, 1.6, 1.6);
   }
   ctx.globalAlpha = 1;
-  // moon glow
-  const mg = ctx.createRadialGradient(W * 0.78, H * 0.2, 8, W * 0.78, H * 0.2, 130);
-  mg.addColorStop(0, 'rgba(255,244,220,0.85)');
-  mg.addColorStop(0.12, 'rgba(255,244,220,0.55)');
-  mg.addColorStop(1, 'rgba(255,244,220,0)');
-  ctx.fillStyle = mg;
-  ctx.fillRect(0, 0, W, H);
-  // skyline layers (deterministic pseudo-random towers)
-  for (let layer = 0; layer < 3; layer++) {
-    const base = H * (0.62 + layer * 0.1);
-    ctx.fillStyle = mix(theme.ledA, '#000008', 0.25 + layer * 0.25);
-    let x = -20;
-    let i = layer * 31;
-    while (x < W + 40) {
-      const bw = 38 + ((i * 73) % 90);
-      const bh = H * (0.16 + (((i * 47) % 100) / 100) * (0.3 - layer * 0.07));
-      ctx.fillRect(x, base - bh, bw, bh + 100);
-      // lit windows on the front layer
-      if (layer === 2) {
-        ctx.fillStyle = 'rgba(255,214,120,0.5)';
-        for (let wy = base - bh + 10; wy < base - 12; wy += 16) {
-          for (let wx = x + 6; wx < x + bw - 8; wx += 14) {
-            if (((wx * 13 + wy * 7 + i) % 23) < 7) ctx.fillRect(wx, wy, 5, 7);
+
+  const horizon = H * 0.66;
+  // atmospheric haze band at the horizon (photographic depth)
+  const atm = ctx.createLinearGradient(0, horizon - 140, 0, horizon + 30);
+  atm.addColorStop(0, 'rgba(0,0,0,0)');
+  atm.addColorStop(1, hexA(theme.ledB, 0.28));
+  ctx.fillStyle = atm;
+  ctx.fillRect(0, 0, W, horizon + 30);
+
+  // skyline: 4 depth layers, back layers hazed into the sky
+  for (let layer = 0; layer < 4; layer++) {
+    const base = horizon + layer * H * 0.075;
+    const haze = 0.62 - layer * 0.19; // back layers fade toward sky colour
+    const col = mix(mix(theme.ledA, '#02040c', 0.35 + layer * 0.18), theme.ledB, Math.max(haze, 0) * 0.5);
+    let x = -30;
+    let i = layer * 37;
+    while (x < W + 60) {
+      const bw = 26 + ((i * 73) % 70) - layer * 3;
+      const bh = H * (0.1 + (((i * 47) % 100) / 100) * (0.34 - layer * 0.06));
+      ctx.fillStyle = col;
+      ctx.fillRect(x, base - bh, bw, bh + 160);
+      // rooftop detail + aviation beacons on tall front towers
+      if (layer >= 2) {
+        ctx.fillRect(x + bw * 0.3, base - bh - 7, bw * 0.4, 7);
+        if (bh > H * 0.3 && (i % 4) === 0) {
+          const blink = 0.4 + 0.6 * Math.abs(Math.sin(time * 1.6 + i));
+          ctx.fillStyle = `rgba(255,70,70,${blink})`;
+          ctx.beginPath(); ctx.arc(x + bw / 2, base - bh - 9, 2.2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      // dense small windows, warm/cool mix, front layers only
+      if (layer === 3) {
+        for (let wy = base - bh + 8; wy < base - 10; wy += 9) {
+          for (let wx = x + 4; wx < x + bw - 5; wx += 7) {
+            const h2 = (wx * 13 + wy * 7 + i) % 31;
+            if (h2 < 9) {
+              ctx.fillStyle = h2 < 3 ? 'rgba(180,210,255,0.55)' : 'rgba(255,206,130,0.5)';
+              ctx.fillRect(wx, wy, 3, 4.5);
+            }
           }
         }
-        ctx.fillStyle = mix(theme.ledA, '#000008', 0.75);
       }
-      x += bw + 6;
+      x += bw + 3 + (layer < 2 ? 0 : 4);
       i++;
     }
   }
-  // horizon glow
-  const hg = ctx.createLinearGradient(0, H * 0.55, 0, H);
-  hg.addColorStop(0, 'rgba(0,0,0,0)');
-  hg.addColorStop(1, hexA(theme.ledB, 0.5));
-  ctx.fillStyle = hg;
-  ctx.fillRect(0, 0, W, H);
-  // drifting search beam
-  const bx = (time * 60) % (W + 600) - 300;
-  const beam = ctx.createLinearGradient(bx - 130, 0, bx + 130, 0);
-  beam.addColorStop(0, 'rgba(255,255,255,0)');
-  beam.addColorStop(0.5, 'rgba(255,255,255,0.05)');
-  beam.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = beam;
-  ctx.fillRect(bx - 130, 0, 260, H);
+
+  // waterfront reflection strip below the front layer
+  const wy0 = horizon + H * 0.225;
+  const wat = ctx.createLinearGradient(0, wy0, 0, H);
+  wat.addColorStop(0, hexA(theme.ledB, 0.22));
+  wat.addColorStop(1, 'rgba(2,4,10,0.9)');
+  ctx.fillStyle = wat;
+  ctx.fillRect(0, wy0, W, H - wy0);
+  for (let i = 0; i < 60; i++) {
+    const x = (i * 167) % W;
+    const shimmer = Math.abs(Math.sin(time * 0.9 + i * 2.1));
+    ctx.fillStyle = `rgba(${i % 2 ? '255,206,130' : '160,200,255'},${0.10 + shimmer * 0.12})`;
+    ctx.fillRect(x, wy0 + (i * 31) % (H - wy0 - 6), 22 + (i % 3) * 14, 1.6);
+  }
+
+  // gentle moving cloud band catching city light
+  const cx = (time * 14) % (W + 800) - 400;
+  const cg = ctx.createRadialGradient(cx, H * 0.18, 20, cx, H * 0.18, 320);
+  cg.addColorStop(0, hexA(theme.ledB, 0.10));
+  cg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = cg;
+  ctx.fillRect(0, 0, W, H * 0.5);
 }
 
 function election(ctx, W, H, theme, time) {
