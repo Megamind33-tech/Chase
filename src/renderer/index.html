@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' app: media: blob: data:; script-src 'self' app: 'wasm-unsafe-eval'; style-src 'self' app: 'unsafe-inline'; img-src 'self' app: media: blob: data:; media-src 'self' app: media: blob: data:; connect-src 'self' app: blob: data:;" />
+<title>Chase Studio</title>
+<link rel="stylesheet" href="./styles/app.css" />
+</head>
+<body>
+
+<!-- ============ LAUNCHER ============ -->
+<div id="launcher" class="launcher">
+  <div class="launcher-inner">
+    <header class="launcher-head">
+      <div class="brandmark"><span class="brandmark-dot"></span>CHASE<b>STUDIO</b></div>
+      <div class="launcher-sub">Virtual production suite for broadcasters</div>
+    </header>
+
+    <!-- step 0: home -->
+    <section class="wizard-step" id="wiz-home" data-active="true">
+      <div class="launcher-cols">
+        <div class="launcher-main">
+          <button class="btn-hero" id="btn-new-project">
+            <span class="hero-title">New studio project</span>
+            <span class="hero-sub">Pick a set, plug in your camera, go live</span>
+          </button>
+          <div class="launcher-row">
+            <button class="btn ghost" id="btn-open-project">Open project…</button>
+            <button class="btn ghost" id="btn-import-template">Import template…</button>
+          </div>
+        </div>
+        <div class="launcher-recent">
+          <h3>Recent projects</h3>
+          <ul id="recent-list"><li class="muted">No recent projects yet.</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- step 1: name + template -->
+    <section class="wizard-step" id="wiz-template">
+      <h2>1 · Choose your studio</h2>
+      <div class="field">
+        <label for="inp-project-name">Project name</label>
+        <input id="inp-project-name" type="text" value="My Studio" spellcheck="false" />
+      </div>
+      <label class="field-label">Virtual set</label>
+      <div class="set-grid" id="set-grid"></div>
+      <label class="field-label">Show preset</label>
+      <div class="preset-grid" id="preset-grid"></div>
+      <footer class="wizard-foot">
+        <button class="btn ghost" data-wiz="home">Back</button>
+        <button class="btn primary" data-wiz="camera">Continue</button>
+      </footer>
+    </section>
+
+    <!-- step 2: camera -->
+    <section class="wizard-step" id="wiz-camera">
+      <h2>2 · Camera &amp; microphone</h2>
+      <div class="cam-setup">
+        <div class="cam-preview-wrap">
+          <video id="wiz-cam-preview" autoplay muted playsinline></video>
+          <div class="cam-preview-hint" id="wiz-cam-hint">Select a camera to preview</div>
+        </div>
+        <div class="cam-fields">
+          <div class="field"><label>Camera</label><select id="sel-camera"></select></div>
+          <div class="field"><label>Microphone</label><select id="sel-mic"></select></div>
+          <div class="field"><label>Capture resolution</label>
+            <select id="sel-capresolution">
+              <option value="1280x720">1280 × 720 (recommended for budget PCs)</option>
+              <option value="1920x1080" selected>1920 × 1080</option>
+            </select>
+          </div>
+          <p class="hint">Any device that appears as a webcam works: USB webcams, HDMI cameras
+          on capture cards, and phone-camera apps.</p>
+        </div>
+      </div>
+      <footer class="wizard-foot">
+        <button class="btn ghost" data-wiz="template">Back</button>
+        <button class="btn primary" data-wiz="background">Continue</button>
+      </footer>
+    </section>
+
+    <!-- step 3: background -->
+    <section class="wizard-step" id="wiz-background">
+      <h2>3 · How should we place you in the set?</h2>
+      <div class="bg-grid">
+        <button class="bg-card" data-bgmode="chroma">
+          <span class="bg-icon key"></span>
+          <span class="bg-name">Green screen</span>
+          <span class="bg-desc">Best quality. Your background is keyed out and you stand inside the 3D set.</span>
+        </button>
+        <button class="bg-card" data-bgmode="ai">
+          <span class="bg-icon ai"></span>
+          <span class="bg-name">AI cutout — no green screen</span>
+          <span class="bg-desc">Person segmentation removes your background automatically. Softer edges, zero setup.</span>
+        </button>
+        <button class="bg-card" data-bgmode="framed">
+          <span class="bg-icon frame"></span>
+          <span class="bg-name">Framed window</span>
+          <span class="bg-desc">Your full camera frame appears on an elegant panel in the set — the “remote studio” look.</span>
+        </button>
+      </div>
+      <footer class="wizard-foot">
+        <button class="btn ghost" data-wiz="camera">Back</button>
+        <button class="btn primary" id="btn-enter-studio">Enter studio</button>
+      </footer>
+    </section>
+  </div>
+</div>
+
+<!-- ============ EDITOR ============ -->
+<div id="editor" class="editor" hidden>
+  <!-- top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brandmark small"><span class="brandmark-dot"></span>CHASE<b>STUDIO</b></div>
+      <input id="project-name" class="project-name" value="My Studio" spellcheck="false" />
+      <div class="topbar-actions">
+        <button class="tbtn" id="btn-save" title="Save project (Ctrl+S)">Save</button>
+        <button class="tbtn" id="btn-open2" title="Open project">Open</button>
+        <button class="tbtn" id="btn-export-template" title="Export this scene as a reusable template">Export template</button>
+      </div>
+    </div>
+    <div class="topbar-center">
+      <span class="statchip" id="stat-fps">— fps</span>
+      <span class="statchip" id="stat-quality">Auto quality</span>
+      <span class="statchip" id="stat-res">1080p30</span>
+    </div>
+    <div class="topbar-right">
+      <span class="onair-timer" id="rec-timer" hidden>00:00</span>
+      <button class="btn-rec" id="btn-record"><span class="rec-dot"></span>REC</button>
+      <button class="btn-live" id="btn-live">GO LIVE</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- left: library -->
+    <aside class="rail rail-left">
+      <nav class="rail-tabs">
+        <button class="rail-tab active" data-lib="sets">Sets</button>
+        <button class="rail-tab" data-lib="props">Props</button>
+        <button class="rail-tab" data-lib="graphics">Graphics</button>
+      </nav>
+      <div class="lib-pane" id="lib-sets"></div>
+      <div class="lib-pane" id="lib-props" hidden></div>
+      <div class="lib-pane" id="lib-graphics" hidden></div>
+      <p class="lib-hint">Drag items into the studio, or double-click to add.</p>
+    </aside>
+
+    <!-- center: program viewport + control room -->
+    <main class="stage">
+      <div class="viewport-wrap" id="viewport-wrap">
+        <canvas id="program-canvas" width="1920" height="1080"></canvas>
+        <div class="safe-areas" id="safe-areas" hidden><div class="safe action"></div><div class="safe title"></div></div>
+        <div class="viewport-tools">
+          <button class="vtool" id="btn-safearea" title="Toggle safe areas">▣</button>
+          <button class="vtool" id="btn-fullscreen" title="Preview fullscreen">⤢</button>
+        </div>
+        <div class="drop-glow" id="drop-glow" hidden></div>
+      </div>
+      <!-- control room bar -->
+      <div class="controlroom">
+        <div class="cr-cams" id="cr-cams"></div>
+        <div class="cr-opts">
+          <div class="cr-toggle">
+            <button class="crt active" id="btn-transition-cut">CUT</button>
+            <button class="crt" id="btn-transition-move">MOVE</button>
+          </div>
+          <label class="cr-check"><input type="checkbox" id="chk-drift" /> Live drift</label>
+          <button class="cr-mic" id="btn-mute" title="Mute microphone">MIC</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- right: panels -->
+    <aside class="rail rail-right">
+      <nav class="rail-tabs">
+        <button class="rail-tab active" data-panel="layers" title="Scene layers">Layers</button>
+        <button class="rail-tab" data-panel="camera" title="Virtual cameras">Camera</button>
+        <button class="rail-tab" data-panel="light" title="Lighting">Light</button>
+        <button class="rail-tab" data-panel="look" title="Key & image enhancement">Look</button>
+        <button class="rail-tab" data-panel="brand" title="Branding">Brand</button>
+        <button class="rail-tab" data-panel="output" title="Output settings">Output</button>
+      </nav>
+
+      <!-- layers -->
+      <div class="panel" id="panel-layers">
+        <h3>Scene layers</h3>
+        <ul class="layer-list" id="layer-list"></ul>
+        <div class="obj-props" id="obj-props" hidden>
+          <h4 id="obj-props-title">Object</h4>
+          <div class="field slim"><label>Scale</label><input type="range" id="obj-scale" min="0.3" max="3" step="0.01" value="1"></div>
+          <div class="field slim"><label>Rotate</label><input type="range" id="obj-rot" min="-180" max="180" step="1" value="0"></div>
+          <div class="field slim"><label>Height</label><input type="range" id="obj-height" min="0" max="2.5" step="0.01" value="0"></div>
+          <div class="row gap">
+            <button class="btn ghost slim" id="obj-media" hidden>Set media…</button>
+            <button class="btn danger slim" id="obj-delete">Delete</button>
+          </div>
+        </div>
+        <h3 class="spaced">Broadcast graphics</h3>
+        <ul class="layer-list" id="gfx-list"></ul>
+      </div>
+
+      <!-- camera -->
+      <div class="panel" id="panel-camera" hidden>
+        <h3>Virtual cameras</h3>
+        <p class="hint">One physical camera, five studio angles. Virtual cameras move through the
+        3D set — your presenter framing is preserved with anchor-based reframing. This is a
+        virtual-production effect, not true multi-camera parallax.</p>
+        <div class="field slim"><label>Move duration <span id="lbl-movedur">1.2s</span></label>
+          <input type="range" id="cam-movedur" min="0.4" max="3" step="0.1" value="1.2"></div>
+        <div class="field slim"><label>Punch-in <span id="lbl-punch">0%</span></label>
+          <input type="range" id="cam-punch" min="0" max="40" step="1" value="0"></div>
+        <h3 class="spaced">Presenter placement</h3>
+        <div class="field slim"><label>Position</label><input type="range" id="pres-x" min="-2.5" max="2.5" step="0.01" value="0"></div>
+        <div class="field slim"><label>Size</label><input type="range" id="pres-scale" min="0.5" max="1.8" step="0.01" value="1"></div>
+        <div class="field slim"><label>Lift</label><input type="range" id="pres-y" min="-0.6" max="0.8" step="0.01" value="0"></div>
+      </div>
+
+      <!-- light -->
+      <div class="panel" id="panel-light" hidden>
+        <h3>Lighting</h3>
+        <div class="chipset" id="light-presets"></div>
+        <div class="field slim"><label>Key light</label><input type="range" id="light-key" min="0" max="2" step="0.01" value="1"></div>
+        <div class="field slim"><label>Fill light</label><input type="range" id="light-fill" min="0" max="2" step="0.01" value="1"></div>
+        <div class="field slim"><label>Back light</label><input type="range" id="light-back" min="0" max="2" step="0.01" value="1"></div>
+        <div class="field slim"><label>Temperature</label><input type="range" id="light-temp" min="-1" max="1" step="0.01" value="0"></div>
+        <div class="field slim"><label>Set accents</label><input type="range" id="light-accent" min="0" max="2" step="0.01" value="1"></div>
+      </div>
+
+      <!-- look: key + enhancement -->
+      <div class="panel" id="panel-look" hidden>
+        <h3>Background</h3>
+        <div class="chipset" id="bgmode-chips">
+          <button class="chip" data-bg="chroma">Green screen</button>
+          <button class="chip" data-bg="ai">AI cutout</button>
+          <button class="chip" data-bg="framed">Framed</button>
+        </div>
+        <div id="chroma-controls">
+          <div class="field slim"><label>Key colour</label><input type="color" id="key-color" value="#1eb955"></div>
+          <div class="field slim"><label>Similarity</label><input type="range" id="key-sim" min="0.01" max="0.6" step="0.005" value="0.30"></div>
+          <div class="field slim"><label>Edge softness</label><input type="range" id="key-smooth" min="0.0" max="0.3" step="0.005" value="0.08"></div>
+          <div class="field slim"><label>Spill removal</label><input type="range" id="key-spill" min="0" max="1" step="0.01" value="0.6"></div>
+        </div>
+        <h3 class="spaced">Image enhancement</h3>
+        <div class="chipset" id="skin-presets"></div>
+        <div class="field slim"><label>Exposure</label><input type="range" id="enh-exposure" min="0.5" max="1.8" step="0.01" value="1"></div>
+        <div class="field slim"><label>Warmth</label><input type="range" id="enh-warmth" min="-1" max="1" step="0.01" value="0"></div>
+        <div class="field slim"><label>Saturation</label><input type="range" id="enh-sat" min="0" max="2" step="0.01" value="1"></div>
+        <div class="field slim"><label>Skin smoothing</label><input type="range" id="enh-smooth" min="0" max="1" step="0.01" value="0"></div>
+      </div>
+
+      <!-- brand -->
+      <div class="panel" id="panel-brand" hidden>
+        <h3>Station branding</h3>
+        <div class="field"><label>Station name</label><input type="text" id="brand-name" value="CHASE NEWS" spellcheck="false"></div>
+        <div class="row gap">
+          <div class="field slim grow"><label>Primary</label><input type="color" id="brand-primary" value="#0e63d8"></div>
+          <div class="field slim grow"><label>Accent</label><input type="color" id="brand-accent" value="#e8b220"></div>
+        </div>
+        <div class="field slim"><label>Logo</label>
+          <div class="row gap">
+            <button class="btn ghost slim" id="btn-brand-logo">Choose logo…</button>
+            <img id="brand-logo-preview" class="logo-preview" hidden alt="logo" />
+          </div>
+        </div>
+        <p class="hint">Branding flows everywhere — the set's video wall, desk front, lower
+        thirds, and ticker all pick up your colours, name and logo.</p>
+      </div>
+
+      <!-- output -->
+      <div class="panel" id="panel-output" hidden>
+        <h3>Program output</h3>
+        <div class="field slim"><label>Resolution</label>
+          <select id="out-res">
+            <option value="1280x720">720p</option>
+            <option value="1920x1080" selected>1080p</option>
+          </select></div>
+        <div class="field slim"><label>Frame rate</label>
+          <select id="out-fps"><option value="30" selected>30 fps</option><option value="25">25 fps</option></select></div>
+        <div class="field slim"><label>Stream bitrate</label>
+          <select id="out-bitrate">
+            <option value="2500">2.5 Mbps (720p / weak internet)</option>
+            <option value="4500" selected>4.5 Mbps (1080p)</option>
+            <option value="6000">6 Mbps (1080p high)</option>
+          </select></div>
+        <div class="field slim"><label>Render quality</label>
+          <select id="out-quality">
+            <option value="auto" selected>Auto (adapts to this PC)</option>
+            <option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
+          </select></div>
+        <div class="statusbox" id="engine-status"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- graphics quick-edit drawer -->
+  <div class="gfx-drawer" id="gfx-drawer" hidden>
+    <header><h4 id="gfx-drawer-title">Lower third</h4><button class="x" id="gfx-drawer-close">✕</button></header>
+    <div id="gfx-drawer-body"></div>
+  </div>
+</div>
+
+<!-- ============ MODALS ============ -->
+<div class="modal-backdrop" id="modal-live" hidden>
+  <div class="modal">
+    <h2>Go live</h2>
+    <div class="field"><label>Destination</label>
+      <select id="live-dest">
+        <option value="custom">Custom RTMP</option>
+        <option value="youtube">YouTube Live</option>
+        <option value="facebook">Facebook Live</option>
+      </select></div>
+    <div class="field"><label>Server URL</label><input type="text" id="live-url" placeholder="rtmp://…" spellcheck="false"></div>
+    <div class="field"><label>Stream key</label><input type="password" id="live-key" placeholder="paste your stream key" spellcheck="false"></div>
+    <p class="hint" id="live-hint"></p>
+    <div class="statusbox" id="live-status" hidden></div>
+    <footer class="modal-foot">
+      <button class="btn ghost" id="live-cancel">Cancel</button>
+      <button class="btn live" id="live-start">Start streaming</button>
+    </footer>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-recdone" hidden>
+  <div class="modal">
+    <h2>Recording saved</h2>
+    <p id="recdone-path" class="hint"></p>
+    <footer class="modal-foot">
+      <button class="btn ghost" id="recdone-close">Close</button>
+      <button class="btn ghost" id="recdone-reveal">Show in folder</button>
+      <button class="btn primary" id="recdone-mp4">Convert to MP4</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast-zone" id="toast-zone"></div>
+
+<video id="cam-video" autoplay muted playsinline hidden></video>
+
+<script src="/node_modules/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{
+  "name": "chase-studio",
+  "productName": "Chase Studio",
+  "version": "0.1.0",
+  "description": "Virtual studio production suite for low-budget broadcasters — camera in, broadcast-grade virtual set out.",
+  "main": "src/main/main.js",
+  "author": "Chase Studio",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable",
+    "check": "node scripts/syntax-check.js"
+  },
+  "dependencies": {
+    "@mediapipe/selfie_segmentation": "^0.1.1675465747",
+    "ffmpeg-static": "^5.2.0",
+    "three": "^0.165.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "studio.chase.app",
+    "productName": "Chase Studio",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

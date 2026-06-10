@@ -1,0 +1,150 @@
+// Chase Studio renderer boot: launcher → capture → engine → editor → loop.
+import { state, hydrate } from './state.js';
+import { PRESETS, LIGHT_PRESETS } from './templates.js';
+import { capture } from './capture.js';
+import { Studio } from './engine/studio.js';
+import { Segmenter } from './engine/segmentation.js';
+import { OverlayEngine } from './graphics/overlay.js';
+import { Compositor } from './compositor.js';
+import { Outputs } from './outputs.js';
+import { initLauncher } from './ui/launcher.js';
+import { initEditor } from './ui/editor.js';
+import { toast } from './ui/toasts.js';
+
+let studio = null;
+let overlay = null;
+let compositor = null;
+let outputs = null;
+let segmenter = null;
+let editor = null;
+let launcher = null;
+
+function applyShowPreset(presetId) {
+  state.meta.preset = presetId;
+  const p = PRESETS[presetId];
+  if (!p) return;
+  const lp = LIGHT_PRESETS[p.light];
+  Object.assign(state.lighting, { preset: p.light, key: lp.key, fill: lp.fill, back: lp.back, temp: lp.temp, accent: lp.accent });
+  state.camera.active = p.angle;
+  for (const key of Object.keys(p.gfx || {})) {
+    if (state.graphics[key]) state.graphics[key].on = !!p.gfx[key];
+  }
+}
+
+async function setBgMode(mode) {
+  if (mode === 'ai') {
+    try {
+      segmenter ||= new Segmenter();
+      toast('Loading AI background removal…');
+      await segmenter.init();
+      segmenter.start(document.getElementById('cam-video'));
+      studio.presenter.setMaskTexture(segmenter.texture);
+      toast('AI cutout active', 'ok');
+    } catch (e) {
+      toast('AI cutout unavailable on this machine — using framed mode instead.', 'err', 5000);
+      mode = 'framed';
+    }
+  } else if (segmenter) {
+    segmenter.stop();
+    studio.presenter.setMaskTexture(null);
+  }
+  state.bgMode = mode;
+  studio.presenter.setMode(mode);
+}
+
+function resizeOutput(w, h) {
+  studio.setOutputSize(w, h);
+  compositor.setSize(w, h);
+}
+
+async function openCapture() {
+  try {
+    await capture.open();
+    studio?.presenter.setVideoSize(state.capture.width, state.capture.height);
+    return true;
+  } catch (e) {
+    toast('Could not open the camera: ' + e.message, 'err', 6000);
+    return false;
+  }
+}
+
+async function startStudio() {
+  const camVideo = document.getElementById('cam-video');
+  await openCapture();
+
+  if (!studio) {
+    studio = new Studio(camVideo, state.output.width, state.output.height);
+    overlay = new OverlayEngine();
+    compositor = new Compositor(document.getElementById('program-canvas'), studio, overlay);
+    compositor.setSize(state.output.width, state.output.height);
+    outputs = new Outputs(() =>
+      compositor.buildOutputStream(state.output.fps, capture.audioTrack()));
+
+    editor = initEditor({
+      studio, overlay, outputs,
+      setBgMode, resizeOutput,
+      loadProject
+    });
+
+    let last = performance.now();
+    const loop = (t) => {
+      const dt = Math.min((t - last) / 1000, 0.1);
+      last = t;
+      studio.tick(t, dt);
+      compositor.compose(t);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  } else {
+    studio.loadSet(state.setId);
+    studio.rebuildObjects();
+    studio.presenter.setVideoSize(state.capture.width, state.capture.height);
+    resizeOutput(state.output.width, state.output.height);
+    editor.refreshAll();
+  }
+
+  await setBgMode(state.bgMode);
+  studio.setQuality(state.output.quality);
+  studio.rig.switchTo(state.camera.active, 'cut', state.presenter.x);
+
+  launcher.hide();
+  document.getElementById('editor').hidden = false;
+}
+
+async function loadProject(json, path) {
+  if (outputs?.recording) await outputs.stopRecording();
+  if (outputs?.streaming) await outputs.stopStreaming();
+  hydrate(json);
+  state.projectPath = path || null;
+  await startStudio();
+  toast('Project "' + state.meta.name + '" loaded', 'ok');
+}
+
+// ---------------- boot ----------------
+launcher = initLauncher({
+  onEnter: async (wiz) => {
+    state.meta.name = wiz.name;
+    state.meta.createdAt = new Date().toISOString();
+    state.setId = wiz.setId;
+    applyShowPreset(wiz.preset);
+    state.capture.cameraId = wiz.cameraId;
+    state.capture.micId = wiz.micId;
+    state.capture.width = wiz.width;
+    state.capture.height = wiz.height;
+    state.bgMode = wiz.bgMode;
+    await startStudio();
+    toast('Welcome to your studio. Drag props in, switch cameras with keys 1–5.', 'ok', 5000);
+  },
+  onOpenProject: loadProject
+});
+
+window.chase.appInfo().then((info) => {
+  const box = document.getElementById('engine-status');
+  if (box) {
+    box.innerHTML =
+      `Chase Studio v${info.version} · ${info.platform}<br>` +
+      `Encoder (FFmpeg): ${info.ffmpeg ? 'ready' : '<b style="color:#ff9b9b">not found — streaming & MP4 export disabled</b>'}<br>` +
+      `Recording codec: detected at record time`;
+  }
+  if (!info.ffmpeg) toast('FFmpeg not found — recording works, but streaming and MP4 export are disabled.', 'err', 7000);
+});
