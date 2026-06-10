@@ -15,7 +15,7 @@ const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.gif': 'image/gif', '.svg': 'image/svg+xml', '.webp': 'image/webp',
   '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime',
-  '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg',
+  '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4',
   '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2',
   '.data': 'application/octet-stream', '.tflite': 'application/octet-stream',
   '.binarypb': 'application/octet-stream'
@@ -48,7 +48,7 @@ function createWindow() {
     backgroundColor: '#0b0d12',
     show: false,
     autoHideMenuBar: true,
-    title: 'Chase Studio',
+    title: 'Chase Studio Pro',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -121,13 +121,16 @@ function registerIpc() {
       ? [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }]
       : kind === 'video'
         ? [{ name: 'Videos', extensions: ['mp4', 'webm', 'mov'] }]
-        : [{ name: 'Media', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'webm', 'mov'] }];
+        : kind === 'audio'
+          ? [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a'] }]
+          : [{ name: 'Media', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'webm', 'mov'] }];
     const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters });
     if (r.canceled || !r.filePaths[0]) return null;
     const p = r.filePaths[0];
     const ext = path.extname(p).toLowerCase();
-    const isVideo = ['.mp4', '.webm', '.mov'].includes(ext);
-    return { url: 'media://local/?p=' + encodeURIComponent(p), path: p, type: isVideo ? 'video' : 'image', name: path.basename(p) };
+    const type = ['.mp4', '.webm', '.mov'].includes(ext) ? 'video'
+      : ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext) ? 'audio' : 'image';
+    return { url: 'media://local/?p=' + encodeURIComponent(p), path: p, type, name: path.basename(p) };
   });
 
   // ---------- local recording ----------
@@ -155,10 +158,25 @@ function registerIpc() {
   ipcMain.handle('rec:finalizeMp4', (e, webmPath, videoIsH264) => streamer.finalizeMp4(webmPath, videoIsH264));
   ipcMain.handle('rec:reveal', (e, p) => { if (p) shell.showItemInFolder(p); });
 
-  // ---------- streaming ----------
-  ipcMain.handle('stream:start', (e, opts) => streamer.start(opts));
+  // ---------- streaming (simulcast) ----------
+  ipcMain.handle('stream:start', (e, dest) => streamer.start(dest));
   ipcMain.on('stream:chunk', (e, buf) => streamer.write(Buffer.from(buf)));
+  ipcMain.handle('stream:stopDest', (e, id) => streamer.stopDest(id));
   ipcMain.handle('stream:stop', () => streamer.stop());
+
+  // ---------- system health ----------
+  ipcMain.handle('sys:health', async () => {
+    const cpu = process.getCPUUsage();
+    const mem = await process.getProcessMemoryInfo().catch(() => null);
+    const metrics = app.getAppMetrics();
+    let cpuTotal = 0;
+    for (const m of metrics) cpuTotal += m.cpu?.percentCPUUsage || 0;
+    return {
+      cpuPercent: Math.min(Math.round(cpuTotal), 100),
+      memMB: mem ? Math.round(mem.private / 1024) : Math.round(process.memoryUsage().rss / 1048576),
+      sysMemMB: Math.round(require('os').totalmem() / 1048576)
+    };
+  });
 
   // ---------- misc ----------
   ipcMain.handle('app:info', () => ({

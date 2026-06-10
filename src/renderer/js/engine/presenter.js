@@ -1,7 +1,7 @@
 // The presenter: live camera video placed inside the 3D set.
 // One shader does chroma key, AI-mask cutout, spill suppression and the
 // broadcast "image enhancement" grade (exposure / warmth / sat / skin smoothing).
-import * as THREE from '/node_modules/three/build/three.module.js';
+import * as THREE from 'three';
 
 const VERT = /* glsl */`
 varying vec2 vUv;
@@ -24,6 +24,7 @@ uniform float exposure;
 uniform float warmth;
 uniform float saturation;
 uniform float smoothing;
+uniform float eyeBright;
 uniform vec2 texel;
 varying vec2 vUv;
 
@@ -66,6 +67,12 @@ void main() {
   float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
   c.rgb = mix(vec3(l), c.rgb, saturation);
 
+  // eye light: lift only the brightest highlights (catchlights, sclera)
+  if (eyeBright > 0.01) {
+    float hi = smoothstep(0.62, 0.92, l);
+    c.rgb += hi * eyeBright * 0.35;
+  }
+
   if (alpha < 0.02) discard;
   gl_FragColor = vec4(c.rgb, alpha);
 }`;
@@ -99,6 +106,7 @@ export class Presenter {
         warmth: { value: 0 },
         saturation: { value: 1 },
         smoothing: { value: 0 },
+        eyeBright: { value: 0 },
         texel: { value: new THREE.Vector2(1 / 1280, 1 / 720) }
       }
     });
@@ -181,6 +189,7 @@ export class Presenter {
     u.warmth.value = e.warmth + lg.warmth;
     u.saturation.value = e.saturation;
     u.smoothing.value = e.smoothing;
+    u.eyeBright.value = e.eyes || 0;
   }
 
   applyPlacement(p) {

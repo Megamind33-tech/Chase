@@ -1,6 +1,6 @@
 // Drag-and-drop studio props. Every prop is a Group with userData:
 // { kind, id, baseHeight } and an optional setMedia(url, type) hook.
-import * as THREE from '/node_modules/three/build/three.module.js';
+import * as THREE from 'three';
 
 export function buildProp(kind, theme, brand) {
   switch (kind) {

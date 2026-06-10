@@ -1,14 +1,15 @@
-# Chase Studio — Technical Architecture
+# Chase Studio Pro — Technical Architecture
 
 ## 1. Stack decision
 
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Shell | **Electron 31** | One codebase, native Windows packaging, Chromium media stack (getUserMedia, MediaRecorder, WebGL) for free |
-| 3D engine | **Three.js (WebGL)** | Runs on integrated graphics, procedural sets, shader-level chroma key; far lighter than Unity/Unreal for budget fleets |
+| 3D engine | **Three.js (WebGL)** + EffectComposer (UnrealBloom, vignette) + Reflector floors | Cinematic LED-wall sets at 60 fps on integrated graphics; far lighter than Unity/Unreal for budget fleets |
 | Graphics | **2D canvas overlay engine** | Broadcast graphics (lower thirds, tickers) are typography-heavy — canvas 2D beats doing them in 3D |
+| Audio | **WebAudio mixer** (gain buses + analysers) | Real faders/meters for mic + jingle + master; mixed program audio feeds record & stream |
 | AI cutout | **MediaPipe Selfie Segmentation (WASM)** | Proven webcam person segmentation, CPU-friendly, fully offline |
-| Encode/stream | **FFmpeg (ffmpeg-static)** | Battle-tested RTMP/RTMPS + MP4 finalize; bundled, no user install |
+| Encode/stream | **FFmpeg (ffmpeg-static), one process per destination** | Simulcast tee: one MediaRecorder feed split to N RTMP/RTMPS endpoints; MP4 finalize; bundled, no user install |
 | Persistence | **Plain JSON files** | `.chasestudio` projects, `.cstemplate` templates — diffable, shareable, no DB |
 
 Why not OBS-integration first: OBS adds a second app to install/launch and a
@@ -87,6 +88,18 @@ chase-studio/
 │           └── ui/           launcher.js · editor.js · toasts.js
 └── docs/                     blueprint, architecture, screens, build tasks
 ```
+
+## 3b. Data/state model
+
+One JSON-serializable tree (`state.js`) is the single source of truth — the 3D
+scene, overlays, mixer and UI are projections of it. Top-level keys: `meta`,
+`setId`, `brand`, `capture`, `bgMode`, `chroma`, `enhance` (incl. eye light),
+`presenter`, `lighting` (mood + faders + haze + desk glow), `look` (bloom,
+vignette, floor reflection, LED media), `camera` (active, focal scale, punch,
+drift), `transition`, `objects[]`, `graphics`, `scenes[]` (quick-scene
+snapshots), `audio` (gains + jingle library), `output` (format + destination
+list). Projects (`.chasestudio`) and templates (`.cstemplate`) are this tree;
+hydrate deep-merges over defaults so old projects load forward.
 
 ## 4. Scene editor logic
 

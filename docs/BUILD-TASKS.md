@@ -1,4 +1,4 @@
-# Chase Studio — Step-by-step Build Tasks
+# Chase Studio Pro — Step-by-step Build Tasks
 
 Phase 1 tasks below are complete in this repository (✅). They are kept as the
 canonical order for rebuilding, onboarding engineers, or porting.
@@ -37,6 +37,24 @@ canonical order for rebuilding, onboarding engineers, or porting.
 18. ✅ Verification: syntax-check script + headless end-to-end smoke test
     (real app, fake camera, render-output pixel check, camera switch).
 19. ✅ Packaging config: NSIS + portable, ffmpeg asarUnpack.
+
+## Phase 1b — Pro rebuild to the reference images (✅ this repo)
+
+19a. ✅ Reference UI anatomy: top system bar, icon rail, thumbnail asset
+     browser with categories, cinematic viewport badges, CAM 1–6 strip,
+     bottom production strip, 7-tab inspector.
+19b. ✅ Cinematic set engine: curved LED walls + 7 animated content styles,
+     planar-reflection floors, LED towers, truss/halo rigs, bloom + vignette,
+     haze, curved glowing anchor desk; 9 themed set packs.
+19c. ✅ Live 3D set thumbnails (rendered, cached per branding).
+19d. ✅ 6th camera + focal length, drift amount; FADE/WIPE program transitions.
+19e. ✅ Quick scenes (snapshot/recall), 4 control-room macros.
+19f. ✅ WebAudio mixer: mic/jingle/master gains, live meters, jingle library.
+19g. ✅ Simulcast streaming (FFmpeg tee per destination) + per-destination
+     status LEDs + measured outbound bitrate.
+19h. ✅ Health chips (CPU/RAM/FPS/GPU quality), autosave, LED-wall media,
+     desk glow + floor reflection + eye-light controls.
+19i. ✅ Smoke test extended (6 cams, scenes, macros, mixer, browser).
 
 ## Phase 2 — Field-hardened MVP (next)
 

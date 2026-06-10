@@ -1,65 +1,79 @@
-# Chase Studio — Virtual Production Suite
+# Chase Studio Pro — Virtual Production Suite
 
-A Windows desktop virtual studio for small TV stations, churches, online news
-channels, schools and creators. One camera in, broadcast-grade virtual set out:
-**Canva + OBS + a virtual TV studio, simplified for low-budget broadcasters.**
+A premium Windows virtual studio for low-budget TV stations, churches, online
+broadcasters, schools, podcasters, political media teams and small production
+houses. One camera in, broadcast-grade virtual studio out:
+**Canva simplicity + OBS control + virtual-studio power + control-room workflow.**
 
-![Chase Studio — wide shot of the Horizon news set](docs/screenshots/studio-wide.png)
+![Chase Studio Pro — Apex Newsroom wide shot](docs/screenshots/pro-wide.png)
 
-## What it does, today
+## The control room
 
-- **Real 3D newsroom sets** (3 included: Horizon, Amber, Onyx) built in WebGL —
-  animated branded video wall, anchor desk, accent lighting, reflective floor.
-- **One camera, five angles** — virtual cameras move through the 3D set with
-  anchor-based reframing; CUT or smooth MOVE transitions, punch-in, live drift.
-- **Three presenter modes** — green-screen chroma key (GPU shader with spill
-  suppression), AI background cutout (MediaPipe person segmentation), or a
-  "framed window" remote-studio look that needs no keying at all.
-- **Broadcast graphics** — animated lower thirds, scrolling ticker, logo bug,
-  breaking banner, title card and clock, all branded with your station's
-  name, colours and logo.
-- **Drag-and-drop scene editing** — drop props (virtual screens, monitors,
-  glass panels, plinths, light bars, plants) into the set, drag them on the
-  floor, scale/rotate/lift, put media on screens.
-- **Lighting console** — 5 presets + key/fill/back/temperature/accent faders.
-- **Image enhancement** — exposure, warmth, saturation and skin-smoothing with
-  complexion presets, applied in the GPU presenter shader.
-- **Record + stream** — local WebM recording (with one-click MP4 conversion)
-  and RTMP/RTMPS streaming to YouTube, Facebook or any custom server via the
-  bundled FFmpeg encoder.
-- **Projects & templates** — save/reload `.chasestudio` projects, export
-  shareable `.cstemplate` scene templates.
-- **8 show presets** — news, interview, podcast, sports, weather, church,
-  education and business defaults layered over any set.
+![Chase Studio Pro editor](docs/screenshots/pro-editor.png)
 
-![On air — lower third, ticker and logo bug over the live camera](docs/screenshots/on-air.png)
+- **Top control bar** — project, save/open/import/export, autosave, System OK /
+  CPU / RAM / FPS / GPU-quality / resolution / live-bitrate chips, REC, GO LIVE.
+- **Icon rail + asset browser** — Sets / Objects / Graphics / Light / Cams /
+  Audio, with **live-rendered 3D thumbnails** of every set (not stock images:
+  each card is an actual render of that environment with your branding) and
+  category filters (News, Politics, Sports, Talkshow, Church, Podcast,
+  Education, Concert).
+- **Cinematic viewport** — the real program output: curved LED walls with
+  animated branded content, LED towers, reflective floors (true planar
+  reflections), bloom, atmosphere haze, vignette, premium curved anchor desk,
+  drag-and-drop with placement guides.
+- **CAM 1–6 strip** — six virtual angles with **live thumbnails**, PGM tally,
+  keys 1–6, CUT / MOVE / FADE / WIPE program transitions.
+- **Bottom production strip** — quick **Scenes** (snapshot & recall whole
+  looks), **Macros** (Breaking news, Show opener, Clear graphics, Interview),
+  **Transitions** with duration, a real **audio mixer** (mic + jingle + master
+  with live meters and faders), and **Output & Stream** destination rows with
+  per-destination status LEDs and measured bitrate.
+- **Inspector** — Inspector / Camera / Light / Look / Skin / Brand / Stream
+  tabs: object transform & opacity, focal length, drift/parallax, lighting
+  moods + faders + haze + desk glow, chroma key, bloom/vignette/floor
+  reflection, LED-wall media, complexion presets with eye light, branding,
+  destinations and output settings.
 
-## Quick start (development)
+## What's real (all of it)
+
+9 procedural 3D set packs (Apex global newsroom, Savanna African newsroom,
+Mandate election desk, Grace church stage, Loft podcast room, Arena sports
+desk, Pulse concert stage, Prime talkshow, Forum education studio) · GPU
+chroma key + AI cutout + framed mode · 6 virtual cameras from one physical
+camera · animated lower thirds, ticker, logo bug, breaking banner, title,
+clock · drag-and-drop props with media-capable virtual screens · WebAudio
+mixer with jingle player · local WebM recording with MP4 conversion ·
+**simulcast RTMP/RTMPS** (YouTube + Facebook + custom simultaneously, one
+encoder) · project save/load + shareable templates · auto quality scaling ·
+live CPU/RAM/FPS/bitrate health.
+
+Staged honestly (visible but labelled, no fake buttons): IP/NDI + second
+camera, Zoom/Teams virtual camera, website embed player, scripts/rundowns,
+plugins.
+
+## Quick start
 
 ```bash
 npm install
-npm start          # launch the app
-npm run check      # syntax-check all sources
-# full headless end-to-end test (boots the real app with a fake camera):
+npm start            # run the app
+npm run check        # parse-check all sources
+# headless end-to-end test (real app, fake camera, render verification):
 xvfb-run -a node_modules/.bin/electron --no-sandbox --enable-unsafe-swiftshader \
   --use-fake-ui-for-media-stream --use-fake-device-for-media-stream scripts/smoke-test.js
+npm run dist         # Windows NSIS installer + portable exe
 ```
-
-## Build the Windows installer
-
-```bash
-npm run dist            # NSIS installer + portable exe in release/
-```
-
-Built on Electron + Three.js + FFmpeg. No accounts, no cloud, no subscription —
-a local tool a station owns. See `docs/` for the full product blueprint,
-architecture, screen plan and roadmap.
 
 ## Honest note on virtual angles
 
-One physical camera cannot create true multi-angle parallax of a person. Chase
-Studio creates the *broadcast effect* of a multi-camera studio: the virtual
-cameras genuinely move through the 3D set (so the set has real parallax) while
-the presenter is reframed with anchor-based composition and yaw-billboarding.
-Depth estimation, head tracking and true multi-camera input are on the roadmap
-(`docs/BLUEPRINT.md`).
+One camera cannot produce true multi-camera footage of a person. Chase Studio
+Pro layers real techniques — genuine 3D set parallax, anchor-based presenter
+reframing, yaw billboarding, punch-in, operator drift — into the best
+practical one-camera broadcast illusion, and says so in the product. Depth
+estimation and true multi-camera input are on the roadmap.
+
+Docs: `docs/BLUEPRINT.md` (product + roadmap + validation loops),
+`docs/ARCHITECTURE.md` (stack, pipeline, state model, packaging),
+`docs/UI-SCREENS.md` (screen plan vs. references),
+`docs/BUILD-TASKS.md` (task list), `docs/CHECKLISTS.md` (testing + visual
+acceptance vs. the reference images).

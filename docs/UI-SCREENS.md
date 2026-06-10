@@ -1,10 +1,23 @@
-# Chase Studio — UI/UX Screen Plan
+# Chase Studio Pro — UI/UX System (built strictly to the reference images)
 
-Design language: broadcast control room, not consumer toy. Near-black layered
-surfaces, one accent blue + gold, tabular numerals for timers, red strictly
-reserved for REC/ON-AIR. All type is system Segoe UI (zero font loading,
-native Windows feel). Everything a live operator needs is one click or one
-keystroke; deep settings live behind tabs, never in the way.
+Design language (from the three reference images): dense dark control room —
+near-black layered surfaces, cyan-blue + amber accent lighting, tally red
+strictly reserved for REC/PGM/ON-AIR, tabular numerals, system Segoe UI.
+
+Anatomy (mirrors the references 1:1):
+1. **Top control bar** — brand, project, save/open/import/export, autosave dot,
+   System OK · CPU · RAM · FPS · GPU · resolution · bitrate chips, REC, GO LIVE.
+2. **Left icon rail** — Sets, Objects, Graphics, Light, Cams, Audio (+ Scripts,
+   Plugins as labelled staged rollouts).
+3. **Left asset browser** — category chips and rich cards; set cards are live
+   3D renders of each environment in the user's branding.
+4. **Centre cinematic viewport** — the real program: LIVE PREVIEW + CAM badges,
+   safe areas, drop guides, selection editing.
+5. **CAM 1–6 strip** — live angle thumbnails with PGM tally + ADD CAM.
+6. **Bottom production strip** — SCENES · MACROS · TRANSITIONS · AUDIO MIXER
+   (live meters) · OUTPUT & STREAM (destination LEDs, MULTI-VIEW).
+7. **Right inspector** — Inspector / Camera / Light / Look / Skin / Brand /
+   Stream tabs.
 
 ## Screen inventory (vs. the 16 suggested screens)
 

@@ -1,27 +1,65 @@
 // Final program compositor: 3D render + broadcast graphics → one canvas.
-// That canvas IS the program output — preview, recording and streaming
-// all read from it, so what you see is exactly what goes out.
+// Also executes program transitions (fade / wipe) by snapshotting the
+// outgoing frame and blending it over the incoming one. The canvas IS the
+// program output — preview, recording and streaming all read from it.
 export class Compositor {
   constructor(programCanvas, studio, overlay) {
     this.canvas = programCanvas;
     this.ctx = programCanvas.getContext('2d');
     this.studio = studio;
     this.overlay = overlay;
+    this._snap = document.createElement('canvas');
+    this._trans = null; // { type, t, duration }
   }
 
   setSize(w, h) {
     this.canvas.width = w;
     this.canvas.height = h;
+    this._snap.width = w;
+    this._snap.height = h;
   }
 
-  compose(time) {
+  /** Snapshot the current program and start a fade/wipe into the new look. */
+  beginTransition(type, duration) {
+    this._snap.getContext('2d').drawImage(this.canvas, 0, 0);
+    this._trans = { type, t: 0, duration: Math.max(duration, 0.1) };
+  }
+
+  compose(time, dt) {
     const { width, height } = this.canvas;
     this.ctx.drawImage(this.studio.canvas, 0, 0, width, height);
     this.overlay.render(time);
     this.ctx.drawImage(this.overlay.canvas, 0, 0, width, height);
+
+    if (this._trans) {
+      const tr = this._trans;
+      tr.t += dt;
+      const k = Math.min(tr.t / tr.duration, 1);
+      if (tr.type === 'fade') {
+        // crossfade: old frame on top, fading out
+        this.ctx.globalAlpha = 1 - k;
+        this.ctx.drawImage(this._snap, 0, 0);
+        this.ctx.globalAlpha = 1;
+      } else if (tr.type === 'wipe') {
+        const edge = width * k;
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(edge, 0, width - edge, height);
+        this.ctx.clip();
+        this.ctx.drawImage(this._snap, 0, 0);
+        this.ctx.restore();
+        // wipe blade
+        const g = this.ctx.createLinearGradient(edge - 24, 0, edge + 6, 0);
+        g.addColorStop(0, 'rgba(255,255,255,0)');
+        g.addColorStop(1, 'rgba(255,255,255,0.55)');
+        this.ctx.fillStyle = g;
+        this.ctx.fillRect(edge - 24, 0, 30, height);
+      }
+      if (k >= 1) this._trans = null;
+    }
   }
 
-  /** Program output stream: canvas video + microphone audio. */
+  /** Program output stream: canvas video + mixed program audio. */
   buildOutputStream(fps, audioTrack) {
     const stream = this.canvas.captureStream(fps);
     if (audioTrack) stream.addTrack(audioTrack);

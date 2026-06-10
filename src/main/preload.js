@@ -20,11 +20,15 @@ contextBridge.exposeInMainWorld('chase', {
   recFinalizeMp4: (p, h264) => ipcRenderer.invoke('rec:finalizeMp4', p, h264),
   recReveal: (p) => ipcRenderer.invoke('rec:reveal', p),
 
-  // streaming
-  streamStart: (opts) => ipcRenderer.invoke('stream:start', opts),
+  // streaming (simulcast)
+  streamStart: (dest) => ipcRenderer.invoke('stream:start', dest),
   streamChunk: (buf) => ipcRenderer.send('stream:chunk', buf),
+  streamStopDest: (id) => ipcRenderer.invoke('stream:stopDest', id),
   streamStop: () => ipcRenderer.invoke('stream:stop'),
   onStreamStatus: (cb) => ipcRenderer.on('stream:status', (e, data) => cb(data)),
+
+  // system health
+  sysHealth: () => ipcRenderer.invoke('sys:health'),
 
   appInfo: () => ipcRenderer.invoke('app:info')
 });

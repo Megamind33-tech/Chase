@@ -1,5 +1,6 @@
-// FFmpeg pipeline: receives MediaRecorder chunks from the renderer over IPC
-// and pushes them to an RTMP endpoint, plus offers a WebM -> MP4 finalize step.
+// FFmpeg pipeline. Simulcast-capable: one live WebM feed from the renderer
+// is teed to N FFmpeg child processes, one per enabled RTMP destination.
+// Also offers a WebM -> MP4 finalize step for recordings.
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -7,8 +8,6 @@ const path = require('path');
 function resolveFfmpeg() {
   try {
     let p = require('ffmpeg-static');
-    // electron-builder packs node_modules into app.asar; binaries must be
-    // executed from the unpacked mirror.
     if (p && p.includes('app.asar')) p = p.replace('app.asar', 'app.asar.unpacked');
     if (p && fs.existsSync(p)) return p;
   } catch {}
@@ -18,7 +17,7 @@ function resolveFfmpeg() {
 class Streamer {
   constructor(getWindow) {
     this.getWindow = getWindow;
-    this.proc = null;
+    this.procs = new Map(); // destId -> { proc, stopping }
     this.ffmpegPath = resolveFfmpeg();
   }
 
@@ -30,25 +29,24 @@ class Streamer {
     } catch { return false; }
   }
 
-  emit(status, message) {
+  emit(destId, status, message) {
     const w = this.getWindow();
-    if (w && !w.isDestroyed()) w.webContents.send('stream:status', { status, message });
+    if (w && !w.isDestroyed()) w.webContents.send('stream:status', { destId, status, message });
   }
 
   /**
-   * opts: { url, key, videoBitrateK, videoIsH264 }
-   * The renderer feeds us a live WebM container (H.264 or VP8/VP9 video +
-   * Opus audio). If video is already H.264 we copy it; otherwise transcode.
-   * Audio is always transcoded to AAC (FLV requirement).
+   * dest: { id, url, key, videoBitrateK, videoIsH264 }
+   * The renderer feeds one live WebM container; H.264 video is copied,
+   * VP8/VP9 transcoded. Audio is always AAC for FLV.
    */
-  start(opts) {
-    if (this.proc) this.stop();
-    const target = opts.url.replace(/\/+$/, '') + '/' + (opts.key || '').trim();
-    const vbr = (opts.videoBitrateK || 4500) + 'k';
-    const video = opts.videoIsH264
+  start(dest) {
+    this.stopDest(dest.id);
+    const target = dest.url.replace(/\/+$/, '') + '/' + (dest.key || '').trim();
+    const vbr = (dest.videoBitrateK || 4500) + 'k';
+    const video = dest.videoIsH264
       ? ['-c:v', 'copy']
       : ['-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency',
-         '-b:v', vbr, '-maxrate', vbr, '-bufsize', (2 * (opts.videoBitrateK || 4500)) + 'k',
+         '-b:v', vbr, '-maxrate', vbr, '-bufsize', (2 * (dest.videoBitrateK || 4500)) + 'k',
          '-pix_fmt', 'yuv420p', '-g', '60'];
     const args = [
       '-hide_banner', '-loglevel', 'warning',
@@ -59,45 +57,53 @@ class Streamer {
       '-flvflags', 'no_duration_filesize',
       '-f', 'flv', target
     ];
+    let proc;
     try {
-      this.proc = spawn(this.ffmpegPath, args, { stdio: ['pipe', 'ignore', 'pipe'] });
+      proc = spawn(this.ffmpegPath, args, { stdio: ['pipe', 'ignore', 'pipe'] });
     } catch (err) {
-      this.emit('error', 'FFmpeg could not be started: ' + err.message);
+      this.emit(dest.id, 'error', 'FFmpeg could not be started: ' + err.message);
       return { ok: false, error: err.message };
     }
-    this.emit('connecting', 'Connecting to ' + opts.url + ' …');
+    const entry = { proc, stopping: false, firstWrite: true };
+    this.procs.set(dest.id, entry);
+    this.emit(dest.id, 'connecting', 'Connecting…');
     let stderrTail = '';
-    this.proc.stderr.on('data', (d) => {
-      stderrTail = (stderrTail + d.toString()).slice(-2000);
+    proc.stderr.on('data', (d) => { stderrTail = (stderrTail + d.toString()).slice(-2000); });
+    proc.on('error', (err) => {
+      this.emit(dest.id, 'error', 'FFmpeg error: ' + err.message);
+      this.procs.delete(dest.id);
     });
-    this.proc.on('error', (err) => {
-      this.emit('error', 'FFmpeg error: ' + err.message);
-      this.proc = null;
+    proc.on('close', (code) => {
+      if (code === 0 || code === 255 || entry.stopping) this.emit(dest.id, 'stopped', 'Stream ended.');
+      else this.emit(dest.id, 'error', 'Dropped (ffmpeg exit ' + code + '). ' + stderrTail.split('\n').slice(-2).join(' '));
+      this.procs.delete(dest.id);
     });
-    this.proc.on('close', (code) => {
-      if (code === 0 || code === 255 || this.stopping) this.emit('stopped', 'Stream ended.');
-      else this.emit('error', 'Stream dropped (ffmpeg exit ' + code + '). ' + stderrTail.split('\n').slice(-3).join(' '));
-      this.proc = null;
-      this.stopping = false;
-    });
-    this.proc.stdin.on('error', () => {}); // EPIPE on teardown is expected
-    // No handshake signal from ffmpeg for "connected"; report live once data flows.
-    this.firstWrite = true;
+    proc.stdin.on('error', () => {}); // EPIPE on teardown is expected
     return { ok: true };
   }
 
+  /** Tee one chunk to every live destination. */
   write(buf) {
-    if (!this.proc || !this.proc.stdin.writable) return;
-    if (this.firstWrite) { this.firstWrite = false; this.emit('live', 'Live — sending data.'); }
-    this.proc.stdin.write(buf);
+    for (const [id, entry] of this.procs) {
+      if (!entry.proc.stdin.writable) continue;
+      if (entry.firstWrite) { entry.firstWrite = false; this.emit(id, 'live', 'Live'); }
+      entry.proc.stdin.write(buf);
+    }
+  }
+
+  get liveCount() { return this.procs.size; }
+
+  stopDest(id) {
+    const entry = this.procs.get(id);
+    if (!entry) return;
+    entry.stopping = true;
+    try { entry.proc.stdin.end(); } catch {}
+    const p = entry.proc;
+    setTimeout(() => { try { p.kill('SIGKILL'); } catch {} }, 3000);
   }
 
   stop() {
-    if (!this.proc) return { ok: true };
-    this.stopping = true;
-    try { this.proc.stdin.end(); } catch {}
-    const p = this.proc;
-    setTimeout(() => { try { p.kill('SIGKILL'); } catch {} }, 3000);
+    for (const id of [...this.procs.keys()]) this.stopDest(id);
     return { ok: true };
   }
 

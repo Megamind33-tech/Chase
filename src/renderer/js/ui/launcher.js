@@ -6,7 +6,7 @@ import { toast } from './toasts.js';
 const $ = (id) => document.getElementById(id);
 
 export function initLauncher({ onEnter, onOpenProject }) {
-  const wiz = { name: 'My Studio', setId: 'horizon', preset: 'news', bgMode: 'chroma' };
+  const wiz = { name: 'My Studio', setId: 'apex', preset: 'news', bgMode: 'chroma' };
   let previewStream = null;
 
   function show(step) {
@@ -53,9 +53,11 @@ export function initLauncher({ onEnter, onOpenProject }) {
   // ---- step 1: template ----
   const setGrid = $('set-grid');
   for (const [id, s] of Object.entries(SETS)) {
+    const t = s.theme;
+    const grad = `linear-gradient(135deg, ${t.sky} 0%, ${t.ledA} 55%, ${t.ledB} 100%)`;
     const card = document.createElement('button');
     card.className = 'set-card' + (id === wiz.setId ? ' active' : '');
-    card.innerHTML = `<div class="set-thumb" style="background:${s.thumb}"></div>
+    card.innerHTML = `<div class="set-thumb" style="background:${grad}"></div>
       <span class="set-name">${s.name}</span><span class="set-desc">${s.desc}</span>`;
     card.addEventListener('click', () => {
       wiz.setId = id;

@@ -1,5 +1,7 @@
-// Recording + streaming outputs. Two independent MediaRecorders read the
-// same program stream: one writes a local file, one feeds FFmpeg → RTMP.
+// Recording + simulcast streaming outputs. Two independent MediaRecorders
+// read the same program stream: one writes a local file, one feeds the
+// main-process FFmpeg tee (one process per destination). Outbound bitrate
+// is measured from real chunk sizes.
 const CODEC_PREFS = [
   'video/webm;codecs=h264,opus',
   'video/webm;codecs=h264',
@@ -19,18 +21,29 @@ export class Outputs {
   constructor(getStream) {
     this.getStream = getStream; // () => MediaStream (fresh program stream)
     this.recording = false;
-    this.streaming = false;
+    this.streaming = false;     // any destination live
+    this.liveDests = new Set();
     this.recPath = null;
     this.codec = pickCodec();
     this.onRecState = () => {};
     this.onStreamState = () => {};
+    this._bytesWindow = [];     // [time, bytes] for bitrate measurement
     window.chase.onStreamStatus((s) => {
-      if (s.status === 'error' || s.status === 'stopped') {
-        this._teardownStreamRecorder();
-        this.streaming = false;
-      }
+      if (s.status === 'live') this.liveDests.add(s.destId);
+      if (s.status === 'error' || s.status === 'stopped') this.liveDests.delete(s.destId);
+      const wasStreaming = this.streaming;
+      this.streaming = this.liveDests.size > 0 || (wasStreaming && s.status === 'connecting');
+      if (wasStreaming && !this.streaming && this.liveDests.size === 0) this._teardownStreamRecorder();
       this.onStreamState(s);
     });
+  }
+
+  /** Measured outbound bitrate in kbps over the last ~3s. */
+  bitrateKbps() {
+    const now = performance.now();
+    this._bytesWindow = this._bytesWindow.filter(([t]) => now - t < 3000);
+    const bytes = this._bytesWindow.reduce((a, [, b]) => a + b, 0);
+    return Math.round((bytes * 8) / 3000); // bytes over 3s → kbps
   }
 
   // ---------- recording ----------
@@ -62,38 +75,52 @@ export class Outputs {
       this.recRecorder.onstop = res;
       this.recRecorder.stop();
     });
-    // flush settles via ondataavailable before onstop resolves in Chromium
     const path = await window.chase.recStop();
     this.recording = false;
     this.onRecState({ on: false, path });
     return { path, h264: this.codec.h264 };
   }
 
-  // ---------- streaming ----------
-  async startStreaming({ url, key, bitrateK }) {
-    if (this.streaming) return { ok: false, error: 'Already streaming' };
-    const r = await window.chase.streamStart({
-      url, key, videoBitrateK: bitrateK, videoIsH264: this.codec.h264
-    });
-    if (!r.ok) return r;
-    this.streamRecorder = new MediaRecorder(this.getStream(), {
-      mimeType: this.codec.mime || undefined,
-      videoBitsPerSecond: (bitrateK || 4500) * 1000,
-      audioBitsPerSecond: 128000
-    });
-    this.streamRecorder.ondataavailable = async (e) => {
-      if (e.data.size > 0) window.chase.streamChunk(await e.data.arrayBuffer());
-    };
-    this.streamRecorder.start(250); // small chunks keep RTMP latency low
+  // ---------- streaming (simulcast) ----------
+  /** dests: [{ id, url, key }]; one shared encoder feeds all. */
+  async startStreaming(dests, bitrateK) {
+    const results = [];
+    for (const d of dests) {
+      const r = await window.chase.streamStart({
+        id: d.id, url: d.url, key: d.key,
+        videoBitrateK: bitrateK, videoIsH264: this.codec.h264
+      });
+      results.push({ id: d.id, ...r });
+    }
+    if (!results.some((r) => r.ok)) return results;
+    if (!this.streamRecorder || this.streamRecorder.state === 'inactive') {
+      this.streamRecorder = new MediaRecorder(this.getStream(), {
+        mimeType: this.codec.mime || undefined,
+        videoBitsPerSecond: (bitrateK || 4500) * 1000,
+        audioBitsPerSecond: 128000
+      });
+      this.streamRecorder.ondataavailable = async (e) => {
+        if (e.data.size > 0) {
+          this._bytesWindow.push([performance.now(), e.data.size]);
+          window.chase.streamChunk(await e.data.arrayBuffer());
+        }
+      };
+      this.streamRecorder.start(250); // small chunks keep RTMP latency low
+    }
     this.streaming = true;
     this.streamStartedAt = Date.now();
-    return { ok: true };
+    return results;
+  }
+
+  async stopDestination(id) {
+    await window.chase.streamStopDest(id);
   }
 
   async stopStreaming() {
     this._teardownStreamRecorder();
     await window.chase.streamStop();
     this.streaming = false;
+    this.liveDests.clear();
   }
 
   _teardownStreamRecorder() {
