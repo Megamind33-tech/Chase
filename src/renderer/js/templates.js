@@ -148,27 +148,27 @@ export const SKIN_PRESETS = {
 };
 
 export const PROPS = {
-  screen:   { name: 'Virtual screen', desc: '16:9 LED display on stand — drop media on it', ico: '🖥' },
-  monitor:  { name: 'Studio monitor', desc: 'Desk-side preview monitor', ico: '📺' },
-  panel:    { name: 'Glass panel',    desc: 'Frosted panel with brand glow', ico: '◫' },
-  plinth:   { name: 'Plinth',         desc: 'Display pedestal, lit edge', ico: '▯' },
-  lightbar: { name: 'Floor light bar', desc: 'Accent strip in brand colour', ico: '═' },
-  plant:    { name: 'Studio plant',   desc: 'Greenery for talk formats', ico: '🪴' }
+  screen:   { name: 'Virtual screen', desc: '16:9 LED display on stand — drop media on it', ico: 'screen' },
+  monitor:  { name: 'Studio monitor', desc: 'Desk-side preview monitor', ico: 'studio' },
+  panel:    { name: 'Glass panel',    desc: 'Frosted panel with brand glow', ico: 'overlays' },
+  plinth:   { name: 'Plinth',         desc: 'Display pedestal, lit edge', ico: 'cube' },
+  lightbar: { name: 'Floor light bar', desc: 'Accent strip in brand colour', ico: 'lighting' },
+  plant:    { name: 'Studio plant',   desc: 'Greenery for talk formats', ico: 'plant' }
 };
 
 export const GRAPHICS = {
-  lowerThird: { name: 'Lower third', desc: 'Name + role strap', ico: 'L3' },
-  ticker:     { name: 'News ticker', desc: 'Scrolling headline bar', ico: '⟶' },
-  logoBug:    { name: 'Logo bug',    desc: 'Station logo on screen', ico: '◆' },
-  banner:     { name: 'Breaking banner', desc: 'High-impact alert slab', ico: '⚡' },
-  title:      { name: 'Title card',  desc: 'Show opener title', ico: 'T' },
-  clock:      { name: 'Clock',       desc: 'On-screen studio clock', ico: '🕐' }
+  lowerThird: { name: 'Lower third', desc: 'Name + role strap', ico: 'lowerthird' },
+  ticker:     { name: 'News ticker', desc: 'Scrolling headline bar', ico: 'ticker' },
+  logoBug:    { name: 'Logo bug',    desc: 'Station logo on screen', ico: 'logobug' },
+  banner:     { name: 'Breaking banner', desc: 'High-impact alert slab', ico: 'banner' },
+  title:      { name: 'Title card',  desc: 'Show opener title', ico: 'title' },
+  clock:      { name: 'Clock',       desc: 'On-screen studio clock', ico: 'clock' }
 };
 
 // Control-room macros: one button = several real actions.
 export const MACROS = {
-  breaking:  { name: 'Breaking news', desc: 'Banner + ticker on, cut to Centre' },
-  opener:    { name: 'Show opener',   desc: 'Title card up, wide shot, logo on' },
-  clearGfx:  { name: 'Clear graphics', desc: 'All overlays off air' },
-  interview: { name: 'Interview look', desc: 'Cross-shot, warm mood, L3 on' }
+  breaking:  { name: 'Breaking news', desc: 'Banner + ticker on, cut to Centre', ico: 'banner' },
+  opener:    { name: 'Show opener',   desc: 'Title card up, wide shot, logo on', ico: 'macro' },
+  clearGfx:  { name: 'Clear graphics', desc: 'All overlays off air', ico: 'close' },
+  interview: { name: 'Interview look', desc: 'Cross-shot, warm mood, L3 on', ico: 'talent' }
 };

@@ -40,6 +40,18 @@ export class Compositor {
         this.ctx.globalAlpha = 1 - k;
         this.ctx.drawImage(this._snap, 0, 0);
         this.ctx.globalAlpha = 1;
+      } else if (tr.type === 'slide') {
+        // outgoing frame slides off to the left
+        const ease = 1 - Math.pow(1 - k, 3);
+        this.ctx.drawImage(this._snap, -width * ease, 0);
+      } else if (tr.type === 'zoom') {
+        // outgoing frame scales up and dissolves
+        const ease = 1 - Math.pow(1 - k, 2);
+        const s = 1 + ease * 0.35;
+        this.ctx.globalAlpha = 1 - ease;
+        this.ctx.drawImage(this._snap,
+          (width - width * s) / 2, (height - height * s) / 2, width * s, height * s);
+        this.ctx.globalAlpha = 1;
       } else if (tr.type === 'wipe') {
         const edge = width * k;
         this.ctx.save();

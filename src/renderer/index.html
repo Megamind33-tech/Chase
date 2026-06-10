@@ -173,6 +173,13 @@
         <div class="vp-status">
           <span class="vp-live" id="vp-live"><span class="vp-live-dot"></span>LIVE PREVIEW</span>
           <span class="vp-cam" id="vp-cam">CAM 1 · WIDE</span>
+          <span class="vp-aspect">16:9</span>
+        </div>
+        <div class="transform-bar" id="transform-bar" hidden>
+          <button class="ttool" id="tt-rotl" title="Rotate left 15°"></button>
+          <button class="ttool" id="tt-rotr" title="Rotate right 15°"></button>
+          <button class="ttool" id="tt-dup" title="Duplicate object"></button>
+          <button class="ttool danger" id="tt-del" title="Delete object"></button>
         </div>
         <div class="safe-areas" id="safe-areas" hidden><div class="safe action"></div><div class="safe title"></div></div>
         <div class="viewport-tools">
@@ -356,10 +363,12 @@
     <section class="ps-block ps-trans">
       <header><h4>TRANSITIONS</h4></header>
       <div class="trans-grid" id="trans-grid">
-        <button class="trans-btn active" data-trans="cut">CUT</button>
-        <button class="trans-btn" data-trans="move">MOVE</button>
-        <button class="trans-btn" data-trans="fade">FADE</button>
-        <button class="trans-btn" data-trans="wipe">WIPE</button>
+        <button class="trans-btn active" data-trans="cut" data-ico="cut">CUT</button>
+        <button class="trans-btn" data-trans="move" data-ico="move">MOVE</button>
+        <button class="trans-btn" data-trans="fade" data-ico="fade">FADE</button>
+        <button class="trans-btn" data-trans="wipe" data-ico="wipe">WIPE</button>
+        <button class="trans-btn" data-trans="slide" data-ico="slide">SLIDE</button>
+        <button class="trans-btn" data-trans="zoom" data-ico="zoom">ZOOM</button>
       </div>
       <div class="field slim"><label>Duration <output id="o-transdur">0.6s</output></label>
         <input type="range" id="trans-duration" min="0.2" max="2" step="0.1" value="0.6"></div>
@@ -368,19 +377,19 @@
       <header><h4>AUDIO MIXER</h4></header>
       <div class="mixer" id="mixer">
         <div class="mx-ch" data-ch="mic">
-          <canvas class="mx-meter" width="10" height="84"></canvas>
+          <canvas class="mx-meter" width="14" height="84"></canvas>
           <input type="range" class="mx-fader" id="fader-mic" min="0" max="1.5" step="0.01" value="1">
-          <button class="mx-mute" id="mx-mute-mic" title="Mute microphone">MIC</button>
+          <button class="mx-mute" id="mx-mute-mic" title="Mute microphone">MIC 1</button>
         </div>
         <div class="mx-ch" data-ch="jingle">
-          <canvas class="mx-meter" width="10" height="84"></canvas>
+          <canvas class="mx-meter" width="14" height="84"></canvas>
           <input type="range" class="mx-fader" id="fader-jingle" min="0" max="1.5" step="0.01" value="0.8">
-          <button class="mx-mute" id="mx-jingle-btn" title="Play / stop jingle">JGL ▸</button>
+          <button class="mx-mute" id="mx-jingle-btn" title="Play / stop jingle">MUSIC ▸</button>
         </div>
         <div class="mx-ch" data-ch="master">
-          <canvas class="mx-meter" width="10" height="84"></canvas>
+          <canvas class="mx-meter" width="14" height="84"></canvas>
           <input type="range" class="mx-fader" id="fader-master" min="0" max="1.5" step="0.01" value="1">
-          <span class="mx-label">MAST</span>
+          <span class="mx-label">PGM</span>
         </div>
       </div>
     </section>

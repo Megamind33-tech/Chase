@@ -8,11 +8,39 @@ import { ANGLES } from '../engine/cameras.js';
 import { snapshotScene, applyScene, runMacro } from '../scenes.js';
 import { capture } from '../capture.js';
 import { toast } from './toasts.js';
+import { icon } from './icons.js';
 
 const $ = (id) => document.getElementById(id);
 
 export function initEditor(ctx) {
   const { studio, overlay, outputs, audio, compositor } = ctx;
+
+  // ---- inject the custom icon system into the static shell ----
+  const NAV_ICONS = { sets: 'sets', props: 'cube', graphics: 'graphics', lighting: 'lighting', cameras: 'camera', audio: 'audio', scripts: 'scripts', plugins: 'plugins' };
+  document.querySelectorAll('.irail-btn').forEach((b) => {
+    const el = b.querySelector('.irail-ico');
+    if (el) el.outerHTML = icon(NAV_ICONS[b.dataset.nav] || 'cube');
+  });
+  const prependIcon = (id, name) => {
+    const el = document.getElementById(id);
+    if (el) el.insertAdjacentHTML('afterbegin', icon(name));
+  };
+  prependIcon('btn-save', 'save');
+  prependIcon('btn-open2', 'open');
+  prependIcon('btn-import2', 'importIc');
+  prependIcon('btn-export-template', 'exportIc');
+  prependIcon('btn-live', 'live');
+  prependIcon('btn-scene-add', 'plus');
+  prependIcon('btn-multiview', 'multiview');
+  document.getElementById('btn-safearea').innerHTML = icon('safearea');
+  document.getElementById('btn-fullscreen').innerHTML = icon('expand');
+  document.querySelectorAll('.trans-btn').forEach((b) => {
+    b.insertAdjacentHTML('afterbegin', icon(b.dataset.ico || 'cut'));
+  });
+  document.getElementById('tt-rotl').innerHTML = icon('undo');
+  document.getElementById('tt-rotr').innerHTML = icon('rotate');
+  document.getElementById('tt-dup').innerHTML = icon('duplicate');
+  document.getElementById('tt-del').innerHTML = icon('trash');
   let selectedId = null;
   let activeNav = 'sets';
   let activeCat = 'all';
@@ -68,9 +96,18 @@ export function initEditor(ctx) {
     return `thumb1:${id}:${state.brand.primary}:${state.brand.accent}:${state.brand.name}`;
   }
 
+  const favs = new Set(JSON.parse(localStorage.getItem('chase.favSets') || '[]'));
+  function toggleFav(id) {
+    favs.has(id) ? favs.delete(id) : favs.add(id);
+    localStorage.setItem('chase.favSets', JSON.stringify([...favs]));
+    buildBrowser();
+  }
+
   function buildSetsPane(body) {
-    for (const [id, s] of Object.entries(SETS)) {
-      if (activeCat !== 'all' && !s.cat.includes(activeCat)) continue;
+    const entries = Object.entries(SETS)
+      .filter(([, s]) => activeCat === 'all' || s.cat.includes(activeCat))
+      .sort(([a], [b]) => (favs.has(b) ? 1 : 0) - (favs.has(a) ? 1 : 0));
+    for (const [id, s] of entries) {
       const card = document.createElement('div');
       card.className = 'bset-card' + (id === state.setId ? ' active' : '');
       card.draggable = true;
@@ -78,8 +115,13 @@ export function initEditor(ctx) {
       card.innerHTML = `
         ${cached ? `<img class="bset-thumb" src="${cached}" alt="">` : `<div class="bset-thumb loading">RENDERING…</div>`}
         <span class="bset-tag">${s.cat[0]}</span>
+        <span class="bset-q">HD · 3D</span>
         ${id === state.setId ? '<span class="bset-live">IN USE</span>' : ''}
-        <div class="bset-meta"><span class="n">${s.name}</span><span class="d">${s.desc}</span></div>`;
+        <div class="bset-meta">
+          <div class="tcol"><span class="n">${s.name}</span><span class="d">${s.desc}</span></div>
+          <button class="bset-fav${favs.has(id) ? ' on' : ''}" title="Favourite">${icon('star')}</button>
+        </div>`;
+      card.querySelector('.bset-fav').addEventListener('click', (e) => { e.stopPropagation(); toggleFav(id); });
       const apply = () => {
         compositor.beginTransition(state.transition.type === 'wipe' ? 'wipe' : 'fade', 0.5);
         studio.loadSet(id);
@@ -93,6 +135,16 @@ export function initEditor(ctx) {
       body.appendChild(card);
       if (!cached) queueThumb(id, card);
     }
+    const more = document.createElement('button');
+    more.className = 'btn gold slim browser-foot-btn';
+    more.innerHTML = icon('importIc') + ' Import set template…';
+    more.addEventListener('click', async () => {
+      const r = await window.chase.importTemplate();
+      if (!r) return;
+      if (r.error) return toast(r.error, 'err');
+      ctx.loadProject(r.json, null);
+    });
+    body.appendChild(more);
   }
 
   function queueThumb(id, card) {
@@ -168,7 +220,7 @@ export function initEditor(ctx) {
   function buildCamerasPane(body) {
     $('browser-hint').textContent = 'Click an angle to take it to program. Keys 1–6.';
     for (const a of ANGLES) {
-      const card = libCard('C' + a.num, 'CAM ' + a.num + ' · ' + a.name,
+      const card = libCard('camera', 'CAM ' + a.num + ' · ' + a.name,
         'Virtual ' + a.name.toLowerCase() + ' angle', null, () => switchCam(a.num));
       card.draggable = false;
       card.addEventListener('click', () => switchCam(a.num));
@@ -209,7 +261,7 @@ export function initEditor(ctx) {
       body.appendChild(p);
     }
     state.audio.jingles.forEach((j, i) => {
-      const card = libCard('♫', j.name, 'Click to play into the mix', null, () => {});
+      const card = libCard('jingle', j.name, 'Click to play into the mix', null, () => {});
       card.draggable = false;
       card.style.cursor = 'pointer';
       card.addEventListener('click', () => {
@@ -238,7 +290,7 @@ export function initEditor(ctx) {
       : 'The plugin system (custom graphics packs, data feeds, scoreboards) is a staged rollout. Scene templates already cover shareable looks today via Export.';
     const div = document.createElement('div');
     div.className = 'staged-pane';
-    div.innerHTML = `<div class="big">⧗</div><p>${copy}</p>`;
+    div.innerHTML = `<div class="big">${icon(nav === 'scripts' ? 'scripts' : 'plugins')}</div><p>${copy}</p>`;
     body.appendChild(div);
     $('browser-hint').textContent = 'Staged rollout — nothing fake to click here.';
   }
@@ -247,7 +299,8 @@ export function initEditor(ctx) {
     const card = document.createElement('div');
     card.className = 'lib-card';
     card.draggable = !!dragData;
-    card.innerHTML = `<div class="lib-ico">${ico}</div>
+    const glyph = /^[a-zA-Z]+$/.test(ico) ? icon(ico) : ico;
+    card.innerHTML = `<div class="lib-ico">${glyph}</div>
       <div><span class="l-name">${name}</span><span class="l-desc">${desc}</span></div>`;
     if (dragData) card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/chase', dragData));
     if (onAdd) card.addEventListener('dblclick', onAdd);
@@ -385,6 +438,7 @@ export function initEditor(ctx) {
     const data = id ? state.objects.find((o) => o.id === id) : null;
     props.hidden = !data;
     $('inspect-empty').hidden = !!data;
+    $('transform-bar').hidden = !data;
     if (!data) return;
     $('obj-props-title').textContent = PROPS[data.kind]?.name || data.kind;
     $('obj-scale').value = data.scale; $('o-scale').value = (+data.scale).toFixed(2);
@@ -398,12 +452,13 @@ export function initEditor(ctx) {
     const ul = $('layer-list');
     ul.innerHTML = '';
     if (!state.objects.length) {
-      ul.innerHTML = '<li class="muted" style="cursor:default">No objects yet — drag from Objects.</li>';
+      ul.innerHTML = `<div class="empty-state">${icon('cube')}<h5>No objects in the set</h5>
+        <p>Drag desks, screens and props in from the Objects library, or double-click a card.</p></div>`;
     }
     for (const o of state.objects) {
       const li = document.createElement('li');
       li.className = o.id === selectedId ? 'selected' : '';
-      li.innerHTML = `<span class="ly-ico">${PROPS[o.kind]?.ico || '▢'}</span>${PROPS[o.kind]?.name || o.kind}
+      li.innerHTML = `<span class="ly-ico">${icon(PROPS[o.kind]?.ico || 'cube')}</span>${PROPS[o.kind]?.name || o.kind}
         <button class="ly-vis ${o.visible !== false ? 'on' : ''}" title="Show / hide">●</button>`;
       li.addEventListener('click', (e) => {
         if (e.target.classList.contains('ly-vis')) {
@@ -425,7 +480,7 @@ export function initEditor(ctx) {
     for (const [key, g] of Object.entries(GRAPHICS)) {
       const on = state.graphics[key].on;
       const li = document.createElement('li');
-      li.innerHTML = `<span class="ly-ico">${g.ico}</span>${g.name}
+      li.innerHTML = `<span class="ly-ico">${icon(g.ico)}</span>${g.name}
         <button class="ly-vis ${on ? 'on' : ''}" title="On air / off air">●</button>`;
       li.addEventListener('click', (e) => {
         if (e.target.classList.contains('ly-vis')) {
@@ -467,6 +522,25 @@ export function initEditor(ctx) {
       g.userData.setMedia(media.url, media.type);
       toast(media.name + ' placed on screen');
     }
+  });
+
+  // floating transform toolbar (viewport)
+  const selData = () => state.objects.find((o) => o.id === selectedId);
+  $('tt-rotl').addEventListener('click', () => { const d = selData(); if (d) { d.rotY = (d.rotY || 0) - 15; studio.syncObject(d); } });
+  $('tt-rotr').addEventListener('click', () => { const d = selData(); if (d) { d.rotY = (d.rotY || 0) + 15; studio.syncObject(d); } });
+  $('tt-dup').addEventListener('click', () => {
+    const d = selData();
+    if (!d) return;
+    const copy = studio.addObject(d.kind, d.x + 0.45, d.z + 0.25);
+    Object.assign(copy, { rotY: d.rotY, scale: d.scale, height: d.height, opacity: d.opacity });
+    studio.syncObject(copy);
+    selectObject(copy.id);
+    toast('Object duplicated');
+  });
+  $('tt-del').addEventListener('click', () => {
+    if (!selectedId) return;
+    studio.removeObject(selectedId);
+    selectObject(null);
   });
 
   /* ---- camera panel ---- */
@@ -644,7 +718,14 @@ export function initEditor(ctx) {
     const list = $('scene-list');
     list.innerHTML = '';
     if (!state.scenes.length) {
-      list.innerHTML = '<div class="scene-empty">Snapshot your current look (set + camera + graphics + mood) and recall it with one click during the show.</div>';
+      list.innerHTML = `<div class="empty-state">${icon('scene')}<h5>No scenes yet</h5>
+        <p>Snapshot the current look — set, camera, graphics, mood — and recall it live with one click.</p></div>`;
+      const b = document.createElement('button');
+      b.className = 'btn primary slim';
+      b.style.width = '100%';
+      b.innerHTML = icon('plus') + ' Snapshot current look';
+      b.addEventListener('click', () => $('btn-scene-add').click());
+      list.querySelector('.empty-state').appendChild(b);
       return;
     }
     state.scenes.forEach((sc, i) => {
@@ -679,7 +760,7 @@ export function initEditor(ctx) {
   for (const [id, m] of Object.entries(MACROS)) {
     const b = document.createElement('button');
     b.className = 'macro-btn';
-    b.textContent = m.name;
+    b.innerHTML = icon(m.ico || 'macro') + `<span>${m.name}</span>`;
     b.title = m.desc;
     b.addEventListener('click', () => { runMacro(id, sceneCtx()); toast(m.name); });
     macroList.appendChild(b);
@@ -725,7 +806,7 @@ export function initEditor(ctx) {
   function refreshJingleBtn() {
     const b = $('mx-jingle-btn');
     b.classList.toggle('playing', audio.jinglePlaying);
-    b.textContent = audio.jinglePlaying ? 'JGL ■' : 'JGL ▸';
+    b.textContent = audio.jinglePlaying ? 'MUSIC ■' : 'MUSIC ▸';
   }
 
   // meters
@@ -759,14 +840,21 @@ export function initEditor(ctx) {
       if (!d.enabled && !destStates[d.id]) continue;
       const row = document.createElement('div');
       const st = destStates[d.id] || 'idle';
-      row.className = 'dest-row ' + (st === 'live' ? 'live' : st === 'connecting' ? 'connecting' : '');
-      row.innerHTML = `<span class="dr-led"></span><span class="dr-name">${d.name}</span>
-        <span class="dr-kbps">${st === 'live' ? outputs.bitrateKbps() + ' kbps' : ''}</span>
+      const pIcon = d.kind === 'youtube' ? 'youtube' : d.kind === 'facebook' ? 'facebook' : 'rtmp';
+      row.className = 'dest-row k-' + d.kind + ' ' + (st === 'live' ? 'live' : st === 'connecting' ? 'connecting' : '');
+      row.innerHTML = `<span class="dr-ico">${icon(pIcon)}</span><span class="dr-led"></span><span class="dr-name">${d.name}</span>
+        <span class="dr-kbps">${st === 'live' ? outputs.bitrateKbps() + ' kbps · ' + (state.output.height === 1080 ? '1080p' : '720p') + state.output.fps : ''}</span>
         <span class="dr-state">${st === 'live' ? 'LIVE' : st === 'connecting' ? 'CONNECTING' : st === 'error' ? 'ERROR' : d.enabled ? 'READY' : 'OFF'}</span>`;
       list.appendChild(row);
     }
     if (!list.children.length) {
-      list.innerHTML = '<div class="scene-empty">Enable destinations in the Stream tab or with GO LIVE. One encoder feeds all of them.</div>';
+      list.innerHTML = `<div class="empty-state">${icon('rtmp')}<h5>No destinations enabled</h5>
+        <p>One encoder can feed YouTube, Facebook and custom RTMP at the same time.</p></div>`;
+      const b = document.createElement('button');
+      b.className = 'btn slim';
+      b.innerHTML = icon('plus') + ' Add destination';
+      b.addEventListener('click', () => { buildLiveModal(); $('modal-live').hidden = false; });
+      list.querySelector('.empty-state').appendChild(b);
     }
   }
   setInterval(() => { if (outputs.streaming) buildDestRows(); }, 2000);
@@ -961,9 +1049,10 @@ export function initEditor(ctx) {
     for (const d of state.output.destinations) {
       const row = document.createElement('div');
       row.className = 'live-dest-row' + (d.enabled ? ' enabled' : '');
+      const pIcon = d.kind === 'youtube' ? 'youtube' : d.kind === 'facebook' ? 'facebook' : 'rtmp';
       row.innerHTML = `
         <input type="checkbox" ${d.enabled ? 'checked' : ''}>
-        <b>${d.name}</b>
+        <b>${icon(pIcon)}${d.name}</b>
         ${d.kind === 'custom' ? `<input type="text" placeholder="rtmp:// server URL" value="${escAttr(d.url)}" spellcheck="false">` : ''}
         <input type="password" placeholder="stream key" value="${escAttr(d.key)}" spellcheck="false">`;
       const [chk, ...inputs] = row.querySelectorAll('input');

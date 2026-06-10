@@ -130,7 +130,7 @@ app.whenReady().then(async () => {
 
   const ok = stage1 && errors.length === 0 && stage2.editorVisible
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
-    && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 4
+    && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6
     && stage2.mixerChannels === 3 && stage2.setBrowserCards === 9;
   if (!ok) {
     console.error('SMOKE TEST FAILED');
