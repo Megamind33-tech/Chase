@@ -29,6 +29,11 @@ uniform float erode;
 uniform float wrapStrength;
 uniform vec3 wrapColor;
 uniform float matteView;
+uniform float clothOn;
+uniform vec3 clothKey;
+uniform vec3 clothNew;
+uniform float clothTol;
+uniform float clothSoft;
 uniform vec2 texel;
 varying vec2 vUv;
 
@@ -62,6 +67,17 @@ void main() {
   if (matteView > 0.5) {
     gl_FragColor = vec4(vec3(alpha), 1.0);
     return;
+  }
+
+  // wardrobe recolor ("AI Season"): retarget the garment's chroma while
+  // preserving its real shading — folds, light and shadow stay natural
+  if (clothOn > 0.5) {
+    float cd = distance(rgb2uv(c.rgb), rgb2uv(clothKey));
+    float cmask = 1.0 - smoothstep(clothTol, clothTol + max(clothSoft, 0.005), cd);
+    float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+    float keyLum = max(dot(clothKey, vec3(0.299, 0.587, 0.114)), 0.18);
+    vec3 recol = clamp(clothNew * (lum / keyLum), 0.0, 1.0);
+    c.rgb = mix(c.rgb, recol, cmask * alpha);
   }
 
   // skin smoothing: light box blur restricted to mid-tones
@@ -133,6 +149,11 @@ export class Presenter {
         wrapStrength: { value: 0 },
         wrapColor: { value: new THREE.Color('#34c3ff') },
         matteView: { value: 0 },
+        clothOn: { value: 0 },
+        clothKey: { value: new THREE.Color('#3a3f4a') },
+        clothNew: { value: new THREE.Color('#8e1424') },
+        clothTol: { value: 0.12 },
+        clothSoft: { value: 0.08 },
         texel: { value: new THREE.Vector2(1 / 1280, 1 / 720) }
       }
     });
@@ -218,6 +239,15 @@ export class Presenter {
     u.eyeBright.value = e.eyes || 0;
     u.erode.value = e.erode || 0;
     u.wrapStrength.value = e.wrap || 0;
+  }
+
+  applyCloth(cl) {
+    const u = this.material.uniforms;
+    u.clothOn.value = cl.on ? 1 : 0;
+    u.clothKey.value.set(cl.key);
+    u.clothNew.value.set(cl.to);
+    u.clothTol.value = cl.tol;
+    u.clothSoft.value = cl.soft;
   }
 
   setWrapColor(hex) {

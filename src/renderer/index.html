@@ -250,6 +250,7 @@
             <button class="btn ghost slim" id="obj-media" hidden>Set media…</button>
             <button class="btn danger slim" id="obj-delete">Delete</button>
           </div>
+          <div id="obj-materials"></div>
         </div>
         <div id="inspect-empty"></div>
         <h3>Scene layers</h3>
@@ -312,6 +313,20 @@
         <div class="chipset">
           <button class="chip" id="chk-matte">Matte preview</button>
         </div>
+        <h3 class="spaced">Wardrobe recolor · AI Season</h3>
+        <div class="chipset">
+          <button class="chip" id="cloth-on">Enable</button>
+          <button class="chip" id="cloth-pick">Pick garment from program</button>
+        </div>
+        <div class="row gap">
+          <div class="field slim grow"><label>Garment colour</label><input type="color" id="cloth-key" value="#3a3f4a"></div>
+          <div class="field slim grow"><label>New colour</label><input type="color" id="cloth-to" value="#8e1424"></div>
+        </div>
+        <div class="field slim"><label>Tolerance</label><input type="range" id="cloth-tol" min="0.02" max="0.4" step="0.005" value="0.12"></div>
+        <div class="field slim"><label>Softness</label><input type="range" id="cloth-soft" min="0.005" max="0.2" step="0.005" value="0.08"></div>
+        <p class="hint">Retargets the garment's colour live while keeping real folds and
+        shading. Works best on solid-colour clothing. Full AI garment swap is a staged
+        cloud feature — no fake button.</p>
         <h3 class="spaced">Intelligent relighting</h3>
         <div class="field slim"><label>Studio light wrap <output id="o-wrap">0%</output></label>
           <input type="range" id="enh-wrap" min="0" max="1" step="0.01" value="0"></div>

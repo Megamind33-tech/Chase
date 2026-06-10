@@ -55,6 +55,7 @@ function normaliseModel(g, model, ph, clips) {
   if (ph) g.remove(ph);
   g.add(model);
   g.userData.loading = false;
+  g.userData.onReady?.(g);
   if (clips?.length) {
     const mixer = new THREE.AnimationMixer(model);
     mixer.clipAction(clips[0]).play();

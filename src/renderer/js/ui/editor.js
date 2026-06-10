@@ -226,6 +226,40 @@ export function initEditor(ctx) {
     }
   }
 
+  /* ---- brand patch texture (rebrand imported surfaces) ---- */
+  function brandPatchFactory(text) {
+    const cv = document.createElement('canvas');
+    cv.width = 1024; cv.height = 512;
+    const ctx2 = cv.getContext('2d');
+    const g = ctx2.createLinearGradient(0, 0, 0, 512);
+    g.addColorStop(0, state.brand.primary);
+    g.addColorStop(1, '#070b14');
+    ctx2.fillStyle = g;
+    ctx2.fillRect(0, 0, 1024, 512);
+    ctx2.fillStyle = state.brand.accent;
+    ctx2.fillRect(0, 0, 1024, 26);
+    ctx2.fillRect(0, 486, 1024, 26);
+    ctx2.fillStyle = 'rgba(255,255,255,0.97)';
+    ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+    let size = 150;
+    ctx2.font = '800 ' + size + 'px "Segoe UI", system-ui, sans-serif';
+    while (ctx2.measureText(text).width > 940 && size > 40) {
+      size -= 10;
+      ctx2.font = '800 ' + size + 'px "Segoe UI", system-ui, sans-serif';
+    }
+    ctx2.fillText(text.toUpperCase(), 512, overlay.logoImg ? 290 : 256);
+    if (overlay.logoImg) {
+      const lw = 120 * (overlay.logoImg.width / overlay.logoImg.height);
+      ctx2.drawImage(overlay.logoImg, 512 - lw / 2, 60, lw, 120);
+    }
+    const THREE_tex = studio.makeCanvasTexture ? studio.makeCanvasTexture(cv) : null;
+    if (THREE_tex) return THREE_tex;
+    // fallback: build via studio's renderer-safe path
+    return cv;
+  }
+
+  studio.brandFactory = (t) => studio.canvasToTexture(brandPatchFactory(t));
+
   /* ---- Universal Import Manager ---- */
   function openIngestModal(report, media) {
     const box = $('ingest-report');
@@ -258,6 +292,7 @@ export function initEditor(ctx) {
       };
       state.objects.push(data);
       studio.addObject('model', data.x, data.z, data, report.object);
+      studio.applyAllMatOverrides(data, (t) => studio.canvasToTexture(brandPatchFactory(t)));
       state.assets.push({
         id: data.id, name: report.name, source: report.source, ext: report.ext,
         tris: report.tris, memMB: report.memMB, liveSafe: report.liveSafe,
@@ -758,6 +793,7 @@ export function initEditor(ctx) {
     $('obj-shadow').value = data.shadow ?? 0.55; $('o-shadow').value = Math.round((data.shadow ?? 0.55) * 100) + '%';
     $('obj-anchor').checked = !data.height || data.height === 0;
     $('obj-media').hidden = !studio.objects.get(id)?.userData.mediaCapable;
+    buildMaterialsModule(data);
   }
 
   function refreshLayerList() {
@@ -814,6 +850,86 @@ export function initEditor(ctx) {
       ul.appendChild(li);
     }
     if (activeNav === 'graphics') { /* keep cards' ON AIR badges fresh on next build */ }
+  }
+
+  function buildMaterialsModule(data) {
+    const box = $('obj-materials');
+    box.innerHTML = '';
+    if (data.kind !== 'model') return;
+    const g = studio.objects.get(data.id);
+    if (g?.userData.loading) {
+      box.innerHTML = '<p class="hint">Materials appear when the model finishes loading…</p>';
+      g.userData.onReady = () => { if (selectedId === data.id) buildMaterialsModule(data); };
+      return;
+    }
+    const mats = studio.getMaterials(data.id);
+    if (!mats.length) return;
+    const h = document.createElement('h3');
+    h.className = 'spaced';
+    h.textContent = 'Materials · rebrand';
+    box.appendChild(h);
+    data.matOverrides = data.matOverrides || {};
+    mats.forEach((entry, idx) => {
+      const m = entry.ref;
+      const ov = data.matOverrides[idx] = data.matOverrides[idx] || {};
+      const row = document.createElement('div');
+      row.className = 'mat-row';
+      const col = '#' + (m.color ? m.color.getHexString() : '8a93a6');
+      row.innerHTML = `
+        <div class="mr-head"><span class="swatch" style="background:${col}"></span>${entry.name}</div>
+        <div class="row gap">
+          <div class="field slim grow"><label>Colour</label><input type="color" data-f="color" value="${ov.color || col}"></div>
+          <div class="field slim grow"><label>Emissive</label><input type="color" data-f="emissive" value="${ov.emissive || '#000000'}"></div>
+        </div>
+        <div class="field slim"><label>Roughness</label><input type="range" data-f="roughness" min="0" max="1" step="0.01" value="${ov.roughness ?? (m.roughness ?? 0.6)}"></div>
+        <div class="field slim"><label>Metalness</label><input type="range" data-f="metalness" min="0" max="1" step="0.01" value="${ov.metalness ?? (m.metalness ?? 0.2)}"></div>
+        <div class="row gap">
+          <button class="btn ghost slim" data-act="tex">Texture…</button>
+          <button class="btn gold slim" data-act="brand">Rebrand surface</button>
+        </div>`;
+      const commit = () => studio.applyMatOverride(data.id, idx, ov, (t) => {
+        const cv = brandPatchFactory(t);
+        return studio.canvasToTexture(cv);
+      });
+      row.querySelectorAll('[data-f]').forEach((inp) => {
+        inp.addEventListener('input', () => {
+          ov[inp.dataset.f] = inp.type === 'range' ? parseFloat(inp.value) : inp.value;
+          if (inp.dataset.f === 'emissive') ov.eInt = 1;
+          commit();
+        });
+      });
+      row.querySelector('[data-act="tex"]').addEventListener('click', async () => {
+        const media = await window.chase.pickMedia('image');
+        if (!media) return;
+        delete ov.brand;
+        ov.textureUrl = media.url;
+        ov.texturePath = media.path;
+        commit();
+        toast('Texture applied to ' + entry.name, 'ok');
+      });
+      row.querySelector('[data-act="brand"]').addEventListener('click', () => {
+        const current = ov.brand?.text || state.brand.name;
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.value = current;
+        inp.className = 'sc-rename';
+        inp.style.marginTop = '6px';
+        row.appendChild(inp);
+        inp.focus(); inp.select();
+        const done = () => {
+          const text = inp.value.trim() || current;
+          inp.remove();
+          delete ov.textureUrl;
+          ov.brand = { text };
+          commit();
+          logEvent('Asset surface rebranded: "' + text + '"', 'ok');
+          toast('Surface rebranded to "' + text + '"', 'ok');
+        };
+        inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') done(); if (ev.key === 'Escape') inp.remove(); ev.stopPropagation(); });
+        inp.addEventListener('blur', done);
+      });
+      box.appendChild(row);
+    });
   }
 
   const bindSlider = (id, fn) => $(id).addEventListener('input', (e) => fn(parseFloat(e.target.value)));
@@ -993,6 +1109,39 @@ export function initEditor(ctx) {
     studio.presenter.setMatteView(on);
     toast(on ? 'Matte preview — white = keep, black = removed (also on program output)' : 'Matte preview off', '', 3500);
   });
+
+  // Wardrobe recolor (AI Season)
+  function applyCloth() { studio.presenter.applyCloth(state.cloth); }
+  $('cloth-on').addEventListener('click', () => {
+    state.cloth.on = $('cloth-on').classList.toggle('active');
+    applyCloth();
+    logEvent(state.cloth.on ? 'Wardrobe recolor ON' : 'Wardrobe recolor off');
+  });
+  $('cloth-key').addEventListener('input', (e) => { state.cloth.key = e.target.value; applyCloth(); });
+  $('cloth-to').addEventListener('input', (e) => { state.cloth.to = e.target.value; applyCloth(); });
+  bindSlider('cloth-tol', (v) => { state.cloth.tol = v; applyCloth(); });
+  bindSlider('cloth-soft', (v) => { state.cloth.soft = v; applyCloth(); });
+  let pickingCloth = false;
+  $('cloth-pick').addEventListener('click', () => {
+    pickingCloth = !pickingCloth;
+    $('cloth-pick').classList.toggle('picking', pickingCloth);
+    if (pickingCloth) toast('Click the garment on the program monitor to sample its colour.', '', 4200);
+  });
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!pickingCloth) return;
+    e.stopImmediatePropagation();
+    const p = toCanvas(e);
+    const d = canvas.getContext('2d').getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data;
+    const hex = '#' + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join('');
+    state.cloth.key = hex;
+    $('cloth-key').value = hex;
+    state.cloth.on = true;
+    $('cloth-on').classList.add('active');
+    applyCloth();
+    pickingCloth = false;
+    $('cloth-pick').classList.remove('picking');
+    toast('Garment sampled (' + hex + ') — recolor active. Tune tolerance if needed.', 'ok', 4200);
+  }, true);
 
   // AUTO-FIT TO SET: ground, scale, relight in one action
   $('btn-autofit').addEventListener('click', () => {
@@ -1760,6 +1909,12 @@ export function initEditor(ctx) {
     applyLighting();
     applyChroma();
     applyEnhance();
+    applyCloth();
+    $('cloth-on').classList.toggle('active', state.cloth.on);
+    $('cloth-key').value = state.cloth.key;
+    $('cloth-to').value = state.cloth.to;
+    $('cloth-tol').value = state.cloth.tol;
+    $('cloth-soft').value = state.cloth.soft;
     buildBrowser();
     buildCamStrip();
     buildSceneList();

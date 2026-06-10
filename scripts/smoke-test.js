@@ -144,7 +144,13 @@ app.whenReady().then(async () => {
     const safetyItems = document.querySelectorAll('#live-safety .ls-item').length;
     const safetyOk = document.querySelectorAll('#live-safety .ls-item.ok').length;
     document.getElementById('live-cancel').click();
+    document.getElementById('cloth-on').click();
+    const clothOn = document.getElementById('cloth-on').classList.contains('active');
+    document.getElementById('cloth-on').click();
     return {
+      clothOn,
+      clothControls: !!document.getElementById('cloth-key') && !!document.getElementById('cloth-pick'),
+      matBox: !!document.getElementById('obj-materials'),
       ingestModal: !!document.getElementById('modal-ingest'),
       erodeSlider: !!document.getElementById('enh-erode'),
       wrapSlider: !!document.getElementById('enh-wrap'),
@@ -180,6 +186,7 @@ app.whenReady().then(async () => {
     && stage3.builderOn && stage3.gizmoBtns === 3 && stage3.planActive && stage3.camAdded
     && stage4.ingestModal && stage4.erodeSlider && stage4.wrapSlider && stage4.autofit
     && stage4.hdriBtn && stage4.safetyItems === 6 && stage4.safetyOk >= 4
+    && stage4.clothOn && stage4.clothControls && stage4.matBox
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

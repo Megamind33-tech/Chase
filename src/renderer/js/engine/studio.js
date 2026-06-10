@@ -151,6 +151,10 @@ export class Studio {
     this.objects.set(id, group);
     if (data.media && group.userData.setMedia) group.userData.setMedia(data.media.url, data.media.type);
     if (group.userData.setShadow) group.userData.setShadow(data.shadow ?? 0.55);
+    if (kind === 'model' && data.matOverrides) {
+      const prev = group.userData.onReady;
+      group.userData.onReady = (g2) => { prev?.(g2); this.applyAllMatOverrides(data, this.brandFactory || null); };
+    }
     if (!existing) state.objects.push(data);
     this.syncObject(data);
     return data;
@@ -191,6 +195,62 @@ export class Studio {
     for (const [, g] of this.objects) { g.userData.dispose?.(); this.objectsRoot.remove(g); }
     this.objects.clear();
     for (const data of state.objects) this.addObject(data.kind, data.x, data.z, data);
+  }
+
+  // ---------- imported-asset material customization ----------
+  canvasToTexture(cv) {
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.flipY = false;
+    return t;
+  }
+
+  /** Unique editable materials of an imported model. */
+  getMaterials(id) {
+    const g = this.objects.get(id);
+    if (!g) return [];
+    const seen = new Map();
+    g.traverse((o) => {
+      if (!o.isMesh || o.userData._noPick) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) {
+        if (m && !seen.has(m)) seen.set(m, { ref: m, name: m.name || 'Material ' + (seen.size + 1) });
+      }
+    });
+    return [...seen.values()];
+  }
+
+  /** Apply one saved override { color, roughness, metalness, emissive, eInt, brand:{text}, textureUrl } */
+  applyMatOverride(id, index, ov, brandTexFactory) {
+    const mats = this.getMaterials(id);
+    const m = mats[index]?.ref;
+    if (!m) return;
+    if (ov.color) m.color?.set(ov.color);
+    if (ov.roughness !== undefined && 'roughness' in m) m.roughness = ov.roughness;
+    if (ov.metalness !== undefined && 'metalness' in m) m.metalness = ov.metalness;
+    if (ov.emissive && m.emissive) {
+      m.emissive.set(ov.emissive);
+      m.emissiveIntensity = ov.eInt ?? 1;
+    }
+    if (ov.brand && brandTexFactory) {
+      m.map = brandTexFactory(ov.brand.text);
+      m.color?.set('#ffffff');
+    } else if (ov.textureUrl) {
+      new THREE.TextureLoader().load(ov.textureUrl, (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.flipY = false;
+        m.map = t;
+        m.needsUpdate = true;
+      });
+    }
+    m.needsUpdate = true;
+  }
+
+  applyAllMatOverrides(data, brandTexFactory) {
+    if (!data.matOverrides) return;
+    for (const [idx, ov] of Object.entries(data.matOverrides)) {
+      this.applyMatOverride(data.id, Number(idx), ov, brandTexFactory);
+    }
   }
 
   // ---------- picking & drag ----------
