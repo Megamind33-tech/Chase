@@ -1190,3 +1190,10 @@ button:disabled:hover { background: inherit; border-color: var(--line); }
 .oplog .t { color: var(--txt-faint); flex-shrink: 0; }
 .oplog .err { color: #ff9ba3; }
 .oplog .ok { color: #7ee2a4; }
+
+
+/* v7 — neutral platform indicators, monitor-state HUD */
+.dest-row .dr-ico { color: var(--txt-dim); }
+.dest-row.live .dr-ico { color: #ff9ba3; }
+.dest-row .dr-name { letter-spacing: .05em; font-size: 10.5px; }
+#hud-state { letter-spacing: .12em; }

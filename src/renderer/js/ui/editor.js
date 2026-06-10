@@ -412,14 +412,24 @@ export function initEditor(ctx) {
   // viewport HUD: live engine readout
   const hud = document.createElement('div');
   hud.className = 'vp-hud';
-  hud.innerHTML = '<span id="hud-q"></span><span id="hud-cam"></span>';
+  hud.innerHTML = '<span id="hud-q"></span><span id="hud-cam"></span><span id="hud-scene"></span><span id="hud-state"></span>';
   $('viewport-wrap').appendChild(hud);
   setInterval(() => {
     const q = state.output.quality === 'auto' ? 'AUTO ' + Math.round(studio.qualityScale * 100) + '%' : state.output.quality.toUpperCase();
     document.getElementById('hud-q').textContent =
       (state.output.height === 1080 ? '1080p' : '720p') + state.output.fps + ' · ' + q;
     document.getElementById('hud-cam').textContent =
-      'FOCAL ' + (2 - (state.camera.fovScale ?? 1)).toFixed(2) + '× · ' + (state.camera.drift ? 'DRIFT ON' : 'LOCKED');
+      'RIG ' + (state.camera.drift ? 'DRIFT' : 'LOCKED') + ' · FOCAL ' + (2 - (state.camera.fovScale ?? 1)).toFixed(2) + '×';
+    const sc = state.scenes.find((x) => x.id === liveSceneId);
+    document.getElementById('hud-scene').textContent = 'SCENE ' + (sc ? sc.name.toUpperCase() : '— MANUAL');
+    const bits = [];
+    bits.push(outputs.recording ? 'REC●' : 'REC—');
+    bits.push(outputs.streaming ? 'LIVE●' : 'LIVE—');
+    bits.push(studio.objectsRoot.visible ? 'AR✓' : 'AR✕');
+    bits.push(state.capture.muted ? 'MIC✕' : 'MIC✓');
+    const el = document.getElementById('hud-state');
+    el.textContent = bits.join('  ');
+    el.style.color = (outputs.recording || outputs.streaming) ? '#ff9ba3' : '';
   }, 1000);
 
   $('btn-safearea').addEventListener('click', () => { $('safe-areas').hidden = !$('safe-areas').hidden; });
@@ -1065,9 +1075,8 @@ export function initEditor(ctx) {
     for (const d of state.output.destinations) {
       const row = document.createElement('div');
       const st = destStates[d.id] || 'idle';
-      const pIcon = d.kind === 'youtube' ? 'youtube' : d.kind === 'facebook' ? 'facebook' : 'rtmp';
-      row.className = 'dest-row k-' + d.kind + ' ' + (st === 'live' ? 'live' : st === 'connecting' ? 'connecting' : '');
-      row.innerHTML = `<span class="dr-ico">${icon(pIcon)}</span><span class="dr-led"></span><span class="dr-name">${d.name}</span>
+      row.className = 'dest-row ' + (st === 'live' ? 'live' : st === 'connecting' ? 'connecting' : '');
+      row.innerHTML = `<span class="dr-ico">${icon(d.kind === 'custom' ? 'rtmp' : 'signal')}</span><span class="dr-led"></span><span class="dr-name">${d.name.toUpperCase()}</span>
         <span class="dr-kbps">${st === 'live' ? outputs.bitrateKbps() + ' kbps · ' + (state.output.height === 1080 ? '1080p' : '720p') + state.output.fps : ''}</span>
         <span class="dr-state">${st === 'live' ? 'LIVE' : st === 'connecting' ? 'CONNECTING' : st === 'error' ? 'ERROR' : d.enabled && d.key ? 'READY' : 'NOT CONNECTED'}</span>`;
       if (st !== 'live' && st !== 'connecting') {
@@ -1081,7 +1090,7 @@ export function initEditor(ctx) {
     const web = document.createElement('div');
     web.className = 'dest-row staged';
     web.innerHTML = `<span class="dr-ico">${icon('globe')}</span><span class="dr-led"></span>
-      <span class="dr-name">Website embed</span>
+      <span class="dr-name">WEBSITE EMBED</span>
       <span class="dr-state">HLS RELAY · NEXT UPDATE</span>`;
     web.title = 'Website embed output ships with the HLS relay update — until then, embed your YouTube live player.';
     list.appendChild(web);
@@ -1278,10 +1287,9 @@ export function initEditor(ctx) {
     for (const d of state.output.destinations) {
       const row = document.createElement('div');
       row.className = 'live-dest-row' + (d.enabled ? ' enabled' : '');
-      const pIcon = d.kind === 'youtube' ? 'youtube' : d.kind === 'facebook' ? 'facebook' : 'rtmp';
       row.innerHTML = `
         <input type="checkbox" ${d.enabled ? 'checked' : ''}>
-        <b>${icon(pIcon)}${d.name}</b>
+        <b>${icon(d.kind === 'custom' ? 'rtmp' : 'signal')}${d.name}</b>
         ${d.kind === 'custom' ? `<input type="text" placeholder="rtmp:// server URL" value="${escAttr(d.url)}" spellcheck="false">` : ''}
         <input type="password" placeholder="stream key" value="${escAttr(d.key)}" spellcheck="false">`;
       const [chk, ...inputs] = row.querySelectorAll('input');
@@ -1341,6 +1349,16 @@ export function initEditor(ctx) {
       stopTimer();
     }
   };
+
+  // real negotiated encode chain in the Stream tab
+  {
+    const box = $('engine-status');
+    if (box) {
+      const codec = outputs.codec.mime || 'webm';
+      const chain = (outputs.codec.h264 ? 'H.264 (hardware copy)' : codec.includes('vp9') ? 'VP9 → x264 transcode' : 'VP8 → x264 transcode');
+      box.insertAdjacentHTML('beforeend', `<br>Video chain: ${chain}<br>Audio chain: Opus → AAC 128k · FLV mux`);
+    }
+  }
 
   /* ================= HEALTH CHIPS ================= */
   setInterval(async () => {

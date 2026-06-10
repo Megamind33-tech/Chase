@@ -374,14 +374,14 @@ function skyline(ctx, W, H, theme, time) {
   // atmospheric haze band at the horizon (photographic depth)
   const atm = ctx.createLinearGradient(0, horizon - 140, 0, horizon + 30);
   atm.addColorStop(0, 'rgba(0,0,0,0)');
-  atm.addColorStop(1, hexA(theme.ledB, 0.28));
+  atm.addColorStop(1, hexA(theme.ledB, 0.5));
   ctx.fillStyle = atm;
   ctx.fillRect(0, 0, W, horizon + 30);
 
   // skyline: 4 depth layers, back layers hazed into the sky
   for (let layer = 0; layer < 4; layer++) {
     const base = horizon + layer * H * 0.075;
-    const haze = 0.62 - layer * 0.19; // back layers fade toward sky colour
+    const haze = 0.75 - layer * 0.17; // back layers fade toward sky colour
     const col = mix(mix(theme.ledA, '#02040c', 0.35 + layer * 0.18), theme.ledB, Math.max(haze, 0) * 0.5);
     let x = -30;
     let i = layer * 37;
@@ -405,7 +405,7 @@ function skyline(ctx, W, H, theme, time) {
           for (let wx = x + 4; wx < x + bw - 5; wx += 7) {
             const h2 = (wx * 13 + wy * 7 + i) % 31;
             if (h2 < 9) {
-              ctx.fillStyle = h2 < 3 ? 'rgba(180,210,255,0.55)' : 'rgba(255,206,130,0.5)';
+              ctx.fillStyle = h2 < 3 ? 'rgba(190,215,255,0.85)' : 'rgba(255,210,140,0.8)';
               ctx.fillRect(wx, wy, 3, 4.5);
             }
           }
@@ -419,14 +419,14 @@ function skyline(ctx, W, H, theme, time) {
   // waterfront reflection strip below the front layer
   const wy0 = horizon + H * 0.225;
   const wat = ctx.createLinearGradient(0, wy0, 0, H);
-  wat.addColorStop(0, hexA(theme.ledB, 0.22));
+  wat.addColorStop(0, hexA(theme.ledB, 0.4));
   wat.addColorStop(1, 'rgba(2,4,10,0.9)');
   ctx.fillStyle = wat;
   ctx.fillRect(0, wy0, W, H - wy0);
   for (let i = 0; i < 60; i++) {
     const x = (i * 167) % W;
     const shimmer = Math.abs(Math.sin(time * 0.9 + i * 2.1));
-    ctx.fillStyle = `rgba(${i % 2 ? '255,206,130' : '160,200,255'},${0.10 + shimmer * 0.12})`;
+    ctx.fillStyle = `rgba(${i % 2 ? '255,206,130' : '160,200,255'},${0.18 + shimmer * 0.2})`;
     ctx.fillRect(x, wy0 + (i * 31) % (H - wy0 - 6), 22 + (i % 3) * 14, 1.6);
   }
 

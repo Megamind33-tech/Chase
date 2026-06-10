@@ -20,7 +20,7 @@ const P = {
   record: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none"/>',
   live: '<circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M7.7 16.3a6 6 0 0 1 0-8.6M16.3 7.7a6 6 0 0 1 0 8.6M5 19a10 10 0 0 1 0-14M19 5a10 10 0 0 1 0 14"/>',
   multiview: '<rect x="3" y="4" width="8" height="6.5" rx="1"/><rect x="13" y="4" width="8" height="6.5" rx="1"/><rect x="3" y="13" width="8" height="6.5" rx="1"/><rect x="13" y="13" width="8" height="6.5" rx="1"/><circle cx="7" cy="7" r="1" fill="currentColor" stroke="none"/>',
-  cut: '<circle cx="6.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/><path d="M8.6 8.3L20 19M8.6 15.7L20 5"/>',
+  cut: '<path d="M4 4l16 16M20 4L4 20"/><rect x="9" y="9" width="6" height="6"/>',
   fade: '<rect x="3" y="6" width="12" height="12" rx="1.5"/><rect x="9" y="6" width="12" height="12" rx="1.5" stroke-dasharray="2.5 2.5"/>',
   wipe: '<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M12 5v14M15 12h4M17.2 10l1.8 2-1.8 2"/>',
   slide: '<rect x="3" y="6" width="11" height="12" rx="1.5"/><path d="M17 12h4M19.2 9.8L21.4 12l-2.2 2.2"/>',
@@ -69,16 +69,17 @@ const P = {
   facebook: '<circle cx="12" cy="12" r="9"/><path d="M14.8 7.5h-1.6a2 2 0 0 0-2 2V21M9 12.5h5"/>',
   rtmp: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 2.6 4 5.7 4 9s-1.2 6.4-4 9c-2.8-2.6-4-5.7-4-9s1.2-6.4 4-9z"/>',
+  signal: '<path d="M12 21V11"/><circle cx="12" cy="9" r="2"/><path d="M8 13a5.5 5.5 0 0 1 0-8M16 5a5.5 5.5 0 0 1 0 8M5.5 15.5a9 9 0 0 1 0-13M18.5 2.5a9 9 0 0 1 0 13"/>',
   scene: '<path d="M4 6.5L12 3l8 3.5v11L12 21l-8-3.5z"/><path d="M4 6.5L12 10l8-3.5M12 10v11"/>',
   macro: '<path d="M13 2.5L5 13.5h5.5L10 21.5l8.5-11.5H13z"/>',
   undo: '<path d="M7.5 4.5L3 9l4.5 4.5"/><path d="M3 9h11a6 6 0 0 1 0 12h-4"/>',
-  plant: '<path d="M9 21h6M10 21l-1-7h6l-1 7"/><path d="M12 14V9M12 9C12 6 9.5 4 6.5 4c0 3 2.5 5 5.5 5zM12 9c0-3 2.5-5 5.5-5 0 3-2.5 5-5.5 5z"/>',
+  plant: '<path d="M8 21h8M9 21l-1-6h8l-1 6"/><path d="M12 15V8M12 8L7 4M12 8l5-4M12 12L8.5 9M12 12l3.5-3"/>',
   folder: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z"/>'
 };
 
 export function icon(name, cls = '') {
   const body = P[name] || P.cube;
-  return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+  return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">${body}</svg>`;
 }
 
 export const ICON_NAMES = Object.keys(P);

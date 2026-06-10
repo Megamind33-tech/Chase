@@ -37,6 +37,8 @@ export class Studio {
       canvas: this.canvas, antialias: true, powerPreference: 'high-performance'
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // photographic response
+    this.renderer.toneMappingExposure = 1.5;
     this.qualityScale = 1;
     this.renderer.setSize(outWidth, outHeight, false);
 
