@@ -1012,3 +1012,131 @@ input[type="checkbox"] { accent-color: var(--blue); width: 14px; height: 14px; }
 
 /* -- gfx drawer + modal elevation refinement -- */
 .gfx-drawer { background: linear-gradient(180deg, var(--bg-3), var(--bg-2)); }
+
+/* ============================================================
+   SKIN PASS v5 — strict refinement: state discipline, switcher
+   tactility, nav indicator, typographic hierarchy, density.
+   No layout changes.
+   ============================================================ */
+
+/* ---- icon state discipline (default muted → hover bright → active cyan) ---- */
+.irail-btn .ic, .tbtn .ic, .vtool .ic, .ly-ico .ic { color: #7d8aa3; transition: color .14s; }
+.irail-btn:hover .ic, .tbtn:hover .ic, .vtool:hover .ic { color: #c4d2e8; }
+.irail-btn.active .ic { color: var(--cyan); filter: drop-shadow(0 0 5px rgba(0,199,255,.45)); }
+.btn:disabled .ic, .irail-btn.staged .ic { opacity: .5; }
+
+/* ---- left nav: production sidebar indicator ---- */
+.irail-btn { position: relative; }
+.irail-btn.active::before {
+  content: ""; position: absolute; left: -5px; top: 18%; bottom: 18%; width: 3px;
+  border-radius: 0 3px 3px 0; background: linear-gradient(180deg, var(--cyan), var(--blue));
+  box-shadow: 0 0 8px rgba(0,199,255,.5);
+}
+
+/* ---- switcher buttons: chunky live-desk keys ---- */
+.trans-btn {
+  padding: 9px 0 7px; border-radius: 6px;
+  border-color: #25304a;
+  background: linear-gradient(180deg, #1a2336, #131b2b 60%, #101725);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -2px 0 rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.35);
+}
+.trans-btn:hover { border-color: var(--line-hi); color: var(--txt); }
+.trans-btn:active { transform: translateY(1px); box-shadow: inset 0 2px 6px rgba(0,0,0,.5); }
+.trans-btn.active {
+  border-color: rgba(0,199,255,.55); color: var(--cyan);
+  background: linear-gradient(180deg, rgba(34,119,255,.32), rgba(18,60,140,.18) 70%, rgba(10,30,70,.2));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -2px 0 rgba(0,0,0,.3), 0 0 12px rgba(34,119,255,.22);
+}
+.trans-btn .ic { width: 16px; height: 16px; }
+
+/* ---- macro keys: icon slot + cap ---- */
+.macro-btn {
+  border-radius: 6px; border-color: #25304a;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 -2px 0 rgba(0,0,0,.4);
+}
+.macro-btn .ic { opacity: .85; }
+
+/* ---- scene cards: slot-number chip + calmer default ---- */
+.scene-item .sc-num {
+  width: auto; min-width: 17px; text-align: center; padding: 1px 4px;
+  border: 1px solid var(--line-soft); border-radius: 4px; background: rgba(8,12,20,.6);
+}
+.scene-item.live .sc-num { border-color: rgba(230,57,70,.5); color: #ffb3b9; }
+
+/* ---- typography hierarchy tightening ---- */
+.bset-meta .n, .lib-card .l-name { font-weight: 750; letter-spacing: .01em; }
+.bset-meta .d, .lib-card .l-desc { color: #58637a; }
+.ps-block h4 { color: #6b7894; }
+.panel h3 { color: #7d8aa3; }
+output { color: var(--txt); font-weight: 700; font-size: 11px; }
+.field label, .field-label { color: #76839d; }
+.dr-state, .bset-tag, .bset-q, .statchip { font-variant-numeric: tabular-nums; }
+.brandmark { text-shadow: 0 0 18px rgba(0,199,255,.15); }
+
+/* ---- selected set card: premium active surface, not just an outline ---- */
+.bset-card.active {
+  background: linear-gradient(180deg, rgba(34,119,255,.12), var(--bg-2) 55%);
+  border-color: rgba(79,155,255,.7);
+  box-shadow: 0 0 0 1px rgba(34,119,255,.35), 0 4px 14px rgba(0,0,0,.4), 0 0 16px rgba(34,119,255,.12);
+}
+.bset-card.active .n { color: var(--blue-hi); }
+
+/* ---- inspector: labels muted left, values strong right; module grouping ---- */
+.obj-props .field.slim label { display: flex; justify-content: space-between; align-items: baseline; }
+.panel .field.slim { padding-left: 1px; }
+.statusbox { box-shadow: inset 0 1px 0 rgba(255,255,255,.03); }
+
+/* ---- focus discipline on cards & tiles (keyboard reachable) ---- */
+.bset-card:focus-visible, .lib-card:focus-visible, .cam-tile:focus-visible,
+.scene-item:focus-visible, .trans-btn:focus-visible, .macro-btn:focus-visible,
+.irail-btn:focus-visible, .insp-tab:focus-visible {
+  outline: none; box-shadow: var(--focus);
+}
+
+/* ---- disabled discipline ---- */
+button:disabled, .btn:disabled, select:disabled, input:disabled {
+  opacity: .38; cursor: default;
+}
+button:disabled:hover { background: inherit; border-color: var(--line); }
+
+/* ---- density: tighter technical groups, aligned gutters ---- */
+.panel { padding: 13px 12px; }
+.browser-body { padding: 10px 10px 12px; }
+.ps-block { padding: 8px 10px; }
+.field.slim { margin-bottom: 8px; }
+.chipset { gap: 4px; margin-bottom: 10px; }
+.layer-list li { padding: 6px 8px; }
+
+/* ---- scrollbars: instrument-thin ---- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #202b42; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2c3a58; }
+
+/* ---- modal: header rule + surface light ---- */
+.modal h2 { padding-bottom: 11px; border-bottom: 1px solid var(--line-soft); }
+.modal { box-shadow: var(--shadow-3), inset 0 1px 0 rgba(255,255,255,.05); }
+
+/* ---- topbar grouping: actions cluster reads as one unit ---- */
+.topbar-actions {
+  display: flex; gap: 1px; background: rgba(7,11,18,.5);
+  border: 1px solid var(--line-soft); border-radius: var(--r-md); padding: 2px;
+}
+.tbtn { border-radius: 5px; }
+
+/* ---- live preview badge: premium tally treatment ---- */
+.vp-live {
+  background: linear-gradient(180deg, rgba(40,10,14,.85), rgba(20,5,8,.85));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 12px rgba(230,57,70,.18);
+}
+.vp-cam {
+  background: linear-gradient(180deg, rgba(8,18,30,.85), rgba(5,10,18,.85));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* ---- mixer faders read as channel strips ---- */
+.mx-ch { padding: 2px 3px; border-radius: 6px; }
+.mx-ch:hover { background: rgba(255,255,255,.02); }
+
+/* ---- empty-state cards: calmer, intentional ---- */
+.empty-state { background: linear-gradient(180deg, rgba(16,24,34,.55), rgba(12,18,28,.35)); border-color: #223050; }
+.empty-state .ic { color: #5b6e92; }
