@@ -56,6 +56,20 @@ canonical order for rebuilding, onboarding engineers, or porting.
      desk glow + floor reflection + eye-light controls.
 19i. ✅ Smoke test extended (6 cams, scenes, macros, mixer, browser).
 
+## Phase 1c — Broadcast operations upgrade (✅ this repo)
+
+19j. ✅ PROGRAM/PREVIEW switcher discipline: cameras and scenes stage to a
+     PVW bus (green tally), TAKE/Enter sends to program through the selected
+     transition, double-click hard-cuts, flip-flop like a hardware switcher.
+19k. ✅ Emergency keys: BLACK (program + all outputs cut to black, armed
+     pulse) and AR ON/OFF (instantly hides every 3D object from program).
+19l. ✅ AR object pipeline: GLB/GLTF model import (auto-normalised to studio
+     scale, grounded, animation playback), universal soft contact shadows
+     with per-object strength control, floor-anchor toggle.
+19m. ✅ Reliability: camera-input watchdog (CAM OK / CAM LOST chip + alert),
+     show timecode in the status bar, operator log (timestamped session
+     events: takes, black, AR kill, camera loss, imports).
+
 ## Phase 2 — Field-hardened MVP (next)
 
 20. Audio meters + gain + music bed player.

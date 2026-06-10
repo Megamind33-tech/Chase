@@ -126,6 +126,7 @@
         <button class="tbtn" id="btn-open2" title="Open project">Open</button>
         <button class="tbtn" id="btn-import2" title="Import scene template">Import</button>
         <button class="tbtn" id="btn-export-template" title="Export scene template">Export</button>
+        <button class="tbtn" id="btn-oplog" title="Operator log">Log</button>
       </div>
     </div>
     <div class="topbar-center">
@@ -135,6 +136,8 @@
       <span class="statchip" id="stat-fps" title="Render frame rate">— fps</span>
       <span class="statchip" id="stat-gpu" title="Render quality scale">GPU 100%</span>
       <span class="statchip" id="stat-res">1080p30</span>
+      <span class="statchip" id="stat-tc" title="Show timecode">00:00:00:00</span>
+      <span class="statchip ok" id="stat-cam" title="Camera input status">CAM OK</span>
       <span class="statchip" id="stat-bitrate" title="Outbound stream bitrate" hidden>0 kbps</span>
     </div>
     <div class="topbar-right">
@@ -215,6 +218,8 @@
           <div class="field slim"><label>Rotate <output id="o-rot">0°</output></label><input type="range" id="obj-rot" min="-180" max="180" step="1" value="0"></div>
           <div class="field slim"><label>Height <output id="o-h">0.0</output></label><input type="range" id="obj-height" min="0" max="2.5" step="0.01" value="0"></div>
           <div class="field slim"><label>Opacity <output id="o-op">100%</output></label><input type="range" id="obj-opacity" min="0.1" max="1" step="0.01" value="1"></div>
+          <div class="field slim"><label>Contact shadow <output id="o-shadow">55%</output></label><input type="range" id="obj-shadow" min="0" max="1" step="0.01" value="0.55"></div>
+          <label class="checkrow"><input type="checkbox" id="obj-anchor" checked> Floor anchor (grounded)</label>
           <div class="row gap">
             <button class="btn ghost slim" id="obj-media" hidden>Set media…</button>
             <button class="btn danger slim" id="obj-delete">Delete</button>
@@ -362,7 +367,7 @@
       <div class="macro-list" id="macro-list"></div>
     </section>
     <section class="ps-block ps-trans">
-      <header><h4>TRANSITIONS</h4></header>
+      <header><h4>SWITCHER</h4></header>
       <div class="trans-grid" id="trans-grid">
         <button class="trans-btn active" data-trans="cut" data-ico="cut">CUT</button>
         <button class="trans-btn" data-trans="move" data-ico="move">MOVE</button>
@@ -373,6 +378,11 @@
       </div>
       <div class="field slim"><label>Duration <output id="o-transdur">0.6s</output></label>
         <input type="range" id="trans-duration" min="0.2" max="2" step="0.1" value="0.6"></div>
+      <div class="switch-row">
+        <button class="take-btn" id="btn-take" title="Send the staged PVW source to program (Enter)">TAKE</button>
+        <button class="black-btn" id="btn-black" title="Emergency: cut program to black (B)">BLACK</button>
+        <button class="ar-btn on" id="btn-arkill" title="Instantly hide / restore all 3D objects on program">AR ON</button>
+      </div>
     </section>
     <section class="ps-block ps-mixer">
       <header><h4>AUDIO MIXER</h4></header>
@@ -439,6 +449,14 @@
     <h2>Multi-view</h2>
     <div class="mv-grid" id="mv-grid"></div>
     <footer class="modal-foot"><button class="btn ghost" id="mv-close">Close</button></footer>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-oplog" hidden>
+  <div class="modal">
+    <h2>Operator log</h2>
+    <div class="oplog" id="oplog-list"></div>
+    <footer class="modal-foot"><button class="btn ghost" id="oplog-close">Close</button></footer>
   </div>
 </div>
 

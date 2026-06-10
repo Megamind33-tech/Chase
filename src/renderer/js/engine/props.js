@@ -1,17 +1,81 @@
-// Drag-and-drop studio props. Every prop is a Group with userData:
-// { kind, id, baseHeight } and an optional setMedia(url, type) hook.
+// Drag-and-drop studio props + imported 3D models (GLB/GLTF). Every prop
+// is a Group with userData: { kind, id, setMedia?, setShadow }, carrying a
+// soft contact shadow so objects sit on the floor instead of floating.
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-export function buildProp(kind, theme, brand) {
+export function buildProp(kind, theme, brand, media) {
+  let g;
   switch (kind) {
-    case 'screen': return screenProp(theme, brand, 1.7);
-    case 'monitor': return screenProp(theme, brand, 0.9);
-    case 'panel': return panelProp(theme, brand);
-    case 'plinth': return plinthProp(theme);
-    case 'lightbar': return lightbarProp(theme, brand);
-    case 'plant': return plantProp();
-    default: return plinthProp(theme);
+    case 'screen': g = screenProp(theme, brand, 1.7); break;
+    case 'monitor': g = screenProp(theme, brand, 0.9); break;
+    case 'panel': g = panelProp(theme, brand); break;
+    case 'plinth': g = plinthProp(theme); break;
+    case 'lightbar': g = lightbarProp(theme, brand); break;
+    case 'plant': g = plantProp(); break;
+    case 'model': g = modelProp(media); break;
+    default: g = plinthProp(theme);
   }
+  addContactShadow(g, kind === 'lightbar' ? 0 : 0.55);
+  return g;
+}
+
+// soft radial contact shadow under every object (AR floor-contact rule)
+function addContactShadow(g, strength) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 128;
+  const ctx = cv.getContext('2d');
+  const rg = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+  rg.addColorStop(0, 'rgba(0,0,0,0.6)');
+  rg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = rg;
+  ctx.fillRect(0, 0, 128, 128);
+  const mat = new THREE.MeshBasicMaterial({
+    map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, opacity: strength
+  });
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 28), mat);
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.012;
+  shadow.userData._noPick = true;
+  g.add(shadow);
+  g.userData.setShadow = (v) => { mat.opacity = v; shadow.visible = v > 0.02; };
+}
+
+// Imported broadcast 3D asset (GLB/GLTF): loaded async, auto-normalised to
+// studio scale, grounded on the floor plane.
+function modelProp(media) {
+  const g = new THREE.Group();
+  // lightweight placeholder pedestal while the model loads
+  const ph = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6, 0.6, 0.6),
+    new THREE.MeshStandardMaterial({ color: '#1a2438', roughness: 0.5, metalness: 0.4, transparent: true, opacity: 0.5 })
+  );
+  ph.position.y = 0.3;
+  g.add(ph);
+  if (media?.url) {
+    new GLTFLoader().load(media.url, (gltf) => {
+      const model = gltf.scene;
+      // normalise: fit the largest dimension to ~1.5 m, ground to y=0
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const k = 1.5 / maxDim;
+      model.scale.setScalar(k);
+      const box2 = new THREE.Box3().setFromObject(model);
+      model.position.y -= box2.min.y;
+      model.position.x -= (box2.min.x + box2.max.x) / 2;
+      model.position.z -= (box2.min.z + box2.max.z) / 2;
+      model.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; } });
+      g.remove(ph);
+      g.add(model);
+      if (gltf.animations?.length) {
+        const mixer = new THREE.AnimationMixer(model);
+        mixer.clipAction(gltf.animations[0]).play();
+        g.userData.mixer = mixer;
+      }
+    }, undefined, () => { ph.material.color.set('#5c2229'); ph.material.opacity = 0.8; });
+  }
+  return g;
 }
 
 // Premium LED media zone: dark-blue panel, pixel grid, media-safe lines,

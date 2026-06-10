@@ -10,6 +10,7 @@ export class Compositor {
     this.overlay = overlay;
     this._snap = document.createElement('canvas');
     this._trans = null; // { type, t, duration }
+    this.blackout = false; // emergency BLACK: program (and outputs) go to black
   }
 
   setSize(w, h) {
@@ -27,6 +28,11 @@ export class Compositor {
 
   compose(time, dt) {
     const { width, height } = this.canvas;
+    if (this.blackout) {
+      this.ctx.fillStyle = '#000';
+      this.ctx.fillRect(0, 0, width, height);
+      return;
+    }
     this.ctx.drawImage(this.studio.canvas, 0, 0, width, height);
     this.overlay.render(time);
     this.ctx.drawImage(this.overlay.canvas, 0, 0, width, height);

@@ -121,7 +121,7 @@ export class Studio {
   // ---------- objects ----------
   addObject(kind, x = 2.4, z = 0.4, existing = null) {
     const def = SETS[state.setId] || SETS.apex;
-    const group = buildProp(kind, def.theme, state.brand);
+    const group = buildProp(kind, def.theme, state.brand, existing?.media || null);
     const id = existing?.id || nextObjectId();
     group.userData.id = id;
     group.userData.kind = kind;
@@ -129,6 +129,7 @@ export class Studio {
     this.objectsRoot.add(group);
     this.objects.set(id, group);
     if (data.media && group.userData.setMedia) group.userData.setMedia(data.media.url, data.media.type);
+    if (group.userData.setShadow) group.userData.setShadow(data.shadow ?? 0.55);
     if (!existing) state.objects.push(data);
     this.syncObject(data);
     return data;
@@ -154,6 +155,7 @@ export class Studio {
     g.rotation.y = (data.rotY || 0) * Math.PI / 180;
     g.scale.setScalar(data.scale || 1);
     g.visible = data.visible !== false;
+    if (g.userData.setShadow) g.userData.setShadow(data.shadow ?? 0.55);
     const op = data.opacity ?? 1;
     g.traverse((m) => {
       if (m.material && !m.userData._opacityBase) m.userData._opacityBase = m.material.opacity ?? 1;
@@ -182,6 +184,7 @@ export class Studio {
     this.raycaster.setFromCamera(this._ndc(canvasX, canvasY), this.rig.camera);
     const hits = this.raycaster.intersectObjects(this.objectsRoot.children, true);
     for (const h of hits) {
+      if (h.object.userData._noPick) continue;
       let o = h.object;
       while (o && !o.userData.id) o = o.parent;
       if (o?.userData.id) return o.userData.id;
@@ -316,6 +319,9 @@ export class Studio {
         else if (this.fps > 29 && this.qualityScale < 1) { this.qualityScale = Math.min(1, this.qualityScale + 0.1); this._applyScale(); }
       }
     }
+
+    // imported model animations
+    for (const [, g] of this.objects) g.userData.mixer?.update(dt);
 
     // animated LED surfaces at ~12fps
     this._wallClock += dt;

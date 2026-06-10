@@ -89,9 +89,16 @@ app.whenReady().then(async () => {
     for (let i = 0; i < px.length; i += 4000) {
       if (px[i] + px[i + 1] + px[i + 2] > 24) lit++;
     }
+    // switcher discipline: single click stages PVW, TAKE sends to program
     document.querySelector('.cam-tile[data-cam="3"]').click();
+    const pvwStaged = document.querySelector('.cam-tile[data-cam="3"]').classList.contains('preview');
+    document.getElementById('btn-take').click();
     document.getElementById('btn-scene-add').click();
     return {
+      pvwStaged,
+      takeBtn: !!document.getElementById('btn-take'),
+      blackBtn: !!document.getElementById('btn-black'),
+      arBtn: !!document.getElementById('btn-arkill'),
       editorVisible: !document.getElementById('editor').hidden,
       canvasSize: cv.width + 'x' + cv.height,
       litSamples: lit,
@@ -119,17 +126,18 @@ app.whenReady().then(async () => {
       for (const idx of [0, 1, 2, 5]) {
         document.querySelectorAll('#gfx-list li')[idx]?.querySelector('.ly-vis')?.click();
       }
-      document.querySelector('.cam-tile[data-cam="2"]').click();
+      document.querySelector('.cam-tile[data-cam="2"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     })()`);
     await new Promise((r) => setTimeout(r, 2500));
     await shot('shot-onair.png');
-    await win.webContents.executeJavaScript(`document.querySelector('.cam-tile[data-cam="1"]').click()`);
+    await win.webContents.executeJavaScript(`document.querySelector('.cam-tile[data-cam="1"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`);
     await new Promise((r) => setTimeout(r, 2000));
     await shot('shot-wide.png');
   }
 
   const ok = stage1 && errors.length === 0 && stage2.editorVisible
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
+    && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6
     && stage2.mixerChannels === 3 && stage2.setBrowserCards === 9;
   if (!ok) {

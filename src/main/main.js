@@ -18,7 +18,8 @@ const MIME = {
   '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4',
   '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2',
   '.data': 'application/octet-stream', '.tflite': 'application/octet-stream',
-  '.binarypb': 'application/octet-stream'
+  '.binarypb': 'application/octet-stream',
+  '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream'
 };
 
 function mimeFor(file) {
@@ -123,13 +124,16 @@ function registerIpc() {
         ? [{ name: 'Videos', extensions: ['mp4', 'webm', 'mov'] }]
         : kind === 'audio'
           ? [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a'] }]
-          : [{ name: 'Media', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'webm', 'mov'] }];
+          : kind === 'model'
+            ? [{ name: '3D models', extensions: ['glb', 'gltf'] }]
+            : [{ name: 'Media', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'webm', 'mov'] }];
     const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters });
     if (r.canceled || !r.filePaths[0]) return null;
     const p = r.filePaths[0];
     const ext = path.extname(p).toLowerCase();
     const type = ['.mp4', '.webm', '.mov'].includes(ext) ? 'video'
-      : ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext) ? 'audio' : 'image';
+      : ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext) ? 'audio'
+        : ['.glb', '.gltf'].includes(ext) ? 'model' : 'image';
     return { url: 'media://local/?p=' + encodeURIComponent(p), path: p, type, name: path.basename(p) };
   });
 

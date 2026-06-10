@@ -1140,3 +1140,53 @@ button:disabled:hover { background: inherit; border-color: var(--line); }
 /* ---- empty-state cards: calmer, intentional ---- */
 .empty-state { background: linear-gradient(180deg, rgba(16,24,34,.55), rgba(12,18,28,.35)); border-color: #223050; }
 .empty-state .ic { color: #5b6e92; }
+
+
+/* ============================================================
+   v6 — PROGRAM/PREVIEW SWITCHER, EMERGENCY KEYS, OPERATOR LOG
+   ============================================================ */
+.switch-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 5px; margin-top: 7px; }
+.take-btn, .black-btn, .ar-btn {
+  font-weight: 800; letter-spacing: .1em; font-size: 10.5px; padding: 8px 0;
+  border-radius: 6px; cursor: pointer; transition: all .13s;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -2px 0 rgba(0,0,0,.45);
+}
+.take-btn {
+  border: 1px solid rgba(79,155,255,.6); color: #fff;
+  background: var(--grad-primary);
+}
+.take-btn:hover { filter: brightness(1.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 12px rgba(34,119,255,.3); }
+.take-btn:active { transform: translateY(1px); }
+.black-btn {
+  border: 1px solid #3a1318; color: #ff9ba3;
+  background: linear-gradient(180deg, #15090c, #0c0507);
+}
+.black-btn:hover { border-color: var(--red); }
+.black-btn.armed {
+  background: #000; border-color: var(--red); color: #fff;
+  animation: blink 1s infinite; box-shadow: 0 0 14px rgba(230,57,70,.5);
+}
+.ar-btn { border: 1px solid #1d4d2e; color: #7ee2a4; background: linear-gradient(180deg, #0c1812, #08110c); }
+.ar-btn.off { border-color: #5c4318; color: #ffc46e; }
+.statchip.err { color: #ff9ba3; border-color: #6c2229; }
+.statchip.err::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red); animation: blink .9s infinite; }
+
+/* PVW (staged) camera tile + scene */
+.cam-tile.preview { border-color: var(--green); box-shadow: 0 0 0 2px rgba(47,201,102,.35); }
+.cam-tile.preview::after {
+  content: "PVW"; position: absolute; top: 4px; right: 5px; font-size: 8px; font-weight: 800;
+  color: #04140c; background: var(--green); padding: 1px 6px; border-radius: 7px; letter-spacing: .08em;
+}
+.cam-tile.program.preview::after { content: "PGM"; background: var(--red); color: #fff; }
+.scene-item.preview { border-color: var(--green); }
+.scene-item.preview::before { background: var(--green); }
+
+/* operator log */
+.oplog {
+  max-height: 320px; overflow-y: auto; border: 1px solid var(--line-soft); border-radius: var(--r-md);
+  background: var(--bg-0); padding: 8px 10px; font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.oplog div { display: flex; gap: 10px; padding: 3px 0; border-bottom: 1px solid #121a28; color: var(--txt-dim); }
+.oplog .t { color: var(--txt-faint); flex-shrink: 0; }
+.oplog .err { color: #ff9ba3; }
+.oplog .ok { color: #7ee2a4; }

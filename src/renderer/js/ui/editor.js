@@ -2,7 +2,7 @@
 // Icon rail + asset browser, cinematic viewport, CAM strip, inspector tabs,
 // bottom production strip (scenes / macros / transitions / mixer / output),
 // modals, autosave, health chips, keyboard.
-import { state, serialize, serializeTemplate } from '../state.js';
+import { state, serialize, serializeTemplate, nextObjectId } from '../state.js';
 import { SETS, SET_CATEGORIES, PRESETS, LIGHT_MOODS, SKIN_PRESETS, PROPS, GRAPHICS, MACROS } from '../templates.js';
 import { ANGLES } from '../engine/cameras.js';
 import { snapshotScene, applyScene, runMacro } from '../scenes.js';
@@ -179,6 +179,25 @@ export function initEditor(ctx) {
 
   /* ---- props pane ---- */
   function buildPropsPane(body) {
+    const imp = document.createElement('button');
+    imp.className = 'btn gold slim browser-foot-btn';
+    imp.style.marginBottom = '9px';
+    imp.innerHTML = icon('cube') + ' Import 3D model (GLB)…';
+    imp.addEventListener('click', async () => {
+      const media = await window.chase.pickMedia('model');
+      if (!media) return;
+      const data = {
+        id: nextObjectId(), kind: 'model', x: 2.2, z: 0.6, rotY: 0, scale: 1,
+        height: 0, opacity: 1, shadow: 0.55, media: { url: media.url, path: media.path, type: 'model' }, visible: true
+      };
+      state.objects.push(data);
+      studio.addObject('model', data.x, data.z, data);
+      selectObject(data.id);
+      refreshLayerList();
+      logEvent('3D model imported: ' + media.name, 'ok');
+      toast(media.name + ' placed in the studio — drag it into position', 'ok');
+    });
+    body.appendChild(imp);
     for (const [kind, p] of Object.entries(PROPS)) {
       body.appendChild(libCard(p.ico, p.name, p.desc, 'prop:' + kind, () => addProp(kind)));
     }
@@ -425,7 +444,8 @@ export function initEditor(ctx) {
       label.innerHTML = `<span><span class="ct-key">${a.num}</span> CAM ${a.num}</span>
         <span>${a.name.toUpperCase()} <span class="ct-res">${state.output.height === 1080 ? '1080' : '720'}</span></span>`;
       tile.appendChild(label);
-      tile.addEventListener('click', () => switchCam(a.num));
+      tile.addEventListener('click', () => stagePreview(a.num));
+      tile.addEventListener('dblclick', () => { state.preview.camera = null; switchCam(a.num); refreshBusStates(); });
       camstrip.appendChild(tile);
       studio.registerThumb(a.num, cv);
     }
@@ -454,6 +474,110 @@ export function initEditor(ctx) {
     if (activeNav === 'cameras') buildBrowser();
     if (!selectedId) buildStudioOverview();
   }
+
+  /* ---- PROGRAM / PREVIEW bus ---- */
+  function stagePreview(num) {
+    state.preview.camera = num === state.camera.active ? null : num;
+    state.preview.sceneId = null;
+    refreshBusStates();
+  }
+  function refreshBusStates() {
+    camstrip.querySelectorAll('.cam-tile').forEach((b) => {
+      const n = Number(b.dataset.cam);
+      b.classList.toggle('program', n === state.camera.active);
+      b.classList.toggle('preview', n === state.preview.camera);
+    });
+    document.querySelectorAll('.scene-item').forEach((el) =>
+      el.classList.toggle('preview', el.dataset.scn === state.preview.sceneId));
+  }
+  function takeProgram(mode) {
+    // mode: 'take' = selected transition · 'cut' = hard
+    const pv = state.preview;
+    if (pv.sceneId) {
+      const sc = state.scenes.find((x) => x.id === pv.sceneId);
+      if (sc) {
+        applyScene(sc, sceneCtx());
+        liveSceneId = sc.id;
+        logEvent('TAKE scene → ' + sc.name);
+        buildSceneList();
+        refreshLightInputs();
+      }
+    } else if (pv.camera) {
+      const from = state.camera.active;
+      if (mode === 'cut') {
+        const t = state.transition.type;
+        state.transition.type = 'cut';
+        switchCam(pv.camera);
+        state.transition.type = t;
+      } else {
+        switchCam(pv.camera);
+      }
+      logEvent('TAKE CAM ' + pv.camera);
+      pv.camera = from; // flip-flop like a real switcher
+      refreshBusStates();
+      return;
+    } else {
+      toast('Nothing staged on PVW — click a camera or scene first.');
+      return;
+    }
+    pv.sceneId = null;
+    refreshBusStates();
+  }
+  $('btn-take').addEventListener('click', () => takeProgram('take'));
+
+  // emergency BLACK
+  $('btn-black').addEventListener('click', () => {
+    compositor.blackout = !compositor.blackout;
+    $('btn-black').classList.toggle('armed', compositor.blackout);
+    logEvent(compositor.blackout ? 'PROGRAM TO BLACK' : 'Program restored from black', compositor.blackout ? 'err' : 'ok');
+    toast(compositor.blackout ? 'PROGRAM IS BLACK — output muted to black' : 'Program restored', compositor.blackout ? 'err' : 'ok');
+  });
+  // instant AR kill
+  $('btn-arkill').addEventListener('click', () => {
+    const vis = !studio.objectsRoot.visible;
+    studio.objectsRoot.visible = vis;
+    const b = $('btn-arkill');
+    b.classList.toggle('off', !vis);
+    b.classList.toggle('on', vis);
+    b.textContent = vis ? 'AR ON' : 'AR OFF';
+    logEvent(vis ? 'AR objects restored' : 'AR objects hidden from program', vis ? 'ok' : 'err');
+  });
+
+  /* ---- operator log ---- */
+  const opLog = [];
+  function logEvent(msg, kind = '') {
+    opLog.push({ t: new Date(), msg, kind });
+    if (opLog.length > 200) opLog.shift();
+  }
+  logEvent('Session started — ' + state.meta.name, 'ok');
+  $('btn-oplog').addEventListener('click', () => {
+    const list = $('oplog-list');
+    list.innerHTML = opLog.slice().reverse().map((e) =>
+      `<div><span class="t">${e.t.toLocaleTimeString('en-GB')}</span><span class="${e.kind}">${e.msg}</span></div>`).join('')
+      || '<div class="muted">No events yet.</div>';
+    $('modal-oplog').hidden = false;
+  });
+  $('oplog-close').addEventListener('click', () => { $('modal-oplog').hidden = true; });
+
+  /* ---- timecode + camera watchdog ---- */
+  let camWasLive = true;
+  setInterval(() => {
+    const d = new Date();
+    const ff = String(Math.floor(d.getMilliseconds() / 1000 * state.output.fps)).padStart(2, '0');
+    $('stat-tc').textContent = d.toLocaleTimeString('en-GB') + ':' + ff;
+  }, 120);
+  setInterval(() => {
+    const ok = !!(capture.stream && capture.stream.active);
+    const chip = $('stat-cam');
+    chip.className = 'statchip ' + (ok ? 'ok' : 'err');
+    chip.textContent = ok ? 'CAM OK' : 'CAM LOST';
+    if (camWasLive && !ok) {
+      toast('Camera input lost — check the connection (Cameras pane → Reconnect).', 'err', 6000);
+      logEvent('Camera input lost', 'err');
+    }
+    if (!camWasLive && ok) logEvent('Camera input restored', 'ok');
+    camWasLive = ok;
+  }, 2000);
 
   /* ================= INSPECTOR TABS ================= */
   document.querySelectorAll('.insp-tab').forEach((t) =>
@@ -514,11 +638,13 @@ export function initEditor(ctx) {
     $('transform-bar').hidden = !data;
     if (!data) { buildStudioOverview(); return; }
     $('tt-lock').classList.toggle('locked', !!data.locked);
-    $('obj-props-title').textContent = PROPS[data.kind]?.name || data.kind;
+    $('obj-props-title').textContent = data.kind === 'model' ? (data.media?.path?.split(/[\\/]/).pop() || '3D model') : (PROPS[data.kind]?.name || data.kind);
     $('obj-scale').value = data.scale; $('o-scale').value = (+data.scale).toFixed(2);
     $('obj-rot').value = data.rotY; $('o-rot').value = data.rotY + '°';
     $('obj-height').value = data.height || 0; $('o-h').value = (+(data.height || 0)).toFixed(2);
     $('obj-opacity').value = data.opacity ?? 1; $('o-op').value = Math.round((data.opacity ?? 1) * 100) + '%';
+    $('obj-shadow').value = data.shadow ?? 0.55; $('o-shadow').value = Math.round((data.shadow ?? 0.55) * 100) + '%';
+    $('obj-anchor').checked = !data.height || data.height === 0;
     $('obj-media').hidden = !studio.objects.get(id)?.userData.mediaCapable;
   }
 
@@ -539,7 +665,8 @@ export function initEditor(ctx) {
     for (const o of state.objects) {
       const li = document.createElement('li');
       li.className = o.id === selectedId ? 'selected' : '';
-      li.innerHTML = `<span class="ly-ico">${icon(PROPS[o.kind]?.ico || 'cube')}</span>${PROPS[o.kind]?.name || o.kind}
+      const oname = o.kind === 'model' ? (o.media?.path?.split(/[\\/]/).pop() || '3D model') : (PROPS[o.kind]?.name || o.kind);
+      li.innerHTML = `<span class="ly-ico">${icon(PROPS[o.kind]?.ico || 'cube')}</span>${oname}
         <button class="ly-vis ${o.visible !== false ? 'on' : ''}" title="Show / hide">●</button>`;
       li.addEventListener('click', (e) => {
         if (e.target.classList.contains('ly-vis')) {
@@ -582,6 +709,10 @@ export function initEditor(ctx) {
   bindSlider('obj-rot', (v) => { updateSelected('rotY', v); $('o-rot').value = v + '°'; });
   bindSlider('obj-height', (v) => { updateSelected('height', v); $('o-h').value = v.toFixed(2); });
   bindSlider('obj-opacity', (v) => { updateSelected('opacity', v); $('o-op').value = Math.round(v * 100) + '%'; });
+  bindSlider('obj-shadow', (v) => { updateSelected('shadow', v); $('o-shadow').value = Math.round(v * 100) + '%'; });
+  $('obj-anchor').addEventListener('change', (e) => {
+    if (e.target.checked) { updateSelected('height', 0); $('obj-height').value = 0; $('o-h').value = '0.00'; }
+  });
   function updateSelected(field, val) {
     const data = state.objects.find((o) => o.id === selectedId);
     if (!data) return;
@@ -818,23 +949,30 @@ export function initEditor(ctx) {
     }
     state.scenes.forEach((sc, i) => {
       const item = document.createElement('div');
-      item.className = 'scene-item' + (sc.id === liveSceneId ? ' live' : '');
+      item.dataset.scn = sc.id;
+      item.className = 'scene-item' + (sc.id === liveSceneId ? ' live' : '') + (sc.id === state.preview.sceneId ? ' preview' : '');
+      item.title = 'Click: stage to PVW · Double-click: take to program · Right-click: rename';
       item.innerHTML = `<span class="sc-num">${String(i + 1).padStart(2, '0')}</span>${sc.name}
         <button class="sc-x" title="Delete scene">✕</button>`;
       item.addEventListener('click', (e) => {
         if (e.target.classList.contains('sc-x')) {
           state.scenes.splice(i, 1);
           if (liveSceneId === sc.id) liveSceneId = null;
+          if (state.preview.sceneId === sc.id) state.preview.sceneId = null;
           buildSceneList();
           return;
         }
-        applyScene(sc, sceneCtx());
-        liveSceneId = sc.id;
-        buildSceneList();
-        refreshLightInputs();
+        state.preview.sceneId = state.preview.sceneId === sc.id ? null : sc.id;
+        state.preview.camera = null;
+        refreshBusStates();
       });
       item.addEventListener('dblclick', (e) => {
         if (e.target.classList.contains('sc-x')) return;
+        state.preview.sceneId = sc.id;
+        takeProgram('take');
+      });
+      item.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
         const name = prompt('Scene name', sc.name);
         if (name) { sc.name = name; buildSceneList(); }
       });
@@ -1223,7 +1361,9 @@ export function initEditor(ctx) {
   /* ================= KEYBOARD ================= */
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key >= '1' && e.key <= '6') switchCam(Number(e.key));
+    if (e.key >= '1' && e.key <= '6') stagePreview(Number(e.key));
+    if (e.key === 'Enter') takeProgram('take');
+    if (e.key.toLowerCase() === 'b') $('btn-black').click();
     if (e.key === 'Delete' && selectedId) { studio.removeObject(selectedId); selectObject(null); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveProject(); }
   });
@@ -1274,6 +1414,7 @@ export function initEditor(ctx) {
     buildDestEditor();
     refreshLayerList();
     switchCam(state.camera.active, true);
+    refreshBusStates();
   }
 
   refreshAll();
