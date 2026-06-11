@@ -25,6 +25,61 @@ const seg = (ph, a, b) => clamp01((ph - a) / (b - a));
 // Per-graphic in/out durations (seconds); default 0.45 / 0.35.
 const DUR = { lowerThird: { in: 0.8, out: 0.5 } };
 
+/* ---- broadcast surface kit ----
+   One material language for every graphic: near-black ink slabs with a
+   1px top hairline, soft drop shadow for separation from video, thin
+   accent rules (never large filled areas), tracked-out caps for labels,
+   light-weight numerals for big values. */
+const TYPE = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
+const F = (weight, size) => `${weight} ${size}px ${TYPE}`;
+const INK_TOP = 'rgba(10,12,16,0.93)';
+const INK_BOT = 'rgba(5,6,9,0.95)';
+const INK_SOFT = 'rgba(16,19,25,0.93)';
+const HAIR = 'rgba(255,255,255,0.14)';
+const TXT_HI = 'rgba(255,255,255,0.96)';
+const TXT_MID = 'rgba(255,255,255,0.62)';
+const TXT_LOW = 'rgba(255,255,255,0.38)';
+const RED_LIVE = '#b00d23';
+
+/** Ink slab with optional angled right cut, hairline and drop shadow. */
+function inkSlab(ctx, x, y, w, h, { cut = 0, shadow = true, hairline = true, top = INK_TOP, bottom = INK_BOT } = {}) {
+  if (w <= 0 || h <= 0) return;
+  ctx.save();
+  if (shadow) {
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 28;
+    ctx.shadowOffsetY = 10;
+  }
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, top);
+  g.addColorStop(1, bottom);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w - cut, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  if (hairline) {
+    ctx.fillStyle = HAIR;
+    ctx.fillRect(x, y, w, 1);
+  }
+}
+
+/** Tracked-out caps label — the broadcast kicker voice. */
+function caps(ctx, text, x, y, { size = 17, weight = 600, color = TXT_MID, ls = '0.16em' } = {}) {
+  ctx.save();
+  ctx.font = F(weight, size);
+  ctx.letterSpacing = ls;
+  ctx.fillStyle = color;
+  ctx.fillText(String(text).toUpperCase(), x, y);
+  const w = ctx.measureText(String(text).toUpperCase()).width;
+  ctx.restore();
+  return w;
+}
+
 export class OverlayEngine {
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -136,11 +191,13 @@ export class OverlayEngine {
     const textX = x + 12 + (logoW ? logoW + 16 : 22);
 
     // responsive width from real text metrics, clamped to title-safe
-    ctx.font = '700 40px "Segoe UI", system-ui, sans-serif';
+    ctx.save();
+    ctx.font = F(600, 36);
     const nameW = ctx.measureText(name).width;
-    ctx.font = '600 22px "Segoe UI", system-ui, sans-serif';
-    const titleLine = title + (location ? '   ·   ' + location : '');
-    const titleW = ctx.measureText(titleLine).width;
+    ctx.font = F(600, 18);
+    ctx.letterSpacing = '0.1em';
+    const titleW = ctx.measureText(title).width + (location ? ctx.measureText(location).width + 42 : 0);
+    ctx.restore();
     const statusW = status ? 150 : 0;
     // title slab is 0.85×w — size w so both rows fit their text
     const w = Math.min(W - 2 * SAFE_X,
@@ -156,11 +213,10 @@ export class OverlayEngine {
 
     const slabPaint = (x0, y0, w0, h0) => {
       if (g.theme === 'carbon') {
-        ctx.fillStyle = 'rgba(9,11,16,0.97)';
-        ctx.fillRect(x0, y0, w0, h0);
+        inkSlab(ctx, x0, y0, w0, h0, { cut: 16, top: 'rgba(9,10,13,0.97)', bottom: 'rgba(9,10,13,0.97)' });
         ctx.save();
         ctx.beginPath(); ctx.rect(x0, y0, w0, h0); ctx.clip();
-        ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.035)';
         ctx.lineWidth = 1;
         for (let d = -h0; d < w0; d += 7) {
           ctx.beginPath();
@@ -170,23 +226,24 @@ export class OverlayEngine {
         }
         ctx.restore();
       } else if (g.theme === 'metal') {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 28;
+        ctx.shadowOffsetY = 10;
         const m = ctx.createLinearGradient(0, y0, 0, y0 + h0);
-        m.addColorStop(0, '#3d4658');
-        m.addColorStop(0.48, '#222a3a');
-        m.addColorStop(0.52, '#191f2d');
-        m.addColorStop(1, '#2b3344');
+        m.addColorStop(0, '#2c3340');
+        m.addColorStop(0.48, '#191e28');
+        m.addColorStop(0.52, '#13171f');
+        m.addColorStop(1, '#1f2530');
         ctx.fillStyle = m;
         ctx.fillRect(x0, y0, w0, h0);
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
-        ctx.fillRect(x0, y0 + h0 * 0.46, w0, 2);
-      } else { // glass
-        const grad = ctx.createLinearGradient(x0, 0, x0 + w0, 0);
-        grad.addColorStop(0, 'rgba(10,13,20,0.94)');
-        grad.addColorStop(1, 'rgba(10,13,20,0.55)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(x0, y0, w0, h0);
-        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.restore();
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(x0, y0 + h0 * 0.46, w0, 1);
+        ctx.fillStyle = HAIR;
         ctx.fillRect(x0, y0, w0, 1);
+      } else { // glass
+        inkSlab(ctx, x0, y0, w0, h0, { cut: 16 });
       }
     };
 
@@ -194,80 +251,78 @@ export class OverlayEngine {
     ctx.globalAlpha = Math.min(1, ph * 1.5);
     ctx.textBaseline = 'middle';
 
-    // topic kicker — slides down into place above the strap
+    // topic kicker — quiet tracked caps above the strap, accent tick
     if (topic && meta > 0) {
       ctx.save();
       ctx.globalAlpha *= meta;
-      ctx.font = '800 20px "Segoe UI", system-ui, sans-serif';
-      const tw = ctx.measureText(topic).width + 36;
-      const ty = baseY - 36 + (1 - meta) * 14;
+      const ty = baseY - 30 + (1 - meta) * 12;
       ctx.fillStyle = brand.accent;
-      ctx.fillRect(x + 10, ty, tw, 30);
-      ctx.fillStyle = '#161102';
-      ctx.fillText(topic, x + 28, ty + 16);
+      ctx.fillRect(x, ty - 1, 3, 18);
+      caps(ctx, topic, x + 14, ty + 8, { size: 16, color: 'rgba(255,255,255,0.85)', ls: '0.22em' });
       ctx.restore();
     }
 
-    // accent spine grows up from the baseline
+    // accent spine grows up from the baseline — a rule, not a block
     ctx.fillStyle = brand.accent;
-    ctx.fillRect(x, baseY + 104 * (1 - spine), 10, 104 * spine);
+    ctx.fillRect(x, baseY + 98 * (1 - spine), 4, 98 * spine);
 
     // name slab wipes right; text is revealed by the wipe (clip)
     if (slab1 > 0) {
-      slabPaint(x + 10, baseY, w * slab1, 64);
+      slabPaint(x + 4, baseY, w * slab1, 62);
       ctx.save();
-      ctx.beginPath(); ctx.rect(x + 10, baseY, w * slab1, 64); ctx.clip();
+      ctx.beginPath(); ctx.rect(x + 4, baseY, w * slab1, 62); ctx.clip();
       if (this.logoImg) {
-        ctx.fillStyle = 'rgba(0,0,0,0.45)';
-        ctx.fillRect(x + 12, baseY + 4, logoW, 56);
-        const s = Math.min((logoW - 10) / this.logoImg.width, 48 / this.logoImg.height);
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(x + 6, baseY + 5, logoW, 52);
+        const s = Math.min((logoW - 12) / this.logoImg.width, 42 / this.logoImg.height);
         const lw = this.logoImg.width * s, lh = this.logoImg.height * s;
-        ctx.drawImage(this.logoImg, x + 12 + (logoW - lw) / 2, baseY + 4 + (56 - lh) / 2, lw, lh);
+        ctx.drawImage(this.logoImg, x + 6 + (logoW - lw) / 2, baseY + 5 + (52 - lh) / 2, lw, lh);
       }
-      ctx.fillStyle = '#fff';
-      ctx.font = '700 40px "Segoe UI", system-ui, sans-serif';
-      ctx.fillText(name, textX, baseY + 34);
+      ctx.fillStyle = TXT_HI;
+      ctx.font = F(600, 36);
+      ctx.fillText(name, textX, baseY + 33);
       ctx.restore();
     }
 
-    // title slab tracks behind the name slab
+    // title row: quieter ink, primary rule on the left edge
     if (slab2 > 0) {
-      const g2 = ctx.createLinearGradient(x, 0, x + w * 0.85, 0);
-      g2.addColorStop(0, brand.primary);
-      g2.addColorStop(1, shade(brand.primary, -0.4));
-      ctx.fillStyle = g2;
-      ctx.fillRect(x + 10, baseY + 64, w * 0.85 * slab2, 40);
+      const tw2 = w * 0.85 * slab2;
+      inkSlab(ctx, x + 4, baseY + 62, tw2, 36, { cut: 12, top: INK_SOFT, bottom: INK_SOFT, hairline: false, shadow: false });
+      ctx.fillStyle = brand.primary;
+      ctx.fillRect(x + 4, baseY + 62, Math.min(3, tw2), 36);
       ctx.save();
-      ctx.beginPath(); ctx.rect(x + 10, baseY + 64, w * 0.85 * slab2, 40); ctx.clip();
-      ctx.font = '600 22px "Segoe UI", system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.94)';
-      ctx.fillText(title, textX, baseY + 85);
+      ctx.beginPath(); ctx.rect(x + 4, baseY + 62, tw2, 36); ctx.clip();
+      let tx2 = textX;
+      tx2 += caps(ctx, title, tx2, baseY + 81, { size: 18, color: 'rgba(255,255,255,0.88)', ls: '0.1em' });
       if (location) {
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.fillText('·   ' + location, textX + ctx.measureText(title).width + 22, baseY + 85);
+        ctx.fillStyle = TXT_LOW;
+        ctx.fillRect(tx2 + 14, baseY + 74, 1, 13);
+        caps(ctx, location, tx2 + 28, baseY + 81, { size: 16, color: TXT_MID, ls: '0.1em' });
       }
       ctx.restore();
     }
 
     // live-status chip pops on last with a slight overshoot
     if (status && chip > 0) {
-      const cw = 26 + status.length * 13, chh = 34;
-      const cx2 = x + 10 + w - cw - 16, cy2 = baseY + 15;
       ctx.save();
+      ctx.font = F(700, 15);
+      ctx.letterSpacing = '0.14em';
+      const sw = ctx.measureText(status).width;
+      const cw = sw + 44, chh = 28;
+      const cx2 = x + 4 + w - cw - 14, cy2 = baseY + 17;
       ctx.translate(cx2 + cw / 2, cy2 + chh / 2);
       ctx.scale(chip, chip);
       ctx.globalAlpha *= clamp01(chip);
-      ctx.fillStyle = '#c8102e';
-      rounded(ctx, -cw / 2, -chh / 2, cw, chh, 6);
+      ctx.fillStyle = RED_LIVE;
+      rounded(ctx, -cw / 2, -chh / 2, cw, chh, 3);
       ctx.fill();
-      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(time / 420));
+      const pulse = 0.5 + 0.5 * Math.abs(Math.sin(time / 460));
       ctx.fillStyle = `rgba(255,255,255,${pulse})`;
       ctx.beginPath();
-      ctx.arc(-cw / 2 + 16, 0, 5, 0, Math.PI * 2);
+      ctx.arc(-cw / 2 + 15, 0, 3.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#fff';
-      ctx.font = '800 18px "Segoe UI", system-ui, sans-serif';
-      ctx.fillText(status, -cw / 2 + 30, 1);
+      ctx.fillText(status, -cw / 2 + 27, 1);
       ctx.restore();
     }
     ctx.restore();
@@ -277,72 +332,84 @@ export class OverlayEngine {
     if (ph <= 0) return;
     const t = state.graphics.ticker;
     const brand = state.brand;
-    const barH = 64;
+    const barH = 56;
     const y = H - barH - 36 + (1 - ph) * (barH + 40);
 
     ctx.save();
     ctx.globalAlpha = Math.min(1, ph * 1.4);
-    // bar
-    ctx.fillStyle = 'rgba(8,10,16,0.93)';
+    // bar: ink with a 2px accent rule and a hairline
+    ctx.fillStyle = 'rgba(7,8,11,0.95)';
     ctx.fillRect(0, y, W, barH);
+    ctx.fillStyle = HAIR;
+    ctx.fillRect(0, y, W, 1);
     ctx.fillStyle = brand.accent;
-    ctx.fillRect(0, y - 4, W, 4);
+    ctx.fillRect(0, y - 2, W, 2);
 
     // scrolling text (clip after the label block)
-    const labelW = 210;
+    const labelW = 196;
     ctx.save();
     ctx.beginPath();
     ctx.rect(labelW, y, W - labelW, barH);
     ctx.clip();
-    ctx.font = '600 30px "Segoe UI", system-ui, sans-serif';
-    const sep = '      •      ';
+    ctx.font = F(500, 25);
+    const sep = '        ·        ';
     const txt = tok(t.text || '') + sep;
     const tw = Math.max(ctx.measureText(txt).width, 400);
     this.tickerX -= dt * 110 * (t.speed || 1);
     if (this.tickerX < -tw) this.tickerX += tw;
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillStyle = 'rgba(255,255,255,0.84)';
     ctx.textBaseline = 'middle';
     for (let xx = this.tickerX; xx < W; xx += tw) {
-      ctx.fillText(txt, labelW + 26 + xx, y + barH / 2 + 2);
+      ctx.fillText(txt, labelW + 26 + xx, y + barH / 2 + 1);
     }
     ctx.restore();
 
-    // label block
-    const lg = ctx.createLinearGradient(0, y, 0, y + barH);
-    lg.addColorStop(0, brand.primary);
-    lg.addColorStop(1, shade(brand.primary, -0.45));
-    ctx.fillStyle = lg;
+    // label block: darker ink, accent edge, tracked caps
+    ctx.fillStyle = 'rgba(13,15,20,0.97)';
     ctx.fillRect(0, y, labelW, barH);
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 26px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(0, y, 3, barH);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(labelW - 1, y + 10, 1, barH - 20);
     ctx.textBaseline = 'middle';
-    ctx.fillText(tok(t.label || 'LATEST'), 24, y + barH / 2 + 2);
+    caps(ctx, tok(t.label || 'LATEST'), 24, y + barH / 2 + 1, { size: 19, weight: 700, color: TXT_HI, ls: '0.18em' });
     ctx.restore();
   }
 
   drawBanner(ctx, time, ph) {
     if (ph <= 0) return;
-    const brand = state.brand;
     const text = tok(state.graphics.banner.text || 'BREAKING NEWS');
     const tickerOn = state.graphics.ticker.on;
-    const y = (tickerOn ? H - 330 : H - 270) + (1 - ph) * 40;
-    const pulse = 0.85 + 0.15 * Math.sin(time / 280);
+    const y = (tickerOn ? H - 322 : H - 262) + (1 - ph) * 40;
 
     ctx.save();
     ctx.globalAlpha = ph;
-    ctx.font = '800 54px "Segoe UI", system-ui, sans-serif';
-    const w = ctx.measureText(text).width + 90;
-    const grad = ctx.createLinearGradient(96, 0, 96 + w, 0);
-    grad.addColorStop(0, '#d31a2b');
-    grad.addColorStop(1, '#8e0f1c');
-    ctx.fillStyle = grad;
-    ctx.fillRect(96, y, w * ph, 76);
-    ctx.fillStyle = brand.accent;
-    ctx.fillRect(96, y + 76, w * ph, 6);
-    ctx.globalAlpha = ph * pulse;
-    ctx.fillStyle = '#fff';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, 96 + 44, y + 41);
+    ctx.font = F(700, 42);
+    ctx.letterSpacing = '0.04em';
+    const textW = ctx.measureText(text).width;
+    const kickW = 132;
+    const w = textW + kickW + 76;
+    // ink body with deep-red flag block — colour as a signal, not a flood
+    inkSlab(ctx, SAFE_X, y, w * ph, 64, { cut: 16, top: 'rgba(12,8,9,0.95)', bottom: 'rgba(7,4,5,0.96)' });
+    const fg = ctx.createLinearGradient(0, y, 0, y + 64);
+    fg.addColorStop(0, '#c11226');
+    fg.addColorStop(1, '#8c0d1c');
+    ctx.fillStyle = fg;
+    ctx.fillRect(SAFE_X, y, kickW, 64);
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(time / 480));
+    ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+    ctx.beginPath();
+    ctx.arc(SAFE_X + 22, y + 32, 4, 0, Math.PI * 2);
+    ctx.fill();
+    caps(ctx, 'ALERT', SAFE_X + 36, y + 33, { size: 17, weight: 700, color: '#fff', ls: '0.18em' });
+    ctx.save();
+    ctx.beginPath(); ctx.rect(SAFE_X, y, w * ph, 64); ctx.clip();
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(700, 42);
+    ctx.letterSpacing = '0.04em';
+    ctx.fillText(text, SAFE_X + kickW + 28, y + 34);
+    ctx.restore();
     ctx.restore();
   }
 
@@ -354,19 +421,27 @@ export class OverlayEngine {
     ctx.globalAlpha = ph;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '800 92px "Segoe UI", system-ui, sans-serif';
-    const y = H * 0.42 + (1 - ph) * 30;
-    // glass slab
-    const w = ctx.measureText(text).width + 160;
-    ctx.fillStyle = 'rgba(8,10,16,0.78)';
-    ctx.fillRect(W / 2 - w / 2, y - 86, w, 172);
+    const y = H * 0.44 + (1 - ph) * 26;
+    // quiet scrim, hairline rules, light display type — no slab box
+    const grad = ctx.createLinearGradient(0, y - 130, 0, y + 130);
+    grad.addColorStop(0, 'rgba(4,5,8,0)');
+    grad.addColorStop(0.5, 'rgba(4,5,8,0.82)');
+    grad.addColorStop(1, 'rgba(4,5,8,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, y - 130, W, 260);
+    ctx.font = F(300, 86);
+    ctx.letterSpacing = '0.06em';
+    const tw = ctx.measureText(text.toUpperCase()).width;
+    ctx.fillStyle = TXT_HI;
+    ctx.fillText(text.toUpperCase(), W / 2, y);
+    const ruleW = Math.min(tw + 80, W - 2 * SAFE_X);
+    ctx.fillStyle = HAIR;
+    ctx.fillRect(W / 2 - ruleW / 2, y - 74, ruleW, 1);
+    ctx.fillRect(W / 2 - ruleW / 2, y + 66, ruleW, 1);
     ctx.fillStyle = brand.accent;
-    ctx.fillRect(W / 2 - w / 2, y + 86, w, 8);
-    ctx.fillStyle = '#fff';
-    ctx.fillText(text, W / 2, y);
-    ctx.font = '700 30px "Segoe UI", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillText((brand.name || '').toUpperCase(), W / 2, y + 130);
+    ctx.fillRect(W / 2 - 26, y + 66, 52, 2);
+    ctx.textAlign = 'center';
+    caps(ctx, brand.name || '', W / 2, y + 96, { size: 19, color: TXT_MID, ls: '0.34em' });
     ctx.textAlign = 'left';
     ctx.restore();
   }
@@ -388,112 +463,95 @@ export class OverlayEngine {
       const h = ar >= 1 ? size / ar : size;
       ctx.drawImage(this.logoImg, pos[0] + (size - w) / 2, pos[1] + (size - h) / 2, w, h);
     } else {
-      // monogram fallback from station name
+      // monogram fallback from station name — quiet ink chip, hairline
       const brand = state.brand;
-      ctx.fillStyle = 'rgba(8,10,16,0.8)';
-      rounded(ctx, pos[0], pos[1], size, size, 14);
+      ctx.fillStyle = 'rgba(8,9,12,0.72)';
+      rounded(ctx, pos[0], pos[1], size, size, 6);
       ctx.fill();
-      ctx.strokeStyle = brand.accent;
-      ctx.lineWidth = 3;
-      rounded(ctx, pos[0], pos[1], size, size, 14);
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      ctx.lineWidth = 1;
+      rounded(ctx, pos[0] + 0.5, pos[1] + 0.5, size - 1, size - 1, 6);
       ctx.stroke();
-      ctx.fillStyle = '#fff';
-      ctx.font = `800 ${Math.round(size * 0.42)}px "Segoe UI", system-ui, sans-serif`;
+      ctx.fillStyle = brand.accent;
+      ctx.fillRect(pos[0] + size * 0.3, pos[1] + size - 7, size * 0.4, 2);
+      ctx.fillStyle = TXT_HI;
+      ctx.font = F(600, Math.round(size * 0.38));
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const initials = (brand.name || 'CS').split(/\s+/).map((w) => w[0]).join('').slice(0, 2);
-      ctx.fillText(initials, pos[0] + size / 2, pos[1] + size / 2 + 3);
+      ctx.fillText(initials, pos[0] + size / 2, pos[1] + size / 2);
       ctx.textAlign = 'left';
     }
     ctx.restore();
   }
 
-  /** Two-team score strap — top centre, broadcast slabs, data-bindable. */
+  /** Two-team score strap — top centre, single ink strap, hairline dividers. */
   drawScoreboard(ctx, ph) {
     if (ph <= 0) return;
     const g = state.graphics.scoreboard;
     const brand = state.brand;
     const y = 56 - (1 - ph) * 90;
     const cx = W / 2;
-    const teamW = 300, scoreW = 92, midW = 120, h = 64;
+    const teamW = 280, scoreW = 96, midW = 110, h = 58;
+    const total = teamW * 2 + scoreW * 2 + midW;
+    const x0 = cx - total / 2;
     ctx.save();
     ctx.globalAlpha = ph;
     ctx.textBaseline = 'middle';
-    // home slab
-    let x = cx - midW / 2 - scoreW - teamW;
-    const grad1 = ctx.createLinearGradient(x, y, x + teamW, y);
-    grad1.addColorStop(0, 'rgba(8,10,16,0.94)');
-    grad1.addColorStop(1, 'rgba(14,20,34,0.94)');
-    ctx.fillStyle = grad1;
-    ctx.fillRect(x, y, teamW, h);
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 30px "Segoe UI", system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(tok(g.home).toUpperCase().slice(0, 14), x + teamW - 18, y + h / 2 + 2);
-    // home score
-    ctx.fillStyle = brand.primary;
-    ctx.fillRect(cx - midW / 2 - scoreW, y, scoreW, h);
-    ctx.fillStyle = '#fff';
+    inkSlab(ctx, x0, y, total, h, {});
+    // hairline dividers between cells
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    for (const dx of [teamW, teamW + scoreW, teamW + scoreW + midW, teamW + scoreW * 2 + midW]) {
+      ctx.fillRect(x0 + dx, y + 10, 1, h - 20);
+    }
+    // scores: light numerals on a slightly lifted cell
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(x0 + teamW, y, scoreW, h);
+    ctx.fillRect(x0 + teamW + scoreW + midW, y, scoreW, h);
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(300, 44);
     ctx.textAlign = 'center';
-    ctx.font = '800 38px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.scoreHome), cx - midW / 2 - scoreW / 2, y + h / 2 + 2);
-    // centre label
-    ctx.fillStyle = brand.accent;
-    ctx.fillRect(cx - midW / 2, y, midW, h);
-    ctx.fillStyle = '#1a1404';
-    ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.label).toUpperCase(), cx, y + h / 2 + 2);
-    // away score
-    ctx.fillStyle = brand.primary;
-    ctx.fillRect(cx + midW / 2, y, scoreW, h);
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 38px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.scoreAway), cx + midW / 2 + scoreW / 2, y + h / 2 + 2);
-    // away slab
-    x = cx + midW / 2 + scoreW;
-    const grad2 = ctx.createLinearGradient(x, y, x + teamW, y);
-    grad2.addColorStop(0, 'rgba(14,20,34,0.94)');
-    grad2.addColorStop(1, 'rgba(8,10,16,0.94)');
-    ctx.fillStyle = grad2;
-    ctx.fillRect(x, y, teamW, h);
-    ctx.fillStyle = '#fff';
+    ctx.fillText(tok(g.scoreHome), x0 + teamW + scoreW / 2, y + h / 2 + 2);
+    ctx.fillText(tok(g.scoreAway), x0 + teamW + scoreW + midW + scoreW / 2, y + h / 2 + 2);
+    // centre label: accent caps, no filled block
+    caps(ctx, tok(g.label), x0 + teamW + scoreW + midW / 2, y + h / 2 + 2,
+      { size: 16, weight: 700, color: brand.accent, ls: '0.18em' });
+    // team names
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(600, 26);
+    ctx.textAlign = 'right';
+    ctx.fillText(tok(g.home).toUpperCase().slice(0, 14), x0 + teamW - 22, y + h / 2 + 2);
     ctx.textAlign = 'left';
-    ctx.font = '800 30px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.away).toUpperCase().slice(0, 14), x + 18, y + h / 2 + 2);
-    // underline
+    ctx.fillText(tok(g.away).toUpperCase().slice(0, 14), x0 + teamW + scoreW * 2 + midW + 22, y + h / 2 + 2);
+    // accent baseline rule
     ctx.fillStyle = brand.accent;
-    ctx.fillRect(cx - midW / 2 - scoreW - teamW, y + h, teamW * 2 + scoreW * 2 + midW, 4);
+    ctx.fillRect(x0, y + h, total, 2);
     ctx.textAlign = 'left';
     ctx.restore();
   }
 
-  /** Side data panel — kicker, large value, sub line. Election/finance. */
+  /** Side data panel — kicker, large light value, sub line. */
   drawDataCard(ctx, ph) {
     if (ph <= 0) return;
     const g = state.graphics.dataCard;
     const brand = state.brand;
-    const w = 430, h = 230;
-    const x = W - 96 - w + (1 - ph) * (w + 100);
+    const w = 430, h = 218;
+    const x = W - SAFE_X - w + (1 - ph) * (w + 100);
     const y = 200;
     ctx.save();
     ctx.globalAlpha = ph;
-    const grad = ctx.createLinearGradient(x, y, x, y + h);
-    grad.addColorStop(0, 'rgba(10,14,24,0.95)');
-    grad.addColorStop(1, 'rgba(6,9,16,0.95)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = brand.accent;
-    ctx.fillRect(x, y, 8, h);
-    ctx.fillStyle = brand.primary;
-    ctx.fillRect(x + 8, y, w - 8, 46);
-    ctx.fillStyle = '#fff';
     ctx.textBaseline = 'middle';
-    ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.kicker).toUpperCase(), x + 30, y + 25);
-    ctx.font = '800 84px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.value), x + 30, y + 116);
-    ctx.font = '600 28px "Segoe UI", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    ctx.fillText(tok(g.sub), x + 30, y + 184);
+    inkSlab(ctx, x, y, w, h, {});
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(x, y, 3, h);
+    caps(ctx, tok(g.kicker), x + 30, y + 36, { size: 17, color: TXT_MID, ls: '0.2em' });
+    ctx.fillStyle = HAIR;
+    ctx.fillRect(x + 30, y + 58, w - 60, 1);
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(300, 80);
+    ctx.fillText(tok(g.value), x + 28, y + 116);
+    ctx.font = F(500, 24);
+    ctx.fillStyle = TXT_MID;
+    ctx.fillText(tok(g.sub), x + 30, y + 180);
     ctx.restore();
   }
 
@@ -506,26 +564,21 @@ export class OverlayEngine {
     const mm = String(Math.floor(remain / 60)).padStart(2, '0');
     const ss = String(Math.floor(remain % 60)).padStart(2, '0');
     const brand = state.brand;
-    const w = 380, h = 96;
+    const w = 360, h = 92;
     const x = W / 2 - w / 2, y = H - 260 - (1 - ph) * 60;
     ctx.save();
     ctx.globalAlpha = ph * (remain === 0 ? 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 180)) : 1);
-    ctx.fillStyle = 'rgba(8,10,16,0.94)';
-    ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = brand.accent;
-    ctx.fillRect(x, y + h, w, 5);
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '800 20px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.label).toUpperCase(), x + 26, y + 28);
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 52px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(mm + ':' + ss, x + 26, y + 66);
-    // progress bar
-    ctx.fillStyle = brand.primary;
-    ctx.fillRect(x + 200, y + 56, (w - 226) * (g.seconds ? remain / g.seconds : 0), 14);
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    ctx.strokeRect(x + 200, y + 56, w - 226, 14);
+    inkSlab(ctx, x, y, w, h, {});
+    caps(ctx, tok(g.label), x + 26, y + 26, { size: 16, color: TXT_MID, ls: '0.2em' });
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(300, 50);
+    ctx.fillText(mm + ':' + ss, x + 24, y + 62);
+    // progress: thin rule, accent remaining
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(x + 190, y + 58, w - 216, 4);
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(x + 190, y + 58, (w - 216) * (g.seconds ? remain / g.seconds : 0), 4);
     ctx.restore();
     if (remain === 0 && !this._cdDone) {
       this._cdDone = true;
@@ -555,8 +608,9 @@ export class OverlayEngine {
       ctx.fillStyle = g2;
       ctx.fillRect(-360, -300, 720, H + 600);
       if (lead && el > 0.35 && el < 0.62) {
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
-        ctx.font = '800 110px "Segoe UI", system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.94)';
+        ctx.font = F(300, 104);
+        ctx.letterSpacing = '0.1em';
         ctx.textAlign = 'center';
         ctx.fillText(state.brand.name.toUpperCase(), 0, H / 2);
         ctx.textAlign = 'left';
@@ -580,45 +634,42 @@ export class OverlayEngine {
     ctx.save();
     ctx.globalAlpha = Math.min(1, ph * 1.3);
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(8,11,18,0.96)';
-    ctx.fillRect(x, y, w, h);
-    // header
-    ctx.fillStyle = brand.primary;
-    ctx.fillRect(x, y, w, headH);
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 26px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.title).toUpperCase(), x + 22, y + headH / 2 + 1);
+    inkSlab(ctx, x, y, w, h, {});
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(x, y, 3, h);
+    // header: tracked caps over a hairline — no filled bar
+    caps(ctx, tok(g.title), x + 24, y + 30, { size: 19, weight: 700, color: TXT_HI, ls: '0.14em' });
     const rep = tok(g.reporting);
     if (rep && rep !== '—') {
-      ctx.font = '600 17px "Segoe UI", system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.75)';
       ctx.textAlign = 'right';
-      ctx.fillText(rep.toUpperCase() + ' REPORTING', x + w - 18, y + headH / 2 + 1);
+      caps(ctx, rep + ' reporting', x + w - 20, y + 30, { size: 14, color: TXT_LOW, ls: '0.12em' });
       ctx.textAlign = 'left';
     }
-    // rows: leading party gets the accent edge
+    ctx.fillStyle = HAIR;
+    ctx.fillRect(x + 24, y + headH - 6, w - 44, 1);
+    // rows: leading party gets the accent marker
     const pcts = rows.map((r) => parseFloat(String(tok(r.pct)).replace(/[^\d.]/g, '')) || 0);
     const lead = pcts.indexOf(Math.max(...pcts));
     rows.forEach((r, i) => {
       const ry = y + headH + 8 + i * rowH;
-      const barW = (w - 200) * Math.min(1, pcts[i] / 100) * ph;
+      const barW = (w - 196) * Math.min(1, pcts[i] / 100) * ph;
       if (i === lead) {
-        ctx.fillStyle = 'rgba(255,255,255,0.05)';
-        ctx.fillRect(x, ry - 4, w, rowH - 4);
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+        ctx.fillRect(x + 3, ry - 4, w - 3, rowH - 4);
         ctx.fillStyle = brand.accent;
-        ctx.fillRect(x, ry - 4, 5, rowH - 4);
+        ctx.fillRect(x + 3, ry - 4, 2, rowH - 4);
       }
-      ctx.fillStyle = '#fff';
-      ctx.font = '700 21px "Segoe UI", system-ui, sans-serif';
-      ctx.fillText(tok(r.party).toUpperCase().slice(0, 18), x + 22, ry + 12);
-      ctx.fillStyle = 'rgba(255,255,255,0.14)';
-      ctx.fillRect(x + 22, ry + 26, w - 200, 12);
+      ctx.fillStyle = i === lead ? TXT_HI : 'rgba(255,255,255,0.78)';
+      ctx.font = F(600, 19);
+      ctx.fillText(tok(r.party).toUpperCase().slice(0, 18), x + 24, ry + 10);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillRect(x + 24, ry + 26, w - 196, 6);
       ctx.fillStyle = r.color || brand.primary;
-      ctx.fillRect(x + 22, ry + 26, barW, 12);
-      ctx.font = '800 28px "Segoe UI", system-ui, sans-serif';
-      ctx.fillStyle = '#fff';
+      ctx.fillRect(x + 24, ry + 26, barW, 6);
+      ctx.fillStyle = TXT_HI;
+      ctx.font = F(300, 32);
       ctx.textAlign = 'right';
-      ctx.fillText(pcts[i] ? pcts[i].toFixed(pcts[i] % 1 ? 1 : 0) + '%' : tok(r.pct), x + w - 22, ry + 20);
+      ctx.fillText(pcts[i] ? pcts[i].toFixed(pcts[i] % 1 ? 1 : 0) + '%' : tok(r.pct), x + w - 22, ry + 18);
       ctx.textAlign = 'left';
     });
     ctx.restore();
@@ -634,16 +685,14 @@ export class OverlayEngine {
     ctx.save();
     ctx.globalAlpha = Math.min(1, ph * 1.3);
     ctx.textBaseline = 'middle';
-    const grad = ctx.createLinearGradient(x, y, x, y + h);
-    grad.addColorStop(0, 'rgba(10,14,24,0.95)');
-    grad.addColorStop(1, 'rgba(6,9,16,0.95)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(x, y, w, h);
+    inkSlab(ctx, x, y, w, h, {});
     ctx.fillStyle = brand.accent;
-    ctx.fillRect(x, y + h, w, 4);
+    ctx.fillRect(x, y + h - 2, w, 2);
     // condition glyph — drawn, no icon fonts
     const gx = x + 56, gy = y + h / 2;
-    ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.88)';
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.lineWidth = 2.25;
     const cloud = () => {
       ctx.beginPath();
       ctx.arc(gx - 12, gy + 4, 13, Math.PI * 0.5, Math.PI * 1.5);
@@ -682,17 +731,15 @@ export class OverlayEngine {
       }
     } else cloud();
     // temperature + location
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 52px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(300, 54);
     const temp = tok(g.temp);
-    ctx.fillText(temp + (/[°CF]/.test(temp) ? '' : '°'), x + 108, y + 42);
-    ctx.font = '700 19px "Segoe UI", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText(tok(g.location).toUpperCase().slice(0, 22), x + 108, y + 84);
+    ctx.fillText(temp + (/[°CF]/.test(temp) ? '' : '°'), x + 106, y + 44);
+    caps(ctx, tok(g.location).slice(0, 22), x + 108, y + 86, { size: 15, color: TXT_MID, ls: '0.18em' });
     if (g.high || g.low) {
       ctx.textAlign = 'right';
-      ctx.font = '600 17px "Segoe UI", system-ui, sans-serif';
-      ctx.fillText((g.high ? 'H ' + tok(g.high) : '') + (g.low ? '  L ' + tok(g.low) : ''), x + w - 16, y + 84);
+      caps(ctx, (g.high ? 'H ' + tok(g.high) : '') + (g.low ? '  L ' + tok(g.low) : ''),
+        x + w - 16, y + 86, { size: 14, color: TXT_LOW, ls: '0.08em' });
       ctx.textAlign = 'left';
     }
     ctx.restore();
@@ -709,35 +756,32 @@ export class OverlayEngine {
     ctx.save();
     ctx.globalAlpha = Math.min(1, ph * 1.3);
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(6,9,15,0.95)';
+    ctx.fillStyle = 'rgba(7,8,11,0.95)';
     ctx.fillRect(0, y, W, barH);
-    const labelW = 200;
-    ctx.fillStyle = '#0c1320';
+    ctx.fillStyle = HAIR;
+    ctx.fillRect(0, y, W, 1);
+    const labelW = 196;
+    ctx.fillStyle = 'rgba(13,15,20,0.97)';
     ctx.fillRect(0, y, labelW, barH);
     ctx.fillStyle = brand.accent;
-    ctx.fillRect(labelW - 4, y, 4, barH);
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.label).toUpperCase(), 24, y + barH / 2 + 1);
+    ctx.fillRect(0, y, 3, barH);
+    caps(ctx, tok(g.label), 24, y + barH / 2 + 1, { size: 18, weight: 700, color: TXT_HI, ls: '0.18em' });
     const items = g.items || [];
     const cellW = (W - labelW) / Math.max(1, items.length);
     items.forEach((it, i) => {
-      const cx2 = labelW + i * cellW + 30;
-      ctx.font = '700 21px "Segoe UI", system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.65)';
-      ctx.fillText(tok(it.sym).toUpperCase(), cx2, y + barH / 2 + 1);
-      ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
-      ctx.fillStyle = '#fff';
-      const symW = ctx.measureText(tok(it.sym).toUpperCase()).width;
-      ctx.fillText(tok(it.price), cx2 + symW + 26, y + barH / 2 + 1);
+      const cx2 = labelW + i * cellW + 34;
+      let tx2 = cx2 + caps(ctx, tok(it.sym), cx2, y + barH / 2 + 1, { size: 17, color: TXT_MID, ls: '0.08em' });
+      ctx.font = F(500, 23);
+      ctx.fillStyle = TXT_HI;
+      ctx.fillText(tok(it.price), tx2 + 22, y + barH / 2 + 1);
+      const priceW = ctx.measureText(tok(it.price)).width;
       const delta = tok(it.delta);
       const neg = /^-/.test(delta);
-      const priceW = ctx.measureText(tok(it.price)).width;
-      ctx.fillStyle = neg ? '#ef5350' : '#2fc966';
-      ctx.font = '700 21px "Segoe UI", system-ui, sans-serif';
-      ctx.fillText((neg ? '▼ ' : '▲ ') + delta.replace(/^[-+]/, ''), cx2 + symW + 26 + priceW + 22, y + barH / 2 + 1);
+      ctx.fillStyle = neg ? '#d8525c' : '#3aa86b';
+      ctx.font = F(600, 17);
+      ctx.fillText((neg ? '▼ ' : '▲ ') + delta.replace(/^[-+]/, ''), tx2 + 22 + priceW + 20, y + barH / 2 + 1);
       if (i) {
-        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
         ctx.fillRect(labelW + i * cellW, y + 12, 1, barH - 24);
       }
     });
@@ -750,7 +794,7 @@ export class OverlayEngine {
     const g = state.graphics.music;
     const brand = state.brand;
     const song = tok(g.song), artist = tok(g.artist);
-    ctx.font = '700 28px "Segoe UI", system-ui, sans-serif';
+    ctx.font = F(600, 26);
     const w = Math.min(620, Math.max(360, ctx.measureText(song).width + 150));
     const h = 96;
     const ltOn = state.graphics.lowerThird.on;
@@ -759,25 +803,21 @@ export class OverlayEngine {
     ctx.save();
     ctx.globalAlpha = Math.min(1, ph * 1.3);
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(8,11,18,0.94)';
-    ctx.fillRect(x, y, w, h);
-    // beat bars badge
-    ctx.fillStyle = brand.primary;
-    ctx.fillRect(x, y, 70, h);
+    inkSlab(ctx, x, y, w, h, { cut: 14 });
+    // beat bars: thin accent meters on ink — no filled badge block
     const t = Date.now() / 1000;
     for (let i = 0; i < 4; i++) {
-      const bh = 16 + 18 * Math.abs(Math.sin(t * 2.4 + i * 1.1));
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.fillRect(x + 16 + i * 11, y + h / 2 + 17 - bh, 7, bh);
+      const bh = 12 + 16 * Math.abs(Math.sin(t * 2.4 + i * 1.1));
+      ctx.fillStyle = i ? 'rgba(255,255,255,0.4)' : brand.accent;
+      ctx.fillRect(x + 22 + i * 9, y + h / 2 + 15 - bh, 4, bh);
     }
-    ctx.fillStyle = '#fff';
-    ctx.font = '700 28px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(song, x + 90, y + 30);
-    ctx.font = '600 20px "Segoe UI", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(600, 26);
+    ctx.fillText(song, x + 78, y + 30);
     const royalty = tok(g.royalty);
-    ctx.fillText(artist.toUpperCase() + (g.station ? '  ·  ' + tok(g.station).toUpperCase() : '')
-      + (royalty && royalty !== '—' ? '  ·  ' + royalty : ''), x + 90, y + 65);
+    caps(ctx, artist + (g.station ? '   ·   ' + tok(g.station) : '')
+      + (royalty && royalty !== '—' ? '   ·   ' + royalty : ''), x + 79, y + 64,
+      { size: 15, color: TXT_MID, ls: '0.1em' });
     ctx.restore();
   }
 
@@ -788,41 +828,39 @@ export class OverlayEngine {
     const brand = state.brand;
     ctx.save();
     ctx.globalAlpha = ph;
-    ctx.fillStyle = 'rgba(4,6,11,0.88)';
+    ctx.fillStyle = 'rgba(3,4,6,0.86)';
     ctx.fillRect(0, 0, W, H);
     const w = 1100, rows = g.rows || [];
-    const rowH = 92, headH = 120;
-    const h = headH + rows.length * rowH + 76;
+    const rowH = 86, headH = 124;
+    const h = headH + rows.length * rowH + 78;
     const x = W / 2 - w / 2, y = Math.max(SAFE_Y + 20, H / 2 - h / 2) + (1 - ph) * 40;
-    ctx.fillStyle = 'rgba(10,14,24,0.97)';
-    ctx.fillRect(x, y, w, h);
+    inkSlab(ctx, x, y, w, h, { top: 'rgba(9,11,15,0.97)', bottom: 'rgba(6,7,10,0.98)' });
     ctx.fillStyle = brand.accent;
-    ctx.fillRect(x, y, w, 6);
+    ctx.fillRect(x, y, w, 2);
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = brand.accent;
-    ctx.font = '800 22px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.kicker).toUpperCase(), x + 50, y + 48);
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 56px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.title).toUpperCase(), x + 50, y + 92);
+    caps(ctx, tok(g.kicker), x + 56, y + 46, { size: 16, color: brand.accent, ls: '0.3em' });
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(300, 54);
+    ctx.letterSpacing = '0.02em';
+    ctx.fillText(tok(g.title).toUpperCase(), x + 53, y + 92);
+    ctx.letterSpacing = '0px';
     rows.forEach((r, i) => {
-      const ry = y + headH + 20 + i * rowH;
+      const ry = y + headH + 16 + i * rowH;
       const reveal = clamp01(ph * 1.4 - i * 0.08);
       ctx.globalAlpha = ph * reveal;
-      ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)';
-      ctx.fillRect(x + 30, ry, (w - 60) * reveal, rowH - 14);
-      ctx.fillStyle = '#fff';
-      ctx.font = '700 34px "Segoe UI", system-ui, sans-serif';
-      ctx.fillText(tok(r.k).toUpperCase().slice(0, 30), x + 60, ry + (rowH - 14) / 2);
-      ctx.font = '800 42px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = HAIR;
+      ctx.fillRect(x + 56, ry, (w - 112) * reveal, 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.86)';
+      ctx.font = F(500, 28);
+      ctx.fillText(tok(r.k).toUpperCase().slice(0, 30), x + 56, ry + rowH / 2 + 2);
+      ctx.fillStyle = TXT_HI;
+      ctx.font = F(300, 42);
       ctx.textAlign = 'right';
-      ctx.fillText(tok(r.v), x + w - 60, ry + (rowH - 14) / 2);
+      ctx.fillText(tok(r.v), x + w - 56, ry + rowH / 2 + 2);
       ctx.textAlign = 'left';
     });
     ctx.globalAlpha = ph;
-    ctx.font = '600 20px "Segoe UI", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.fillText((state.brand.name || '').toUpperCase(), x + 50, y + h - 26);
+    caps(ctx, state.brand.name || '', x + 56, y + h - 30, { size: 14, color: TXT_LOW, ls: '0.3em' });
     ctx.restore();
   }
 
@@ -833,7 +871,7 @@ export class OverlayEngine {
     const brand = state.brand;
     const w = 520;
     const text = tok(g.text);
-    ctx.font = '600 24px "Segoe UI", system-ui, sans-serif';
+    ctx.font = F(400, 23);
     // wrap to max 3 lines
     const words = text.split(/\s+/);
     const lines = [];
@@ -852,26 +890,30 @@ export class OverlayEngine {
     ctx.save();
     ctx.globalAlpha = Math.min(1, ph * 1.3);
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(8,11,18,0.94)';
-    ctx.fillRect(x, y, w, h);
+    inkSlab(ctx, x, y, w, h, { cut: 14 });
     ctx.fillStyle = brand.accent;
-    ctx.fillRect(x, y, 6, h);
-    ctx.fillStyle = '#fff';
-    ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(tok(g.user), x + 28, y + 34);
+    ctx.fillRect(x, y, 3, h);
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(600, 22);
+    ctx.fillText(tok(g.user), x + 28, y + 32);
     if (g.tag) {
       const tw = ctx.measureText(tok(g.user)).width;
-      ctx.fillStyle = brand.primary;
+      const tagX = x + 28 + tw + 16;
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 1;
+      ctx.save();
+      ctx.font = F(600, 12);
+      ctx.letterSpacing = '0.14em';
       const tagTxt = tok(g.tag).toUpperCase();
-      ctx.font = '800 14px "Segoe UI", system-ui, sans-serif';
-      const tagW = ctx.measureText(tagTxt).width + 20;
-      ctx.fillRect(x + 28 + tw + 16, y + 22, tagW, 24);
-      ctx.fillStyle = '#fff';
-      ctx.fillText(tagTxt, x + 28 + tw + 26, y + 35);
+      const tagW = ctx.measureText(tagTxt).width + 18;
+      ctx.strokeRect(tagX + 0.5, y + 21.5, tagW, 21);
+      ctx.fillStyle = TXT_MID;
+      ctx.fillText(tagTxt, tagX + 9, y + 33);
+      ctx.restore();
     }
-    ctx.font = '600 24px "Segoe UI", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    lines.forEach((l, i) => ctx.fillText(l, x + 28, y + 72 + i * 32));
+    ctx.font = F(400, 23);
+    ctx.fillStyle = 'rgba(255,255,255,0.82)';
+    lines.forEach((l, i) => ctx.fillText(l, x + 28, y + 70 + i * 32));
     ctx.restore();
   }
 
@@ -884,13 +926,16 @@ export class OverlayEngine {
       + (state.graphics.lowerThird.on ? 118 : 0);
     ctx.save();
     ctx.globalAlpha = ph;
-    ctx.fillStyle = 'rgba(8,10,16,0.8)';
-    rounded(ctx, 56, H - 120 - lift, 150, 56, 10);
+    ctx.fillStyle = 'rgba(7,8,11,0.82)';
+    rounded(ctx, 56, H - 116 - lift, 132, 48, 4);
     ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '700 32px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = HAIR;
+    ctx.fillRect(56, H - 116 - lift, 132, 1);
+    ctx.fillStyle = TXT_HI;
+    ctx.font = F(300, 30);
+    ctx.letterSpacing = '0.06em';
     ctx.textBaseline = 'middle';
-    ctx.fillText(txt, 84, H - 90 - lift);
+    ctx.fillText(txt, 80, H - 91 - lift);
     ctx.restore();
   }
 }
