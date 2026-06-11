@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self' app: media: blob: data:; script-src 'self' app: 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' app: 'unsafe-inline'; img-src 'self' app: media: blob: data:; media-src 'self' app: media: blob: data:; connect-src 'self' app: blob: data:;" />
+      content="default-src 'self' app: media: blob: data:; script-src 'self' app: 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' app: 'unsafe-inline'; img-src 'self' app: media: blob: data:; media-src 'self' app: media: blob: data:; connect-src 'self' app: blob: data: https:;" />
 <title>Chase Studio Pro</title>
 <link rel="stylesheet" href="./styles/app.css" />
 <script type="importmap">
@@ -536,6 +536,28 @@
     <h2>Multi-view</h2>
     <div class="mv-grid" id="mv-grid"></div>
     <footer class="modal-foot"><button class="btn ghost" id="mv-close">Close</button></footer>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-data" hidden>
+  <div class="modal">
+    <h2>Data Sources</h2>
+    <p class="hint">Fields feed any graphic text via {{token}} — e.g. {{guest_name}},
+    {{score_home}}, {{percentage}}. Built-ins: {{time}} {{date}} {{station_name}}.</p>
+    <div class="data-table" id="data-table"></div>
+    <div class="row gap" style="margin-top:9px">
+      <button class="btn slim" id="data-add">+ Field</button>
+      <button class="btn ghost slim" id="data-import">Import CSV / JSON…</button>
+    </div>
+    <h3 class="ls-head">API POLL</h3>
+    <div class="row gap">
+      <input type="text" id="data-api-url" placeholder="https://… (flat JSON object)" spellcheck="false"
+        style="flex:1;background:var(--bg-0);border:1px solid var(--line);border-radius:5px;padding:6px 8px;font-size:11px;outline:none">
+      <input type="text" id="data-api-int" value="30" title="Seconds" class="dwell-inp">
+      <button class="btn slim" id="data-api-toggle">Start</button>
+    </div>
+    <div class="statusbox" id="data-status" hidden></div>
+    <footer class="modal-foot"><button class="btn ghost" id="data-close">Close</button></footer>
   </div>
 </div>
 

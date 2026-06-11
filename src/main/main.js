@@ -205,6 +205,22 @@ function registerIpc() {
     };
   });
 
+  // ---------- data file import (CSV/JSON for data binding) ----------
+  ipcMain.handle('data:openText', async () => {
+    const r = await dialog.showOpenDialog(win, {
+      properties: ['openFile'],
+      filters: [{ name: 'Data files', extensions: ['csv', 'json'] }]
+    });
+    if (r.canceled || !r.filePaths[0]) return null;
+    try {
+      return {
+        name: path.basename(r.filePaths[0]),
+        ext: path.extname(r.filePaths[0]).toLowerCase(),
+        text: await fs.promises.readFile(r.filePaths[0], 'utf8')
+      };
+    } catch (e) { return { error: e.message }; }
+  });
+
   // ---------- crash recovery + operator log (on disk) ----------
   const recoveryFile = () => path.join(app.getPath('userData'), 'recovery.json');
   const logFile = () => path.join(app.getPath('userData'), 'operator.log');

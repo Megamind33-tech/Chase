@@ -308,11 +308,121 @@ export function initEditor(ctx) {
     $('ingest-cancel').onclick = () => { $('modal-ingest').hidden = true; };
   }
 
+  /* ---- Data Sources (DataBindingManager UI) ---- */
+  let apiTimer = null;
+  function buildDataTable() {
+    const box = $('data-table');
+    box.innerHTML = '';
+    for (const [k, v] of Object.entries(state.data.fields)) {
+      const row = document.createElement('div');
+      row.className = 'data-row';
+      row.innerHTML = `<input class="dk" value="${escAttr(k)}" spellcheck="false">
+        <input class="dv" value="${escAttr(String(v))}" spellcheck="false">
+        <button title="Remove">✕</button>`;
+      const [ki, vi] = row.querySelectorAll('input');
+      ki.addEventListener('change', () => {
+        const nk = ki.value.trim().replace(/\W+/g, '_');
+        if (nk && nk !== k) { delete state.data.fields[k]; state.data.fields[nk] = vi.value; buildDataTable(); }
+      });
+      vi.addEventListener('input', () => { state.data.fields[ki.value.trim()] = vi.value; });
+      row.querySelector('button').addEventListener('click', () => {
+        delete state.data.fields[k];
+        buildDataTable();
+      });
+      box.appendChild(row);
+    }
+  }
+  function dataStatus(kind, msg) {
+    const el = $('data-status');
+    el.hidden = false;
+    el.className = 'statusbox ' + kind;
+    el.textContent = msg;
+  }
+  $('data-add').addEventListener('click', () => {
+    state.data.fields['field_' + (Object.keys(state.data.fields).length + 1)] = '';
+    buildDataTable();
+  });
+  $('data-import').addEventListener('click', async () => {
+    const f = await window.chase.dataOpenText();
+    if (!f) return;
+    if (f.error) return dataStatus('err', f.error);
+    try {
+      let added = 0;
+      if (f.ext === '.json') {
+        const obj = JSON.parse(f.text);
+        for (const [k, v] of Object.entries(obj)) {
+          if (typeof v !== 'object') { state.data.fields[k] = String(v); added++; }
+        }
+      } else {
+        // CSV: key,value rows — or 2-row header/value sheet
+        const rows = f.text.trim().split(/\r?\n/).map((r) => r.split(',').map((c) => c.trim()));
+        if (rows.length === 2 && rows[0].length > 2) {
+          rows[0].forEach((h, i) => { if (h) { state.data.fields[h.replace(/\W+/g, '_')] = rows[1][i] || ''; added++; } });
+        } else {
+          for (const r of rows) {
+            if (r.length >= 2 && r[0]) { state.data.fields[r[0].replace(/\W+/g, '_')] = r.slice(1).join(','); added++; }
+          }
+        }
+      }
+      buildDataTable();
+      dataStatus('ok', added + ' field(s) loaded from ' + f.name);
+      logEvent('Data import: ' + f.name + ' (' + added + ' fields)', 'ok');
+    } catch (e) {
+      dataStatus('err', 'Parse failed: ' + e.message);
+    }
+  });
+  async function apiPoll() {
+    try {
+      const res = await fetch(state.data.api.url, { signal: AbortSignal.timeout(8000) });
+      const obj = await res.json();
+      let n = 0;
+      for (const [k, v] of Object.entries(obj)) {
+        if (typeof v !== 'object') { state.data.fields[k] = String(v); n++; }
+      }
+      buildDataTable();
+      dataStatus('ok', 'API: ' + n + ' field(s) · ' + new Date().toLocaleTimeString('en-GB'));
+    } catch (e) {
+      dataStatus('err', 'API poll failed: ' + e.message);
+    }
+  }
+  $('data-api-toggle').addEventListener('click', () => {
+    if (apiTimer) {
+      clearInterval(apiTimer); apiTimer = null;
+      state.data.api.on = false;
+      $('data-api-toggle').textContent = 'Start';
+      logEvent('Data API poll stopped');
+      return;
+    }
+    const url = $('data-api-url').value.trim();
+    if (!/^https:\/\//.test(url)) return dataStatus('err', 'HTTPS URL required.');
+    state.data.api.url = url;
+    state.data.api.intervalS = Math.max(5, parseInt($('data-api-int').value, 10) || 30);
+    state.data.api.on = true;
+    $('data-api-toggle').textContent = 'Stop';
+    apiPoll();
+    apiTimer = setInterval(apiPoll, state.data.api.intervalS * 1000);
+    logEvent('Data API poll: ' + url + ' every ' + state.data.api.intervalS + 's', 'ok');
+  });
+  $('data-close').addEventListener('click', () => { $('modal-data').hidden = true; });
+
   /* ---- graphics pane ---- */
   function buildGraphicsPane(body) {
+    const dataBtn = document.createElement('button');
+    dataBtn.className = 'btn gold slim browser-foot-btn';
+    dataBtn.style.marginBottom = '9px';
+    dataBtn.innerHTML = icon('gauge') + ' Data Sources…';
+    dataBtn.addEventListener('click', () => {
+      buildDataTable();
+      $('data-api-url').value = state.data.api.url || '';
+      $('modal-data').hidden = false;
+    });
+    body.appendChild(dataBtn);
     for (const [key, g] of Object.entries(GRAPHICS)) {
       const card = libCard(g.ico, g.name, g.desc, 'gfx:' + key,
-        () => { overlay.toggle(key, true); refreshGfxList(); openGfxDrawer(key); });
+        () => {
+          if (key === 'stinger') { overlay.fireStinger(); logEvent('Stinger fired'); return; }
+          overlay.toggle(key, true); refreshGfxList(); openGfxDrawer(key);
+        });
       if (state.graphics[key].on) {
         const st = document.createElement('span');
         st.className = 'l-state';
@@ -689,9 +799,8 @@ export function initEditor(ctx) {
       const pt = studio.floorPoint(p.x, p.y);
       addProp(key, pt?.x, pt?.z);
     } else if (type === 'gfx') {
-      overlay.toggle(key, true);
-      refreshGfxList();
-      openGfxDrawer(key);
+      if (key === 'stinger') { overlay.fireStinger(); logEvent('Stinger fired'); }
+      else { overlay.toggle(key, true); refreshGfxList(); openGfxDrawer(key); }
     } else if (type === 'set') {
       compositor.beginTransition('fade', 0.5);
       studio.loadSet(key);
@@ -1045,6 +1154,11 @@ export function initEditor(ctx) {
       li.innerHTML = `<span class="ly-ico">${icon(g.ico)}</span>${g.name}
         <button class="ly-vis ${on ? 'on' : ''}" title="On air / off air">●</button>`;
       li.addEventListener('click', (e) => {
+        if (key === 'stinger') {
+          overlay.fireStinger();
+          logEvent('Stinger fired');
+          return;
+        }
         if (e.target.classList.contains('ly-vis')) {
           overlay.toggle(key, !state.graphics[key].on);
           scheduleAutoOut(key);
@@ -1780,6 +1894,26 @@ export function initEditor(ctx) {
         <p class="hint">Set your logo image in the Brand tab.</p>`,
       banner: `<div class="field slim"><label>Banner text</label><input type="text" id="gd-btext" value="${escAttr(g.text)}"></div>`,
       title: `<div class="field slim"><label>Title text</label><input type="text" id="gd-ttext" value="${escAttr(g.text)}"></div>`,
+      scoreboard: `
+        <div class="row gap">
+          <div class="field slim grow"><label>Home</label><input type="text" id="gd-home" value="${escAttr(g.home)}"></div>
+          <div class="field slim grow"><label>Away</label><input type="text" id="gd-away" value="${escAttr(g.away)}"></div>
+        </div>
+        <div class="row gap">
+          <div class="field slim grow"><label>Score H</label><input type="text" id="gd-sh" value="${escAttr(g.scoreHome)}"></div>
+          <div class="field slim grow"><label>Score A</label><input type="text" id="gd-sa" value="${escAttr(g.scoreAway)}"></div>
+          <div class="field slim grow"><label>Period</label><input type="text" id="gd-lbl" value="${escAttr(g.label)}"></div>
+        </div>
+        <p class="hint">All fields accept {{tokens}} — bind to Data Sources.</p>`,
+      dataCard: `
+        <div class="field slim"><label>Kicker</label><input type="text" id="gd-kicker" value="${escAttr(g.kicker)}"></div>
+        <div class="field slim"><label>Value</label><input type="text" id="gd-value" value="${escAttr(g.value)}"></div>
+        <div class="field slim"><label>Sub line</label><input type="text" id="gd-sub" value="${escAttr(g.sub)}"></div>
+        <p class="hint">All fields accept {{tokens}}.</p>`,
+      countdown: `
+        <div class="field slim"><label>Label</label><input type="text" id="gd-cdlabel" value="${escAttr(g.label)}"></div>
+        <div class="field slim"><label>Seconds</label><input type="text" id="gd-cdsec" value="${g.seconds}"></div>
+        <p class="hint">Counts to zero, flashes, then clears itself.</p>`,
       clock: `<p class="hint">Shows the studio wall-clock time on screen.</p>`
     };
     body.innerHTML = (forms[key] || '') + `
@@ -1798,6 +1932,16 @@ export function initEditor(ctx) {
     bind('gd-opacity', (v) => { g.opacity = parseFloat(v); });
     bind('gd-btext', (v) => { g.text = v; });
     bind('gd-ttext', (v) => { g.text = v; });
+    bind('gd-home', (v) => { g.home = v; });
+    bind('gd-away', (v) => { g.away = v; });
+    bind('gd-sh', (v) => { g.scoreHome = v; });
+    bind('gd-sa', (v) => { g.scoreAway = v; });
+    bind('gd-lbl', (v) => { g.label = v; });
+    bind('gd-kicker', (v) => { g.kicker = v; });
+    bind('gd-value', (v) => { g.value = v; });
+    bind('gd-sub', (v) => { g.sub = v; });
+    bind('gd-cdlabel', (v) => { g.label = v; });
+    bind('gd-cdsec', (v) => { g.seconds = Math.max(5, parseInt(v, 10) || 60); });
     document.getElementById('gd-air')?.addEventListener('click', () => {
       overlay.toggle(key, !g.on);
       refreshGfxList();

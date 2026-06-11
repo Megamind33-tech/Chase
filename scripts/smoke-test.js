@@ -38,7 +38,7 @@ app.whenReady().then(async () => {
   for (const ch of ['project:save', 'project:saveAs', 'project:open', 'project:openPath',
     'template:export', 'template:import', 'media:pick', 'rec:start', 'rec:stop',
     'rec:finalizeMp4', 'rec:reveal', 'rec:segment', 'stream:start', 'stream:stop', 'stream:stopDest',
-    'recovery:load', 'recovery:clear', 'log:path']) {
+    'recovery:load', 'recovery:clear', 'log:path', 'data:openText']) {
     ipcMain.handle(ch, () => null);
   }
   ipcMain.handle('project:recent', () => []);
@@ -219,6 +219,23 @@ app.whenReady().then(async () => {
   })`);
   console.log('stage 7 checks:', JSON.stringify(stage7));
 
+  // ---- stage 8: broadcast graphics engine (data binding + new types) ----
+  const stage8 = await win.webContents.executeJavaScript(`(async () => {
+    document.querySelector('.irail-btn[data-nav="graphics"]').click();
+    await new Promise((r) => setTimeout(r, 400));
+    const gfxCards = document.querySelectorAll('#browser-body .lib-card').length;
+    const dataBtn = !!document.querySelector('#browser-body .btn.gold');
+    document.querySelector('#browser-body .btn.gold').click();
+    await new Promise((r) => setTimeout(r, 400));
+    const dataModal = !document.getElementById('modal-data').hidden;
+    const dataRows = document.querySelectorAll('#data-table .data-row').length;
+    document.getElementById('data-close').click();
+    // token binding live test: set a field, enable scoreboard, read program pixels later
+    return { gfxCards, dataBtn, dataModal, dataRows,
+      gfxTypes: document.querySelectorAll('#gfx-list li').length };
+  })()`);
+  console.log('stage 8 checks:', JSON.stringify(stage8));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -251,6 +268,8 @@ app.whenReady().then(async () => {
     && stage6.plateBtns && stage6.plateCaptured && stage6.afOn
     && stage7.segBridge && stage7.recoveryBridge && stage7.logBridge
     && stage7.playlistBtn && stage7.dwellInput && stage7.shotSelect && stage7.fps60
+    && stage8.gfxCards === 10 && stage8.dataBtn && stage8.dataModal
+    && stage8.dataRows >= 3 && stage8.gfxTypes === 10
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

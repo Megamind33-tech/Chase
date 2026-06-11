@@ -162,7 +162,11 @@ export const GRAPHICS = {
   logoBug:    { name: 'Logo bug',    desc: 'Station logo on screen', ico: 'logobug' },
   banner:     { name: 'Breaking banner', desc: 'High-impact alert slab', ico: 'banner' },
   title:      { name: 'Title card',  desc: 'Show opener title', ico: 'title' },
-  clock:      { name: 'Clock',       desc: 'On-screen studio clock', ico: 'clock' }
+  clock:      { name: 'Clock',       desc: 'On-screen studio clock', ico: 'clock' },
+  scoreboard: { name: 'Scoreboard',  desc: 'Two-team score strap · data-bindable', ico: 'health' },
+  dataCard:   { name: 'Data card',   desc: 'Kicker + value panel · election/finance', ico: 'gauge' },
+  countdown:  { name: 'Countdown',   desc: 'Timed count to zero', ico: 'countdown' },
+  stinger:    { name: 'Stinger',     desc: 'One-shot branded transition sweep', ico: 'macro' }
 };
 
 // Control-room macros: one button = several real actions.

@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('chase', {
   recoveryClear: () => ipcRenderer.invoke('recovery:clear'),
   logAppend: (line) => ipcRenderer.send('log:append', line),
   logPath: () => ipcRenderer.invoke('log:path'),
+  dataOpenText: () => ipcRenderer.invoke('data:openText'),
 
   appInfo: () => ipcRenderer.invoke('app:info')
 });

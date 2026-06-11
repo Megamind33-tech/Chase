@@ -30,11 +30,20 @@ export const state = {
   preview: { camera: null, sceneId: null }, // staged PVW bus (not pushed live until TAKE)
   transition: { type: 'cut', duration: 0.6 }, // cut | move | fade | wipe
   objects: [], // { id, kind, x, z, rotY, scale, height, opacity, media?, visible }
+  // Live data fields for {{token}} binding in any graphic text field
+  data: {
+    fields: { guest_name: 'Jane Mwangi', guest_title: 'Senior Correspondent', breaking_headline: 'Economic growth forecasts raised for next quarter' },
+    api: { url: '', intervalS: 30, on: false }
+  },
   graphics: {
-    lowerThird: { on: false, name: 'Jane Mwangi', title: 'Senior Correspondent', align: 'left' },
+    lowerThird: { on: false, name: '{{guest_name}}', title: '{{guest_title}}', align: 'left' },
     ticker: { on: false, label: 'LATEST', text: 'Welcome to Chase Studio Pro  •  Drag assets into your set  •  Switch virtual cameras with keys 1–6', speed: 1 },
     logoBug: { on: false, size: 1, opacity: 0.95, corner: 'tr' },
     banner: { on: false, text: 'BREAKING NEWS' },
+    scoreboard: { on: false, home: 'HOME', away: 'AWAY', scoreHome: '{{score_home}}', scoreAway: '{{score_away}}', label: '1ST' },
+    dataCard: { on: false, kicker: 'MARKET WATCH', value: '{{percentage}}', sub: '{{party_name}}' },
+    countdown: { on: false, seconds: 300, label: 'STARTING IN' },
+    stinger: { on: false }, // one-shot: fires, never latches
     title: { on: false, text: 'THE EVENING REPORT' },
     clock: { on: false }
   },
