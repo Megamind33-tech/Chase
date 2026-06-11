@@ -733,8 +733,13 @@ export function initEditor(ctx) {
     bar.className = 'row gap';
     bar.style.marginBottom = '9px';
     bar.innerHTML = `<button class="btn gold slim grow" id="rd-next">NEXT ▸</button>
-      <button class="btn ghost slim" id="rd-capture">+ Capture cue</button>`;
+      <button class="btn ghost slim" id="rd-capture">+ Capture cue</button>
+      <button class="btn ghost slim" id="rd-prompter" title="Full-screen prompter view of the cue notes">PROMPTER</button>`;
     body.appendChild(bar);
+    bar.querySelector('#rd-prompter').addEventListener('click', () => {
+      $('prompter').hidden = false;
+      refreshPrompter();
+    });
     bar.querySelector('#rd-capture').addEventListener('click', () => {
       const gfx = {};
       for (const key of Object.keys(GRAPHICS)) {
@@ -820,7 +825,29 @@ export function initEditor(ctx) {
     rd.live = i;
     logEvent('Rundown GO → ' + cue.name);
     if (activeNav === 'scripts' && body) buildRundownPane(clearPane(body));
+    refreshPrompter();
   }
+
+  /* ---- prompter: full-screen presenter view of the live cue note ---- */
+  function refreshPrompter() {
+    const el = $('prompter');
+    if (el.hidden) return;
+    const rd = state.rundown;
+    const cue = rd.cues[rd.live];
+    $('prompter-cue').textContent = cue ? cue.name.toUpperCase() : 'STANDBY';
+    $('prompter-text').textContent = cue
+      ? (cue.note || 'No story note on this cue.')
+      : (rd.cues.length ? 'Press NEXT to fire the first cue.' : 'Rundown is empty — capture cues in the Rundown pane.');
+    const next = rd.cues[rd.live + 1];
+    $('prompter-upnext').textContent = next ? 'UP NEXT · ' + next.name + (next.note ? ' — ' + next.note : '') : '';
+  }
+  $('prompter-close').addEventListener('click', () => { $('prompter').hidden = true; });
+  $('prompter-next').addEventListener('click', () => {
+    const rd = state.rundown;
+    if (!rd.cues.length) return;
+    goCue(Math.min(rd.live + 1, rd.cues.length - 1),
+      activeNav === 'scripts' ? $('browser-body') : null);
+  });
 
   /* ---- staged panes (honest placeholders, no fake buttons) ---- */
   function buildStagedPane(body, nav) {

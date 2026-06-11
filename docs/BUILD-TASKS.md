@@ -140,10 +140,12 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
      any cue through the switcher (scene first, then the cue's camera,
      graphics ride the take); NEXT advances down the stack; per-cue story
      notes, rename, reorder, delete; saves with the project.
-22g. Deferred (honest): 9:16 / 1:1 vertical-output render targets (overlay
+22g. ✅ Prompter: full-screen presenter view of the live cue's story note
+     (large type, UP NEXT strip, NEXT fires the next cue) — follows the
+     rundown live cue automatically.
+22h. Deferred (honest): 9:16 / 1:1 vertical-output render targets (overlay
      engine is 1920×1080 fixed — real work, not a toggle), per-pixel
-     temporal chroma smoothing (mask-side smoothing only today),
-     teleprompter view for rundown notes.
+     temporal chroma smoothing (mask-side smoothing only today).
 
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.

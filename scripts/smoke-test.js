@@ -298,7 +298,15 @@ app.whenReady().then(async () => {
     await new Promise((r) => setTimeout(r, 1400));
     const nextLive = document.querySelectorAll('#browser-body .cue-row')[1].classList.contains('live');
     const nextCam = camNow() === '4';
-    return { capBtn, nextBtn, rows, goLive, goCam, nextLive, nextCam, cam: camNow() };
+    // prompter view follows the live cue
+    document.getElementById('rd-prompter').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const prompterOpen = !document.getElementById('prompter').hidden;
+    const prompterCue = document.getElementById('prompter-cue').textContent.includes('CUE 2');
+    document.getElementById('prompter-close').click();
+    const prompterClosed = document.getElementById('prompter').hidden;
+    return { capBtn, nextBtn, rows, goLive, goCam, nextLive, nextCam, cam: camNow(),
+      prompterOpen, prompterCue, prompterClosed };
   })()`);
   console.log('stage 10 checks:', JSON.stringify(stage10));
 
@@ -341,6 +349,7 @@ app.whenReady().then(async () => {
     && stage9.propCards === 7 && stage9.arInputs === 3 && stage9.arHeader && stage9.latChip
     && stage10.capBtn && stage10.nextBtn && stage10.rows === 2
     && stage10.goLive && stage10.goCam && stage10.nextLive && stage10.nextCam
+    && stage10.prompterOpen && stage10.prompterCue && stage10.prompterClosed
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6
