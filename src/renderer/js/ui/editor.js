@@ -113,6 +113,13 @@ export function initEditor(ctx) {
   }
 
   function buildSetsPane(body) {
+    const imp = document.createElement('button');
+    imp.className = 'btn gold slim browser-foot-btn';
+    imp.style.marginBottom = '9px';
+    imp.innerHTML = icon('cube') + ' Import environment (GLB)…';
+    imp.title = 'Bring in a complete pre-built set: validated, kept at studio scale, grounded at the floor centre. Cameras, lights, keying and graphics keep working.';
+    imp.addEventListener('click', () => importModelFlow(true));
+    body.appendChild(imp);
     const entries = Object.entries(SETS)
       .filter(([, s]) => activeCat === 'all' || s.cat.includes(activeCat))
       .sort(([a], [b]) => (favs.has(b) ? 1 : 0) - (favs.has(a) ? 1 : 0));
@@ -191,21 +198,7 @@ export function initEditor(ctx) {
     imp.className = 'btn gold slim browser-foot-btn';
     imp.style.marginBottom = '9px';
     imp.innerHTML = icon('cube') + ' Import 3D model (GLB)…';
-    imp.addEventListener('click', async () => {
-      const media = await window.chase.pickMedia('model');
-      if (!media) return;
-      const data = {
-        id: nextObjectId(), kind: 'model', x: 2.2, z: 0.6, rotY: 0, scale: 1,
-        height: 0, opacity: 1, shadow: 0.55, media: { url: media.url, path: media.path, type: 'model' }, visible: true
-      };
-      pushHistory();
-      state.objects.push(data);
-      studio.addObject('model', data.x, data.z, data);
-      selectObject(data.id);
-      refreshLayerList();
-      logEvent('3D model imported: ' + media.name, 'ok');
-      toast(media.name + ' placed in the studio — drag it into position', 'ok');
-    });
+    imp.addEventListener('click', () => importModelFlow(false));
     body.appendChild(imp);
     for (const [kind, p] of Object.entries(PROPS)) {
       body.appendChild(libCard(p.ico, p.name, p.desc, 'prop:' + kind, () => addProp(kind)));
@@ -263,7 +256,24 @@ export function initEditor(ctx) {
   studio.brandFactory = (t) => studio.canvasToTexture(brandPatchFactory(t));
 
   /* ---- Universal Import Manager ---- */
-  function openIngestModal(report, media) {
+  /** Pick a GLB/FBX/OBJ, run it through ingestion, show the validation
+      report, then place it — as a prop or as a full environment. */
+  async function importModelFlow(env) {
+    const media = await window.chase.pickMedia('model');
+    if (!media) return;
+    toast('Validating ' + media.name + '…');
+    let report;
+    try {
+      report = await ingestModel(media);
+    } catch (e) {
+      toast('That file could not be read: ' + (e?.message || 'unknown error'), 'err', 6000);
+      logEvent('Import failed: ' + media.name, 'err');
+      return;
+    }
+    openIngestModal(report, media, env);
+  }
+
+  function openIngestModal(report, media, env = false) {
     const box = $('ingest-report');
     const blocked = report.status === 'blocked';
     box.innerHTML = `
@@ -284,14 +294,21 @@ export function initEditor(ctx) {
     $('ingest-accept').disabled = blocked;
     $('modal-ingest').hidden = false;
 
+    $('ingest-accept').textContent = env ? 'Place as environment' : 'Add to studio';
     $('ingest-accept').onclick = () => {
       $('modal-ingest').hidden = true;
       pushHistory();
-      const data = {
-        id: nextObjectId(), kind: 'model', x: 2.2, z: 0.6, rotY: 0, scale: 1,
-        height: 0, opacity: 1, shadow: 0.55,
-        media: { url: media.url, path: media.path, type: 'model' }, visible: true
-      };
+      const data = env
+        ? {
+            id: nextObjectId(), kind: 'model', x: 0, z: 0, rotY: 0, scale: 1,
+            height: 0, opacity: 1, shadow: 0,
+            media: { url: media.url, path: media.path, type: 'model', env: true }, visible: true
+          }
+        : {
+            id: nextObjectId(), kind: 'model', x: 2.2, z: 0.6, rotY: 0, scale: 1,
+            height: 0, opacity: 1, shadow: 0.55,
+            media: { url: media.url, path: media.path, type: 'model' }, visible: true
+          };
       state.objects.push(data);
       studio.addObject('model', data.x, data.z, data, report.object);
       studio.applyAllMatOverrides(data, (t) => studio.canvasToTexture(brandPatchFactory(t)));
@@ -303,8 +320,10 @@ export function initEditor(ctx) {
       selectObject(data.id);
       refreshLayerList();
       if (activeNav === 'props') buildBrowser();
-      logEvent(`Asset ingested: ${report.name} (${report.tris.toLocaleString()} tris, ${report.source})${report.liveSafe ? '' : ' — RENDER HEAVY'}`, report.liveSafe ? 'ok' : 'err');
-      toast(report.name + ' ingested.', 'ok');
+      logEvent(`${env ? 'Environment' : 'Asset'} ingested: ${report.name} (${report.tris.toLocaleString()} tris, ${report.source})${report.liveSafe ? '' : ' — RENDER HEAVY'}`, report.liveSafe ? 'ok' : 'err');
+      toast(env
+        ? report.name + ' placed as the studio environment — check cameras 1–6, then nudge or scale it in the inspector.'
+        : report.name + ' ingested.', 'ok', env ? 6000 : 3000);
     };
     $('ingest-cancel').onclick = () => { $('modal-ingest').hidden = true; };
   }
@@ -1435,6 +1454,21 @@ export function initEditor(ctx) {
       return;
     }
     if (data.kind !== 'model') return;
+    if (data.media?.env) {
+      const row = document.createElement('label');
+      row.className = 'checkrow';
+      row.innerHTML = `<input type="checkbox" ${state.look.setHidden ? 'checked' : ''}> Use imported environment only (hide built-in set)`;
+      row.querySelector('input').addEventListener('change', (e) => {
+        state.look.setHidden = e.target.checked;
+        studio.set.group.visible = !e.target.checked;
+        logEvent(e.target.checked ? 'Built-in set hidden — imported environment live' : 'Built-in set restored');
+      });
+      box.appendChild(row);
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.textContent = 'Lights, cameras, keying and graphics keep working either way. Scale and rotate the environment below.';
+      box.appendChild(hint);
+    }
     const g = studio.objects.get(data.id);
     if (g?.userData.loading) {
       box.innerHTML = '<p class="hint">Materials appear when the model finishes loading…</p>';

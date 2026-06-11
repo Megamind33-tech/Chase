@@ -51,13 +51,22 @@ function addContactShadow(g, strength) {
   g.userData.setShadow = (v) => { mat.opacity = v; shadow.visible = v > 0.02; };
 }
 
-// Imported broadcast 3D asset (GLB/GLTF): loaded async, auto-normalised to
-// studio scale, grounded on the floor plane.
-function normaliseModel(g, model, ph, clips) {
+// Imported broadcast 3D asset (GLB/GLTF): loaded async, auto-normalised,
+// grounded on the floor plane. Two scale modes:
+//  - prop: fit a 1.5m bounding cube (desk-side objects)
+//  - environment: a complete pre-built set — real-world scale is KEPT if
+//    plausible (2.5–40m footprint); silly export units are fitted to a
+//    9m studio footprint instead of shrinking the studio into a toy.
+function normaliseModel(g, model, ph, clips, env = false) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  model.scale.setScalar(1.5 / maxDim);
+  if (env) {
+    const footprint = Math.max(size.x, size.z) || 1;
+    if (footprint < 2.5 || footprint > 40) model.scale.setScalar(9 / footprint);
+  } else {
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    model.scale.setScalar(1.5 / maxDim);
+  }
   const box2 = new THREE.Box3().setFromObject(model);
   model.position.y -= box2.min.y;
   model.position.x -= (box2.min.x + box2.max.x) / 2;
@@ -280,6 +289,7 @@ function calloutProp(theme, brand) {
 
 function modelProp(media, prebuilt) {
   const g = new THREE.Group();
+  const env = !!media?.env;
   // lightweight placeholder pedestal while the model loads
   const ph = new THREE.Mesh(
     new THREE.BoxGeometry(0.6, 0.6, 0.6),
@@ -288,16 +298,18 @@ function modelProp(media, prebuilt) {
   ph.position.y = 0.3;
   g.add(ph);
   g.userData.loading = true;
+  const fail = () => { ph.material.color.set('#5c2229'); ph.material.opacity = 0.8; g.userData.loading = false; };
   if (prebuilt) {
-    normaliseModel(g, prebuilt, ph, prebuilt.userData._clips);
+    try { normaliseModel(g, prebuilt, ph, prebuilt.userData._clips, env); } catch { fail(); }
   } else if (media?.url) {
     // project reload: run the file back through the ingestion pipeline
     import('../ingest.js').then(({ ingestModel }) =>
       ingestModel(media).then((report) => {
-        if (report.object) normaliseModel(g, report.object, ph, report.object.userData._clips);
-        else { ph.material.color.set('#5c2229'); ph.material.opacity = 0.8; g.userData.loading = false; }
-      })
-    ).catch(() => { ph.material.color.set('#5c2229'); g.userData.loading = false; });
+        if (report.object) {
+          try { normaliseModel(g, report.object, ph, report.object.userData._clips, env); } catch { fail(); }
+        } else fail();
+      }).catch(fail)
+    ).catch(fail);
   }
   return g;
 }

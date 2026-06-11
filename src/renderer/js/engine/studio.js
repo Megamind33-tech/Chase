@@ -165,6 +165,7 @@ export class Studio {
     this.scene.fog = new THREE.FogExp2(def.theme.fog, 0.022 * (mood?.haze ?? state.lighting.haze ?? 0.5));
     state.setId = setId;
     this.lights.apply(state.lighting, def.theme);
+    this.set.group.visible = !state.look?.setHidden;
     this.set.setDeskGlow(state.lighting.deskGlow ?? 1);
     this.set.setFloorReflection(state.look?.floorReflection ?? def.theme.floorRefl);
     if (state.look?.ledMedia) this.set.setLedMedia(state.look.ledMedia);

@@ -243,6 +243,29 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
      numbers require real hardware (the container caps occluded-window
      rAF at ~10fps, masking workload differences). Validation week item.
 
+## Phase 1m — Pre-built set import, hardened (✅)
+
+28a. ✅ FOUND + FIXED: CSP blocked fetch() on media: — GLB/HDRI imports
+     were broken at the network layer in the real app. connect-src now
+     allows media:. Caught by the end-to-end environment import test.
+28b. ✅ FOUND + FIXED: the ingestion validation report modal was dead
+     code — imports bypassed it silently. Every model import now runs
+     pick → ingest budgets → validation report → place.
+28c. ✅ Import environment (GLB) in the Sets pane: complete pre-built
+     sets keep real-world scale when plausible (2.5–40m footprint);
+     toy/oversized exports are fitted to a 9m studio footprint instead
+     of being shrunk to a 1.5m prop. Grounded at floor centre, no
+     contact blob, cameras/lights/keying/graphics untouched.
+28d. ✅ "Use imported environment only" switch in the inspector hides
+     the built-in set architecture (lights and rig stay); persists with
+     the project; restored automatically on set reload.
+28e. ✅ Crash guards on every model path: ingest failure, normalise
+     failure and reload failure all degrade to a red placeholder +
+     toast — never a crash.
+28f. ✅ Verified end-to-end with a generated 12m GLB environment:
+     validation clean, placed at true scale, camera cuts work, program
+     renders, zero renderer errors.
+
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.
 - NDI SDK native module (N-API) → NDI input sources.
