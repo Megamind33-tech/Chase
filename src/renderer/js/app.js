@@ -1,5 +1,5 @@
 // Chase Studio Pro renderer boot: launcher → capture → engine → editor → loop.
-import { state, hydrate } from './state.js';
+import { state, hydrate, serialize } from './state.js';
 import { PRESETS, LIGHT_MOODS } from './templates.js';
 import { capture } from './capture.js';
 import { Studio } from './engine/studio.js';
@@ -131,6 +131,11 @@ async function loadProject(json, path) {
   await startStudio();
   toast('Project "' + state.meta.name + '" loaded', 'ok');
 }
+
+// crash recovery: persist full state every 45s regardless of save status
+setInterval(() => {
+  try { window.chase.recoverySave(serialize()); } catch {}
+}, 45000);
 
 // ---------------- boot ----------------
 launcher = initLauncher({

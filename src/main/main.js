@@ -37,9 +37,15 @@ protocol.registerSchemesAsPrivileged([
 let win = null;
 const streamer = new Streamer(() => win);
 
-// ---- local recording state ----
+// ---- local recording state (segmented, crash-safe) ----
 let recStream = null;
-let recPath = null;
+let recPath = null;     // base path chosen by the operator
+let recSegIdx = 0;
+let recParts = [];
+
+function segPath(base, idx) {
+  return base.replace(/\.webm$/i, '') + '.part' + String(idx).padStart(3, '0') + '.webm';
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -151,19 +157,32 @@ function registerIpc() {
     if (r.canceled || !r.filePath) return null;
     closeRecording();
     recPath = r.filePath;
-    recStream = fs.createWriteStream(recPath);
+    recSegIdx = 0;
+    recParts = [segPath(recPath, 0)];
+    recStream = fs.createWriteStream(recParts[0]);
     return recPath;
   });
   ipcMain.on('rec:chunk', (e, buf) => {
     if (recStream) recStream.write(Buffer.from(buf));
   });
-  ipcMain.handle('rec:stop', async () => {
-    const p = recPath;
-    await new Promise((res) => { if (recStream) recStream.end(res); else res(); });
-    recStream = null; recPath = null;
+  // crash-safe rotation: each segment is an independently playable file
+  ipcMain.handle('rec:segment', async () => {
+    if (!recStream) return null;
+    await new Promise((res) => recStream.end(res));
+    recSegIdx++;
+    const p = segPath(recPath, recSegIdx);
+    recParts.push(p);
+    recStream = fs.createWriteStream(p);
     return p;
   });
-  ipcMain.handle('rec:finalizeMp4', (e, webmPath, videoIsH264) => streamer.finalizeMp4(webmPath, videoIsH264));
+  ipcMain.handle('rec:stop', async () => {
+    const base = recPath;
+    const parts = [...recParts];
+    await new Promise((res) => { if (recStream) recStream.end(res); else res(); });
+    recStream = null; recPath = null; recParts = []; recSegIdx = 0;
+    return { path: base, parts };
+  });
+  ipcMain.handle('rec:finalizeMp4', (e, parts, outBase, videoIsH264) => streamer.finalizeMp4(parts, outBase, videoIsH264));
   ipcMain.handle('rec:reveal', (e, p) => { if (p) shell.showItemInFolder(p); });
 
   // ---------- streaming (simulcast) ----------
@@ -185,6 +204,22 @@ function registerIpc() {
       sysMemMB: Math.round(require('os').totalmem() / 1048576)
     };
   });
+
+  // ---------- crash recovery + operator log (on disk) ----------
+  const recoveryFile = () => path.join(app.getPath('userData'), 'recovery.json');
+  const logFile = () => path.join(app.getPath('userData'), 'operator.log');
+  ipcMain.on('recovery:save', (e, json) => {
+    fs.writeFile(recoveryFile(), JSON.stringify(json), () => {});
+  });
+  ipcMain.handle('recovery:load', async () => {
+    try { return JSON.parse(await fs.promises.readFile(recoveryFile(), 'utf8')); }
+    catch { return null; }
+  });
+  ipcMain.handle('recovery:clear', () => { fs.unlink(recoveryFile(), () => {}); });
+  ipcMain.on('log:append', (e, line) => {
+    fs.appendFile(logFile(), line + '\n', () => {});
+  });
+  ipcMain.handle('log:path', () => logFile());
 
   // ---------- misc ----------
   ipcMain.handle('app:info', () => ({

@@ -17,7 +17,8 @@ contextBridge.exposeInMainWorld('chase', {
   recStart: (name) => ipcRenderer.invoke('rec:start', name),
   recChunk: (buf) => ipcRenderer.send('rec:chunk', buf),
   recStop: () => ipcRenderer.invoke('rec:stop'),
-  recFinalizeMp4: (p, h264) => ipcRenderer.invoke('rec:finalizeMp4', p, h264),
+  recSegment: () => ipcRenderer.invoke('rec:segment'),
+  recFinalizeMp4: (parts, base, h264) => ipcRenderer.invoke('rec:finalizeMp4', parts, base, h264),
   recReveal: (p) => ipcRenderer.invoke('rec:reveal', p),
 
   // streaming (simulcast)
@@ -29,6 +30,13 @@ contextBridge.exposeInMainWorld('chase', {
 
   // system health
   sysHealth: () => ipcRenderer.invoke('sys:health'),
+
+  // crash recovery + on-disk operator log
+  recoverySave: (json) => ipcRenderer.send('recovery:save', json),
+  recoveryLoad: () => ipcRenderer.invoke('recovery:load'),
+  recoveryClear: () => ipcRenderer.invoke('recovery:clear'),
+  logAppend: (line) => ipcRenderer.send('log:append', line),
+  logPath: () => ipcRenderer.invoke('log:path'),
 
   appInfo: () => ipcRenderer.invoke('app:info')
 });

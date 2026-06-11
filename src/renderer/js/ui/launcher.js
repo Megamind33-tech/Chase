@@ -50,6 +50,20 @@ export function initLauncher({ onEnter, onOpenProject }) {
   }
   loadRecents();
 
+  // crash recovery: offer the last auto-saved session
+  window.chase.recoveryLoad?.().then((json) => {
+    if (!json || !json.meta) return;
+    const row = document.querySelector('.launcher-row');
+    const b = document.createElement('button');
+    b.className = 'btn gold';
+    b.textContent = 'Restore last session — ' + (json.meta.name || 'Untitled');
+    b.addEventListener('click', () => {
+      window.chase.recoveryClear?.();
+      onOpenProject(json, null);
+    });
+    row.appendChild(b);
+  });
+
   // ---- step 1: template ----
   const setGrid = $('set-grid');
   for (const [id, s] of Object.entries(SETS)) {

@@ -37,7 +37,8 @@ app.whenReady().then(async () => {
 
   for (const ch of ['project:save', 'project:saveAs', 'project:open', 'project:openPath',
     'template:export', 'template:import', 'media:pick', 'rec:start', 'rec:stop',
-    'rec:finalizeMp4', 'rec:reveal', 'stream:start', 'stream:stop', 'stream:stopDest']) {
+    'rec:finalizeMp4', 'rec:reveal', 'rec:segment', 'stream:start', 'stream:stop', 'stream:stopDest',
+    'recovery:load', 'recovery:clear', 'log:path']) {
     ipcMain.handle(ch, () => null);
   }
   ipcMain.handle('project:recent', () => []);
@@ -206,6 +207,18 @@ app.whenReady().then(async () => {
   })()`);
   console.log('stage 6 checks:', JSON.stringify(stage6));
 
+  // ---- stage 7: reliability + automation + AutoFrame v2 ----
+  const stage7 = await win.webContents.executeJavaScript(`({
+    segBridge: typeof window.chase.recSegment === 'function',
+    recoveryBridge: typeof window.chase.recoveryLoad === 'function',
+    logBridge: typeof window.chase.logAppend === 'function',
+    playlistBtn: !!document.getElementById('btn-playlist'),
+    dwellInput: !!document.getElementById('playlist-dwell'),
+    shotSelect: !!document.getElementById('af-shot'),
+    fps60: !!document.querySelector('#out-fps option[value="60"]')
+  })`);
+  console.log('stage 7 checks:', JSON.stringify(stage7));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -236,6 +249,8 @@ app.whenReady().then(async () => {
     && stage5.wizardOpen && stage5.rearToggles >= 7 && stage5.precapBadge
     && stage6.hybridChip && stage6.keyMonitorLive && stage6.refineSliders
     && stage6.plateBtns && stage6.plateCaptured && stage6.afOn
+    && stage7.segBridge && stage7.recoveryBridge && stage7.logBridge
+    && stage7.playlistBtn && stage7.dwellInput && stage7.shotSelect && stage7.fps60
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

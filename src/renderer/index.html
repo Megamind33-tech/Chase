@@ -272,6 +272,13 @@
         <div class="field slim"><label>Punch-in <output id="lbl-punch">0%</output></label>
           <input type="range" id="cam-punch" min="0" max="40" step="1" value="0"></div>
         <label class="checkrow"><input type="checkbox" id="chk-autoframe"> AutoFrame (AI/Hybrid key)</label>
+        <div class="field slim"><label>AutoFrame shot</label>
+          <select id="af-shot">
+            <option value="auto" selected>Auto (keep framing)</option>
+            <option value="cu">Close-up</option>
+            <option value="ms">Medium</option>
+            <option value="fs">Full body</option>
+          </select></div>
         <label class="checkrow"><input type="checkbox" id="chk-drift"> Live operator drift</label>
         <div class="field slim"><label>Drift / parallax amount</label>
           <input type="range" id="cam-driftamt" min="0.2" max="3" step="0.05" value="1"></div>
@@ -409,7 +416,7 @@
             <option value="1920x1080" selected>1080p</option>
           </select></div>
         <div class="field slim"><label>Frame rate</label>
-          <select id="out-fps"><option value="30" selected>30 fps</option><option value="25">25 fps</option></select></div>
+          <select id="out-fps"><option value="30" selected>30 fps</option><option value="60">60 fps (unvalidated on this build)</option><option value="25">25 fps</option></select></div>
         <div class="field slim"><label>Stream bitrate</label>
           <select id="out-bitrate">
             <option value="2500">2.5 Mbps (720p / weak internet)</option>
@@ -433,7 +440,12 @@
   <!-- ===== bottom production strip ===== -->
   <footer class="prodstrip">
     <section class="ps-block ps-scenes">
-      <header><h4>SCENES</h4><button class="ps-add" id="btn-scene-add" title="Snapshot the current look as a scene">+ SNAPSHOT</button></header>
+      <header><h4>SCENES</h4>
+        <span class="row gap">
+          <input type="text" id="playlist-dwell" class="dwell-inp" value="8" title="Seconds per scene">
+          <button class="ps-add" id="btn-playlist" title="Auto-advance the scene queue">AUTO</button>
+          <button class="ps-add" id="btn-scene-add" title="Snapshot the current look as a scene">+ SNAPSHOT</button>
+        </span></header>
       <div class="scene-list" id="scene-list"></div>
     </section>
     <section class="ps-block ps-macros">

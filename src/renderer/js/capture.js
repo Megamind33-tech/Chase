@@ -26,7 +26,7 @@ export const capture = {
       video: {
         deviceId: c.cameraId ? { exact: c.cameraId } : undefined,
         width: { ideal: c.width }, height: { ideal: c.height },
-        frameRate: { ideal: 30 }
+        frameRate: { ideal: (state.output?.fps || 30) >= 60 ? 60 : 30 }
       },
       audio: c.micId ? { deviceId: { exact: c.micId }, echoCancellation: false, noiseSuppression: true } : true
     };

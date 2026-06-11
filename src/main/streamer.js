@@ -107,21 +107,27 @@ class Streamer {
     return { ok: true };
   }
 
-  /** Remux/transcode a finished WebM recording to MP4 next to the original. */
-  finalizeMp4(webmPath, videoIsH264) {
+  /** Merge crash-safe segments + transcode/remux to MP4. */
+  finalizeMp4(parts, outBase, videoIsH264) {
     return new Promise((resolve) => {
+      const list = Array.isArray(parts) ? parts.filter((p) => fs.existsSync(p)) : [parts];
+      if (!list.length) return resolve({ ok: false, error: 'No recording segments found.' });
       const out = path.join(
-        path.dirname(webmPath),
-        path.basename(webmPath, path.extname(webmPath)) + '.mp4'
+        path.dirname(outBase),
+        path.basename(outBase, path.extname(outBase)) + '.mp4'
       );
+      const listFile = out + '.txt';
+      fs.writeFileSync(listFile, list.map((p) => "file '" + p.replace(/'/g, "'\\''") + "'").join('\n'));
       const video = videoIsH264 ? ['-c:v', 'copy'] : ['-c:v', 'libx264', '-preset', 'fast', '-crf', '20', '-pix_fmt', 'yuv420p'];
-      const args = ['-hide_banner', '-loglevel', 'error', '-y', '-i', webmPath,
+      const args = ['-hide_banner', '-loglevel', 'error', '-y',
+        '-f', 'concat', '-safe', '0', '-i', listFile,
         ...video, '-c:a', 'aac', '-b:a', '160k', out];
       const proc = spawn(this.ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
       let err = '';
       proc.stderr.on('data', (d) => { err += d.toString(); });
       proc.on('error', (e) => resolve({ ok: false, error: e.message }));
       proc.on('close', (code) => {
+        try { fs.unlinkSync(listFile); } catch {}
         if (code === 0) resolve({ ok: true, path: out });
         else resolve({ ok: false, error: err.slice(-400) || ('ffmpeg exit ' + code) });
       });

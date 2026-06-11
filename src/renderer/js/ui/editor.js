@@ -881,8 +881,10 @@ export function initEditor(ctx) {
   /* ---- operator log ---- */
   const opLog = [];
   function logEvent(msg, kind = '') {
-    opLog.push({ t: new Date(), msg, kind });
+    const t = new Date();
+    opLog.push({ t, msg, kind });
     if (opLog.length > 200) opLog.shift();
+    window.chase.logAppend?.(t.toISOString() + ' [' + (kind || 'info') + '] ' + msg);
   }
   logEvent('Session started — ' + state.meta.name, 'ok');
   $('btn-oplog').addEventListener('click', () => {
@@ -1019,6 +1021,21 @@ export function initEditor(ctx) {
     refreshGfxList();
   }
 
+  const autoOutTimers = {};
+  function scheduleAutoOut(key) {
+    clearTimeout(autoOutTimers[key]);
+    const g = state.graphics[key];
+    if (g.on && g.autoOut > 0) {
+      autoOutTimers[key] = setTimeout(() => {
+        if (state.graphics[key].on) {
+          overlay.toggle(key, false);
+          refreshGfxList();
+          logEvent(GRAPHICS[key].name + ' auto-out after ' + g.autoOut + 's');
+        }
+      }, g.autoOut * 1000);
+    }
+  }
+
   function refreshGfxList() {
     const ul = $('gfx-list');
     ul.innerHTML = '';
@@ -1030,6 +1047,7 @@ export function initEditor(ctx) {
       li.addEventListener('click', (e) => {
         if (e.target.classList.contains('ly-vis')) {
           overlay.toggle(key, !state.graphics[key].on);
+          scheduleAutoOut(key);
           e.target.classList.toggle('on', state.graphics[key].on);
           if (activeNav === 'graphics') buildBrowser();
           return;
@@ -1187,6 +1205,10 @@ export function initEditor(ctx) {
   bindSlider('cam-movedur', (v) => { state.camera.moveDuration = v; $('lbl-movedur').value = v + 's'; });
   bindSlider('cam-punch', (v) => { state.camera.punch = v; $('lbl-punch').value = v + '%'; });
   $('chk-drift').addEventListener('change', (e) => { state.camera.drift = e.target.checked; });
+  $('af-shot')?.addEventListener('change', (e) => {
+    state.camera.shot = e.target.value;
+    logEvent('AutoFrame shot: ' + e.target.value.toUpperCase());
+  });
   $('chk-autoframe').addEventListener('change', (e) => {
     state.camera.autoFrame = e.target.checked;
     if (e.target.checked && state.bgMode !== 'ai' && state.bgMode !== 'hybrid') {
@@ -1490,6 +1512,32 @@ export function initEditor(ctx) {
   /* ================= PRODUCTION STRIP ================= */
 
   /* ---- scenes ---- */
+  // scene playlist: auto-advance the queue through the selected transition
+  let playTimer = null;
+  function playlistStep() {
+    if (!state.scenes.length) return playlistStop();
+    const idx = state.scenes.findIndex((x) => x.id === liveSceneId);
+    const next = state.scenes[(idx + 1) % state.scenes.length];
+    state.preview.sceneId = next.id;
+    takeProgram('take');
+  }
+  function playlistStop() {
+    clearInterval(playTimer);
+    playTimer = null;
+    $('btn-playlist').classList.remove('active');
+    $('btn-playlist').innerHTML = icon('macro') + ' AUTO';
+  }
+  $('btn-playlist')?.addEventListener('click', () => {
+    if (playTimer) { playlistStop(); logEvent('Scene playlist stopped'); return; }
+    if (state.scenes.length < 2) return toast('Add at least 2 scenes to run the playlist.', 'err');
+    const dwell = Math.max(3, parseInt($('playlist-dwell').value, 10) || 8) * 1000;
+    playTimer = setInterval(playlistStep, dwell);
+    $('btn-playlist').classList.add('active');
+    $('btn-playlist').innerHTML = icon('close') + ' STOP';
+    playlistStep();
+    logEvent('Scene playlist running · ' + (dwell / 1000) + 's per scene', 'ok');
+  });
+
   $('btn-scene-add').addEventListener('click', () => {
     const scene = snapshotScene();
     state.scenes.push(scene);
@@ -1643,10 +1691,10 @@ export function initEditor(ctx) {
     for (const d of state.output.destinations) {
       const row = document.createElement('div');
       const st = destStates[d.id] || 'idle';
-      row.className = 'dest-row ' + (st === 'live' ? 'live' : st === 'connecting' ? 'connecting' : '');
+      row.className = 'dest-row ' + (st === 'live' ? 'live' : (st === 'connecting' || st === 'reconnecting') ? 'connecting' : '');
       row.innerHTML = `<span class="dr-ico">${icon(d.kind === 'custom' ? 'rtmp' : 'signal')}</span><span class="dr-led"></span><span class="dr-name">${d.name.toUpperCase()}</span>
         <span class="dr-kbps">${st === 'live' ? outputs.bitrateKbps() + ' kbps · ' + (state.output.height === 1080 ? '1080p' : '720p') + state.output.fps : ''}</span>
-        <span class="dr-state">${st === 'live' ? 'LIVE' : st === 'connecting' ? 'CONNECTING' : st === 'error' ? 'ERROR' : d.enabled && d.key ? 'READY' : 'NOT CONNECTED'}</span>`;
+        <span class="dr-state">${st === 'live' ? 'LIVE' : st === 'connecting' ? 'CONNECTING' : st === 'reconnecting' ? 'RECONNECT' : st === 'error' ? 'ERROR' : d.enabled && d.key ? 'READY' : 'NOT CONNECTED'}</span>`;
       if (st !== 'live' && st !== 'connecting') {
         row.classList.add('setup');
         row.title = 'Click to set up this destination';
@@ -1713,7 +1761,8 @@ export function initEditor(ctx) {
     const forms = {
       lowerThird: `
         <div class="field slim"><label>Name</label><input type="text" id="gd-name" value="${escAttr(g.name)}"></div>
-        <div class="field slim"><label>Title / role</label><input type="text" id="gd-title" value="${escAttr(g.title)}"></div>`,
+        <div class="field slim"><label>Title / role</label><input type="text" id="gd-title" value="${escAttr(g.title)}"></div>
+        <div class="field slim"><label>Auto out (seconds · 0 = manual)</label><input type="text" id="gd-autoout" value="${g.autoOut || 0}"></div>`,
       ticker: `
         <div class="field slim"><label>Label</label><input type="text" id="gd-label" value="${escAttr(g.label)}"></div>
         <div class="field slim"><label>Headlines (use • between items)</label><input type="text" id="gd-text" value="${escAttr(g.text)}"></div>
@@ -1740,6 +1789,7 @@ export function initEditor(ctx) {
     const bind = (id, fn) => document.getElementById(id)?.addEventListener('input', (e) => fn(e.target.value));
     bind('gd-name', (v) => { g.name = v; });
     bind('gd-title', (v) => { g.title = v; });
+    bind('gd-autoout', (v) => { g.autoOut = Math.max(0, parseInt(v, 10) || 0); });
     bind('gd-label', (v) => { g.label = v; });
     bind('gd-text', (v) => { g.text = v; });
     bind('gd-speed', (v) => { g.speed = parseFloat(v); });
@@ -1814,10 +1864,14 @@ export function initEditor(ctx) {
       $('btn-record').classList.remove('on');
       stopTimer();
       if (r?.path) {
-        $('recdone-path').textContent = r.path;
+        $('recdone-path').textContent = r.parts.length > 1
+          ? r.parts.length + ' crash-safe segments · ' + r.path
+          : r.path;
         $('modal-recdone').hidden = false;
         $('modal-recdone').dataset.path = r.path;
+        $('modal-recdone').dataset.parts = JSON.stringify(r.parts);
         $('modal-recdone').dataset.h264 = r.h264 ? '1' : '';
+        logEvent('Recording stopped — ' + r.parts.length + ' segment(s)', 'ok');
       }
     }
   });
@@ -1826,7 +1880,7 @@ export function initEditor(ctx) {
   $('recdone-mp4').addEventListener('click', async () => {
     const m = $('modal-recdone');
     $('recdone-mp4').textContent = 'Converting…';
-    const r = await window.chase.recFinalizeMp4(m.dataset.path, !!m.dataset.h264);
+    const r = await window.chase.recFinalizeMp4(JSON.parse(m.dataset.parts || '[]'), m.dataset.path, !!m.dataset.h264);
     $('recdone-mp4').textContent = 'Convert to MP4';
     if (r.ok) { toast('MP4 saved: ' + r.path, 'ok', 5000); m.hidden = true; }
     else toast('Convert failed: ' + r.error, 'err', 5000);
@@ -1928,6 +1982,7 @@ export function initEditor(ctx) {
     buildDestEditor();
     const destName = state.output.destinations.find((d) => d.id === s.destId)?.name || s.destId;
     if (s.status === 'connecting') setLiveStatus('', destName + ': connecting…');
+    if (s.status === 'reconnecting') { setLiveStatus('', destName + ': ' + s.message); logEvent(destName + ' ' + s.message, 'err'); }
     if (s.status === 'live') {
       setLiveStatus('ok', destName + ' is live.');
       setTimeout(() => { $('modal-live').hidden = true; }, 900);

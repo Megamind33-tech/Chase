@@ -93,6 +93,28 @@ Free-D / SteamVR / OpenXR / PTZ tracking sources, AI-inpainted and
 camera-pose synthetic plates, separate hair/hand mattes, multi-presenter
 segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
 
+## Phase 1e — Competitive sprint: reliability, automation, AutoFrame v2 (✅)
+
+20a. ✅ Crash-safe recording: 60s segment rotation (independently playable
+     part files), multi-part MP4 merge via FFmpeg concat.
+20b. ✅ Stream auto-reconnect: per-destination retry with 2→30s backoff
+     (5 attempts), RECONNECT state in destination cards + log.
+20c. ✅ Crash recovery: full-state autosave every 45s to userData;
+     'Restore last session' offer in the launcher.
+20d. ✅ On-disk operator log (userData/operator.log, ISO timestamps).
+20e. ✅ Scene playlist automation: AUTO advance through the scene queue
+     with per-scene dwell, through the selected transition.
+20f. ✅ Lower-third auto-out timer (broadcast-style timed straps).
+20g. ✅ AutoFrame v2: shot sizes (CU/MS/FS) via eased auto-punch, headroom
+     correction from mask top, two-person midpoint framing (wide-locked).
+20h. ✅ 1080p60 path: 60fps output + 60fps capture request (UNVALIDATED on
+     real hardware — labelled in UI).
+
+## Procurement (approved, requires Windows build machine)
+- Code-signing certificate (EV/OV) → signed NSIS installer.
+- NDI SDK native module (N-API) → NDI input sources.
+- Virtual camera driver (softcam/obs-virtualcam route) → Zoom/Teams out.
+
 ## Phase 2 — Field-hardened MVP (next)
 
 20. Audio meters + gain + music bed player.

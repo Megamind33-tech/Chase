@@ -30,7 +30,9 @@ export class CameraRig {
     this.drift = false;
     this.driftAmount = 1;  // parallax/drift strength
     this.moveDuration = 1.2;
-    this.followX = null; // AutoFrame: smoothed person-centre target
+    this.followX = null;   // AutoFrame: smoothed person-centre target
+    this.followY = 0;      // AutoFrame: headroom correction (look-target lift)
+    this.autoPunch = null; // AutoFrame: shot-size punch target
 
     this._cur = { pos: new THREE.Vector3(), look: new THREE.Vector3(), fov: 40 };
     this._from = null;
@@ -92,9 +94,17 @@ export class CameraRig {
       lx += Math.sin(time * 0.23 + 0.6) * 0.02 * d;
       ly += Math.sin(time * 0.37 + 2.2) * 0.012 * d;
     }
+    // AutoFrame headroom: ease the look target vertically
+    this._smoothY = (this._smoothY ?? 0) + ((this.followY || 0) - (this._smoothY ?? 0)) * Math.min(dt * 2, 1);
+    // AutoFrame shot size: ease punch toward the target
+    let punch = this.punch;
+    if (this.autoPunch !== null) {
+      this._smoothP = (this._smoothP ?? punch) + (this.autoPunch - (this._smoothP ?? punch)) * Math.min(dt * 1.6, 1);
+      punch = this._smoothP;
+    }
     this.camera.position.set(px, py, p.z);
-    this.camera.lookAt(lx, ly, l.z);
-    this.camera.fov = this._cur.fov * (1 - (this.punch / 100) * 0.5) * this.fovScale;
+    this.camera.lookAt(lx, ly + this._smoothY, l.z);
+    this.camera.fov = this._cur.fov * (1 - (punch / 100) * 0.5) * this.fovScale;
     this.camera.updateProjectionMatrix();
   }
 

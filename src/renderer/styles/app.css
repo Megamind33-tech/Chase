@@ -1326,3 +1326,10 @@ button:disabled:hover { background: inherit; border-color: var(--line); }
 .profile-card .pc-tag { font-size: 8px; font-weight: 800; letter-spacing: .06em; border: 1px solid #1d4d2e; color: #7ee2a4; padding: 2px 6px; border-radius: 7px; }
 .profile-card .pc-x { background: none; border: none; color: var(--txt-faint); cursor: pointer; }
 .profile-card .pc-x:hover { color: #ff8d96; }
+
+/* v12 — playlist + reliability */
+.dwell-inp {
+  width: 32px; background: var(--bg-0); border: 1px solid var(--line-soft); border-radius: 7px;
+  color: var(--txt-dim); font-size: 9.5px; font-weight: 700; text-align: center; padding: 3px 2px; outline: none;
+}
+.ps-add.active { color: var(--gold); border-color: rgba(255,210,77,.5); animation: blink 1.6s infinite; }

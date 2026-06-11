@@ -28,9 +28,27 @@ export class Outputs {
     this.onRecState = () => {};
     this.onStreamState = () => {};
     this._bytesWindow = [];     // [time, bytes] for bitrate measurement
+    this._retries = new Map();   // destId -> attempt count
+    this._destCfg = new Map();   // destId -> last start config
+    this._userStopped = false;
     window.chase.onStreamStatus((s) => {
-      if (s.status === 'live') this.liveDests.add(s.destId);
-      if (s.status === 'error' || s.status === 'stopped') this.liveDests.delete(s.destId);
+      if (s.status === 'live') { this.liveDests.add(s.destId); this._retries.set(s.destId, 0); }
+      if (s.status === 'stopped') this.liveDests.delete(s.destId);
+      if (s.status === 'error') {
+        this.liveDests.delete(s.destId);
+        // auto-reconnect with backoff: 2s, 4s, 8s, 16s, 30s
+        const cfg = this._destCfg.get(s.destId);
+        const n = (this._retries.get(s.destId) || 0) + 1;
+        if (cfg && !this._userStopped && n <= 5) {
+          this._retries.set(s.destId, n);
+          const delay = Math.min(2000 * 2 ** (n - 1), 30000);
+          this.onStreamState({ destId: s.destId, status: 'reconnecting', message: 'Reconnect ' + n + '/5 in ' + (delay / 1000) + 's' });
+          setTimeout(() => {
+            if (!this._userStopped) window.chase.streamStart(cfg);
+          }, delay);
+          return;
+        }
+      }
       const wasStreaming = this.streaming;
       this.streaming = this.liveDests.size > 0 || (wasStreaming && s.status === 'connecting');
       if (wasStreaming && !this.streaming && this.liveDests.size === 0) this._teardownStreamRecorder();
@@ -66,30 +84,53 @@ export class Outputs {
     this.recording = true;
     this.recStartedAt = Date.now();
     this.onRecState({ on: true });
+    // crash-safe: rotate to a new independently-playable segment every 60s
+    this._recOpts = { bitrateK };
+    this._segTimer = setInterval(() => this._rotateSegment(), 60_000);
     return path;
+  }
+
+  async _rotateSegment() {
+    if (!this.recording) return;
+    await new Promise((res) => { this.recRecorder.onstop = res; this.recRecorder.stop(); });
+    await window.chase.recSegment();
+    this.recRecorder = new MediaRecorder(this.getStream(), {
+      mimeType: this.codec.mime || undefined,
+      videoBitsPerSecond: (this._recOpts.bitrateK || 4500) * 1000 * 1.4,
+      audioBitsPerSecond: 192000
+    });
+    this.recRecorder.ondataavailable = async (e) => {
+      if (e.data.size > 0) window.chase.recChunk(await e.data.arrayBuffer());
+    };
+    this.recRecorder.start(1000);
   }
 
   async stopRecording() {
     if (!this.recording) return null;
+    clearInterval(this._segTimer);
     await new Promise((res) => {
       this.recRecorder.onstop = res;
       this.recRecorder.stop();
     });
-    const path = await window.chase.recStop();
+    const r = await window.chase.recStop();
     this.recording = false;
-    this.onRecState({ on: false, path });
-    return { path, h264: this.codec.h264 };
+    this.onRecState({ on: false, path: r?.path });
+    return { path: r?.path, parts: r?.parts || [], h264: this.codec.h264 };
   }
 
   // ---------- streaming (simulcast) ----------
   /** dests: [{ id, url, key }]; one shared encoder feeds all. */
   async startStreaming(dests, bitrateK) {
     const results = [];
+    this._userStopped = false;
     for (const d of dests) {
-      const r = await window.chase.streamStart({
+      const cfg = {
         id: d.id, url: d.url, key: d.key,
         videoBitrateK: bitrateK, videoIsH264: this.codec.h264
-      });
+      };
+      this._destCfg.set(d.id, cfg);
+      this._retries.set(d.id, 0);
+      const r = await window.chase.streamStart(cfg);
       results.push({ id: d.id, ...r });
     }
     if (!results.some((r) => r.ok)) return results;
@@ -117,6 +158,8 @@ export class Outputs {
   }
 
   async stopStreaming() {
+    this._userStopped = true;
+    this._destCfg.clear();
     this._teardownStreamRecorder();
     await window.chase.streamStop();
     this.streaming = false;

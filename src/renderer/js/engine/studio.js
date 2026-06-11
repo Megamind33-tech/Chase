@@ -513,12 +513,35 @@ export class Studio {
 
     this.presenter.applyPlacement(state.presenter);
 
-    // AutoFrame: derive the person's world X from the live mask centre
+    // AutoFrame v2: centre, headroom and shot size from the live mask
     if (state.camera.autoFrame && this.segBounds?.cx !== undefined) {
-      const planeW = this.presenter.planeH * 16 / 9 * (state.presenter.scale || 1);
-      this.rig.followX = state.presenter.x + (this.segBounds.cx - 0.5) * planeW;
+      const b = this.segBounds;
+      const scale = state.presenter.scale || 1;
+      const planeW = this.presenter.planeH * 16 / 9 * scale;
+      let cx = state.presenter.x + (b.cx - 0.5) * planeW;
+      // two-person: frame the midpoint between talent and guest, hold wide
+      const gst = state.talent?.guest;
+      const twoShot = gst?.on && gst.media;
+      if (twoShot) cx = (cx + gst.x) / 2;
+      this.rig.followX = cx;
+      // headroom: keep mask top ~8% under the frame top (gentle correction)
+      this.rig.followY = (0.08 - b.top) * 1.2;
+      // shot size: punch toward a target body-height fraction
+      const SHOTS = { cu: 1.25, ms: 0.85, fs: 0.55 };
+      const want = SHOTS[state.camera.shot];
+      if (want && !twoShot && b.height > 0.05) {
+        const err = want - b.height;          // >0 → punch in, <0 → widen
+        const current = this.rig._smoothP ?? state.camera.punch;
+        this.rig.autoPunch = Math.max(0, Math.min(40, current + err * 28));
+      } else if (twoShot) {
+        this.rig.autoPunch = 0;               // always wide for the 2-shot
+      } else {
+        this.rig.autoPunch = null;            // 'auto': operator's punch
+      }
     } else {
       this.rig.followX = null;
+      this.rig.followY = 0;
+      this.rig.autoPunch = null;
     }
 
     // guest slot
