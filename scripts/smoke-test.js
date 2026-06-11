@@ -357,8 +357,8 @@ app.whenReady().then(async () => {
     && stage6.plateBtns && stage6.plateCaptured && stage6.afOn
     && stage7.segBridge && stage7.recoveryBridge && stage7.logBridge
     && stage7.playlistBtn && stage7.dwellInput && stage7.shotSelect && stage7.fps60
-    && stage8.gfxCards === 10 && stage8.dataBtn && stage8.dataModal
-    && stage8.dataRows >= 3 && stage8.gfxTypes === 10
+    && stage8.gfxCards === 16 && stage8.dataBtn && stage8.dataModal
+    && stage8.dataRows >= 3 && stage8.gfxTypes === 16
     && stage9.armSet && stage9.tookOnAir && stage9.armCleared
     && stage9.drawerOpen && stage9.saveBtn && stage9.presetChips === 1
     && stage9.propCards === 7 && stage9.arInputs === 3 && stage9.arHeader && stage9.latChip

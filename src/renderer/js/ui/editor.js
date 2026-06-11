@@ -2094,7 +2094,69 @@ export function initEditor(ctx) {
         <div class="field slim"><label>Label</label><input type="text" id="gd-cdlabel" value="${escAttr(g.label)}"></div>
         <div class="field slim"><label>Seconds</label><input type="text" id="gd-cdsec" value="${g.seconds}"></div>
         <p class="hint">Counts to zero, flashes, then clears itself.</p>`,
-      clock: `<p class="hint">Shows the studio wall-clock time on screen.</p>`
+      clock: `<p class="hint">Shows the studio wall-clock time on screen.</p>`,
+      election: `
+        <div class="row gap">
+          <div class="field slim grow"><label>Title</label><input type="text" id="gd-el-title" value="${escAttr(g.title)}"></div>
+          <div class="field slim"><label>Reporting</label><input type="text" id="gd-el-rep" value="${escAttr(g.reporting)}" style="width:110px"></div>
+        </div>
+        ${(g.rows || []).map((r, i) => `
+        <div class="row gap">
+          <div class="field slim grow"><label>Party ${i + 1}</label><input type="text" id="gd-el-p${i}" value="${escAttr(r.party)}"></div>
+          <div class="field slim"><label>%</label><input type="text" id="gd-el-v${i}" value="${escAttr(r.pct)}" style="width:84px"></div>
+          <div class="field slim"><label>Colour</label><input type="color" id="gd-el-c${i}" value="${r.color}" style="width:44px;padding:1px"></div>
+        </div>`).join('')}
+        <p class="hint">Leading row is highlighted automatically. All fields accept {{tokens}}.</p>`,
+      weather: `
+        <div class="row gap">
+          <div class="field slim grow"><label>Location</label><input type="text" id="gd-w-loc" value="${escAttr(g.location)}"></div>
+          <div class="field slim"><label>Temp</label><input type="text" id="gd-w-temp" value="${escAttr(g.temp)}" style="width:90px"></div>
+        </div>
+        <div class="row gap">
+          <div class="field slim grow"><label>Conditions</label>
+            <select id="gd-w-cond">
+              ${['clear', 'cloud', 'rain', 'storm', 'snow'].map((c) =>
+                `<option value="${c}"${g.cond === c ? ' selected' : ''}>${c[0].toUpperCase() + c.slice(1)}</option>`).join('')}
+            </select></div>
+          <div class="field slim"><label>High</label><input type="text" id="gd-w-hi" value="${escAttr(g.high)}" style="width:70px"></div>
+          <div class="field slim"><label>Low</label><input type="text" id="gd-w-lo" value="${escAttr(g.low)}" style="width:70px"></div>
+        </div>
+        <p class="hint">Temp and location accept {{tokens}} — bind a weather feed via Data Sources.</p>`,
+      finance: `
+        <div class="field slim"><label>Strip label</label><input type="text" id="gd-f-label" value="${escAttr(g.label)}"></div>
+        ${(g.items || []).map((it, i) => `
+        <div class="row gap">
+          <div class="field slim"><label>Symbol</label><input type="text" id="gd-f-s${i}" value="${escAttr(it.sym)}" style="width:110px"></div>
+          <div class="field slim grow"><label>Price</label><input type="text" id="gd-f-p${i}" value="${escAttr(it.price)}"></div>
+          <div class="field slim"><label>Δ</label><input type="text" id="gd-f-d${i}" value="${escAttr(it.delta)}" style="width:84px"></div>
+        </div>`).join('')}
+        <p class="hint">Delta sign drives the colour: + green, − red. All fields accept {{tokens}}.</p>`,
+      music: `
+        <div class="field slim"><label>Song</label><input type="text" id="gd-m-song" value="${escAttr(g.song)}"></div>
+        <div class="field slim"><label>Artist</label><input type="text" id="gd-m-artist" value="${escAttr(g.artist)}"></div>
+        <div class="row gap">
+          <div class="field slim grow"><label>Station</label><input type="text" id="gd-m-station" value="${escAttr(g.station)}"></div>
+          <div class="field slim grow"><label>Royalty ref</label><input type="text" id="gd-m-roy" value="${escAttr(g.royalty)}"></div>
+        </div>
+        <p class="hint">ZAMCOPS metadata ready — bind {{song_title}} {{artist_name}} {{royalty_amount}} via Data Sources.</p>`,
+      fullscreen: `
+        <div class="row gap">
+          <div class="field slim grow"><label>Kicker</label><input type="text" id="gd-fs-kicker" value="${escAttr(g.kicker)}"></div>
+          <div class="field slim grow"><label>Title</label><input type="text" id="gd-fs-title" value="${escAttr(g.title)}"></div>
+        </div>
+        ${(g.rows || []).map((r, i) => `
+        <div class="row gap">
+          <div class="field slim grow"><label>Row ${i + 1}</label><input type="text" id="gd-fs-k${i}" value="${escAttr(r.k)}"></div>
+          <div class="field slim"><label>Value</label><input type="text" id="gd-fs-v${i}" value="${escAttr(r.v)}" style="width:110px"></div>
+        </div>`).join('')}
+        <p class="hint">Full-frame takeover — rows reveal in sequence. All fields accept {{tokens}}.</p>`,
+      comment: `
+        <div class="row gap">
+          <div class="field slim grow"><label>Handle</label><input type="text" id="gd-c-user" value="${escAttr(g.user)}"></div>
+          <div class="field slim"><label>Tag</label><input type="text" id="gd-c-tag" value="${escAttr(g.tag)}" style="width:100px"></div>
+        </div>
+        <div class="field slim"><label>Comment</label><input type="text" id="gd-c-text" value="${escAttr(g.text)}"></div>
+        <p class="hint">Paste a viewer comment, or bind {{comment_user}} / {{comment_text}} and drive them from the Control API.</p>`
     };
     const presets = state.gfxPresets[key] || [];
     body.innerHTML = (forms[key] || '') + `
@@ -2140,6 +2202,37 @@ export function initEditor(ctx) {
     bind('gd-sh', (v) => { g.scoreHome = v; });
     bind('gd-sa', (v) => { g.scoreAway = v; });
     bind('gd-lbl', (v) => { g.label = v; });
+    bind('gd-el-title', (v) => { g.title = v; });
+    bind('gd-el-rep', (v) => { g.reporting = v; });
+    (key === 'election' ? g.rows : []).forEach((r, i) => {
+      bind('gd-el-p' + i, (v) => { r.party = v; });
+      bind('gd-el-v' + i, (v) => { r.pct = v; });
+      bind('gd-el-c' + i, (v) => { r.color = v; });
+    });
+    bind('gd-w-loc', (v) => { g.location = v; });
+    bind('gd-w-temp', (v) => { g.temp = v; });
+    bind('gd-w-cond', (v) => { g.cond = v; });
+    bind('gd-w-hi', (v) => { g.high = v; });
+    bind('gd-w-lo', (v) => { g.low = v; });
+    bind('gd-f-label', (v) => { g.label = v; });
+    (key === 'finance' ? g.items : []).forEach((it, i) => {
+      bind('gd-f-s' + i, (v) => { it.sym = v; });
+      bind('gd-f-p' + i, (v) => { it.price = v; });
+      bind('gd-f-d' + i, (v) => { it.delta = v; });
+    });
+    bind('gd-m-song', (v) => { g.song = v; });
+    bind('gd-m-artist', (v) => { g.artist = v; });
+    bind('gd-m-station', (v) => { g.station = v; });
+    bind('gd-m-roy', (v) => { g.royalty = v; });
+    bind('gd-fs-kicker', (v) => { g.kicker = v; });
+    bind('gd-fs-title', (v) => { g.title = v; });
+    (key === 'fullscreen' ? g.rows : []).forEach((r, i) => {
+      bind('gd-fs-k' + i, (v) => { r.k = v; });
+      bind('gd-fs-v' + i, (v) => { r.v = v; });
+    });
+    bind('gd-c-user', (v) => { g.user = v; });
+    bind('gd-c-text', (v) => { g.text = v; });
+    bind('gd-c-tag', (v) => { g.tag = v; });
     bind('gd-kicker', (v) => { g.kicker = v; });
     bind('gd-value', (v) => { g.value = v; });
     bind('gd-sub', (v) => { g.sub = v; });

@@ -167,7 +167,13 @@ export const GRAPHICS = {
   scoreboard: { name: 'Scoreboard',  desc: 'Two-team score strap · data-bindable', ico: 'health' },
   dataCard:   { name: 'Data card',   desc: 'Kicker + value panel · election/finance', ico: 'gauge' },
   countdown:  { name: 'Countdown',   desc: 'Timed count to zero', ico: 'countdown' },
-  stinger:    { name: 'Stinger',     desc: 'One-shot branded transition sweep', ico: 'macro' }
+  stinger:    { name: 'Stinger',     desc: 'One-shot branded transition sweep', ico: 'macro' },
+  election:   { name: 'Election results', desc: 'Party rows with live vote bars', ico: 'gauge' },
+  weather:    { name: 'Weather panel', desc: 'Location, temperature, conditions', ico: 'lighting' },
+  finance:    { name: 'Market strip', desc: 'Instruments with price + delta', ico: 'health' },
+  music:      { name: 'Now playing',  desc: 'Song, artist and station metadata', ico: 'audio' },
+  fullscreen: { name: 'Full screen',  desc: 'Full-frame data takeover panel', ico: 'screen' },
+  comment:    { name: 'Comment card', desc: 'Viewer comment with handle + tag', ico: 'talent' }
 };
 
 // Control-room macros: one button = several real actions.

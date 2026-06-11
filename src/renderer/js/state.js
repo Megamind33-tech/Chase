@@ -32,7 +32,15 @@ export const state = {
   objects: [], // { id, kind, x, z, rotY, scale, height, opacity, media?, visible }
   // Live data fields for {{token}} binding in any graphic text field
   data: {
-    fields: { guest_name: 'Jane Mwangi', guest_title: 'Senior Correspondent', breaking_headline: 'Economic growth forecasts raised for next quarter' },
+    fields: {
+      guest_name: 'Jane Mwangi', guest_title: 'Senior Correspondent',
+      breaking_headline: 'Economic growth forecasts raised for next quarter',
+      party_name: 'NATIONAL PARTY', percentage: '48', votes: '1,204,332', reporting: '62%',
+      location: 'Lusaka', temperature: '24°C',
+      song_title: 'River Road', artist_name: 'Mutale Banda', royalty_amount: 'ZMW 18.40',
+      comment_user: '@mwansa_k', comment_text: 'Great coverage tonight — greetings from Kitwe!',
+      score_home: '2', score_away: '1'
+    },
     api: { url: '', intervalS: 30, on: false }
   },
   graphics: {
@@ -45,7 +53,36 @@ export const state = {
     countdown: { on: false, seconds: 300, label: 'STARTING IN' },
     stinger: { on: false }, // one-shot: fires, never latches
     title: { on: false, text: 'THE EVENING REPORT' },
-    clock: { on: false }
+    clock: { on: false },
+    election: {
+      on: false, title: 'ELECTION RESULTS', reporting: '{{reporting}}',
+      rows: [
+        { party: '{{party_name}}', pct: '{{percentage}}', color: '#c8102e' },
+        { party: 'UNITED ALLIANCE', pct: '34', color: '#1d4ed8' },
+        { party: 'GREEN COALITION', pct: '12', color: '#0d9488' },
+        { party: 'OTHERS', pct: '6', color: '#6b7280' }
+      ]
+    },
+    weather: { on: false, location: '{{location}}', temp: '{{temperature}}', cond: 'clear', high: '', low: '' },
+    finance: {
+      on: false, label: 'MARKETS',
+      items: [
+        { sym: 'LUSE', price: '8,421.50', delta: '+1.2%' },
+        { sym: 'ZMW/USD', price: '27.14', delta: '-0.4%' },
+        { sym: 'COPPER', price: '9,880', delta: '+0.8%' }
+      ]
+    },
+    music: { on: false, song: '{{song_title}}', artist: '{{artist_name}}', station: '{{station_name}}', royalty: '' },
+    fullscreen: {
+      on: false, title: 'FULL RESULTS', kicker: 'DECISION DESK',
+      rows: [
+        { k: '{{party_name}}', v: '{{percentage}}' },
+        { k: 'UNITED ALLIANCE', v: '34%' },
+        { k: 'GREEN COALITION', v: '12%' },
+        { k: 'OTHERS', v: '6%' }
+      ]
+    },
+    comment: { on: false, user: '{{comment_user}}', text: '{{comment_text}}', tag: 'VIEWER' }
   },
   // Quick scenes: named snapshots of the live look (set, cam, graphics, mood)
   scenes: [],

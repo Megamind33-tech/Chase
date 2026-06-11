@@ -82,7 +82,13 @@ export class OverlayEngine {
     const g = state.graphics;
     const brand = state.brand;
 
+    if (g.fullscreen.on || this.anim.fullscreen) this.drawFullscreen(ctx, this._phase('fullscreen'));
     if (g.ticker.on || this.anim.ticker) this.drawTicker(ctx, dt, this._phase('ticker'));
+    if (g.finance.on || this.anim.finance) this.drawFinance(ctx, this._phase('finance'));
+    if (g.election.on || this.anim.election) this.drawElection(ctx, this._phase('election'));
+    if (g.weather.on || this.anim.weather) this.drawWeather(ctx, this._phase('weather'));
+    if (g.music.on || this.anim.music) this.drawMusic(ctx, this._phase('music'));
+    if (g.comment.on || this.anim.comment) this.drawComment(ctx, this._phase('comment'));
     if (g.lowerThird.on || this.anim.lowerThird) this.drawLowerThird(ctx, time);
     if (g.banner.on || this.anim.banner) this.drawBanner(ctx, time, this._phase('banner'));
     if (g.title.on || this.anim.title) this.drawTitle(ctx, this._phase('title'));
@@ -549,19 +555,329 @@ export class OverlayEngine {
     sweep(0.12, hexA2(brand.accent, 0.9), false);
   }
 
+  /** Election results: header + party rows with animated vote bars. */
+  drawElection(ctx, ph) {
+    if (ph <= 0) return;
+    const g = state.graphics.election;
+    const brand = state.brand;
+    const w = 460, rowH = 56, headH = 52;
+    const rows = g.rows || [];
+    const h = headH + rows.length * rowH + 14;
+    const x = W - SAFE_X - w + (1 - ph) * (w + SAFE_X + 20);
+    const y = 170;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, ph * 1.3);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(8,11,18,0.96)';
+    ctx.fillRect(x, y, w, h);
+    // header
+    ctx.fillStyle = brand.primary;
+    ctx.fillRect(x, y, w, headH);
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 26px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(g.title).toUpperCase(), x + 22, y + headH / 2 + 1);
+    const rep = tok(g.reporting);
+    if (rep && rep !== '—') {
+      ctx.font = '600 17px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.textAlign = 'right';
+      ctx.fillText(rep.toUpperCase() + ' REPORTING', x + w - 18, y + headH / 2 + 1);
+      ctx.textAlign = 'left';
+    }
+    // rows: leading party gets the accent edge
+    const pcts = rows.map((r) => parseFloat(String(tok(r.pct)).replace(/[^\d.]/g, '')) || 0);
+    const lead = pcts.indexOf(Math.max(...pcts));
+    rows.forEach((r, i) => {
+      const ry = y + headH + 8 + i * rowH;
+      const barW = (w - 200) * Math.min(1, pcts[i] / 100) * ph;
+      if (i === lead) {
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fillRect(x, ry - 4, w, rowH - 4);
+        ctx.fillStyle = brand.accent;
+        ctx.fillRect(x, ry - 4, 5, rowH - 4);
+      }
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 21px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText(tok(r.party).toUpperCase().slice(0, 18), x + 22, ry + 12);
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ctx.fillRect(x + 22, ry + 26, w - 200, 12);
+      ctx.fillStyle = r.color || brand.primary;
+      ctx.fillRect(x + 22, ry + 26, barW, 12);
+      ctx.font = '800 28px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'right';
+      ctx.fillText(pcts[i] ? pcts[i].toFixed(pcts[i] % 1 ? 1 : 0) + '%' : tok(r.pct), x + w - 22, ry + 20);
+      ctx.textAlign = 'left';
+    });
+    ctx.restore();
+  }
+
+  /** Weather panel: drawn condition glyph + temperature + location. */
+  drawWeather(ctx, ph) {
+    if (ph <= 0) return;
+    const g = state.graphics.weather;
+    const brand = state.brand;
+    const w = 330, h = 120;
+    const x = SAFE_X, y = SAFE_Y + (1 - ph) * -(h + SAFE_Y + 10);
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, ph * 1.3);
+    ctx.textBaseline = 'middle';
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, 'rgba(10,14,24,0.95)');
+    grad.addColorStop(1, 'rgba(6,9,16,0.95)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(x, y + h, w, 4);
+    // condition glyph — drawn, no icon fonts
+    const gx = x + 56, gy = y + h / 2;
+    ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 3;
+    const cloud = () => {
+      ctx.beginPath();
+      ctx.arc(gx - 12, gy + 4, 13, Math.PI * 0.5, Math.PI * 1.5);
+      ctx.arc(gx, gy - 8, 15, Math.PI * 0.8, Math.PI * 1.95);
+      ctx.arc(gx + 16, gy + 4, 12, Math.PI * 1.5, Math.PI * 0.5);
+      ctx.closePath(); ctx.stroke();
+    };
+    if (g.cond === 'clear') {
+      ctx.beginPath(); ctx.arc(gx, gy, 14, 0, Math.PI * 2); ctx.stroke();
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        ctx.beginPath();
+        ctx.moveTo(gx + Math.cos(a) * 20, gy + Math.sin(a) * 20);
+        ctx.lineTo(gx + Math.cos(a) * 27, gy + Math.sin(a) * 27);
+        ctx.stroke();
+      }
+    } else if (g.cond === 'rain' || g.cond === 'storm') {
+      cloud();
+      if (g.cond === 'rain') {
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.moveTo(gx + i * 12, gy + 16);
+          ctx.lineTo(gx + i * 12 - 5, gy + 28);
+          ctx.stroke();
+        }
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(gx + 4, gy + 12); ctx.lineTo(gx - 6, gy + 24);
+        ctx.lineTo(gx + 2, gy + 24); ctx.lineTo(gx - 6, gy + 38);
+        ctx.lineWidth = 2.5; ctx.stroke();
+      }
+    } else if (g.cond === 'snow') {
+      cloud();
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath(); ctx.arc(gx + i * 12, gy + 22, 2.5, 0, Math.PI * 2); ctx.fill();
+      }
+    } else cloud();
+    // temperature + location
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 52px "Segoe UI", system-ui, sans-serif';
+    const temp = tok(g.temp);
+    ctx.fillText(temp + (/[°CF]/.test(temp) ? '' : '°'), x + 108, y + 42);
+    ctx.font = '700 19px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText(tok(g.location).toUpperCase().slice(0, 22), x + 108, y + 84);
+    if (g.high || g.low) {
+      ctx.textAlign = 'right';
+      ctx.font = '600 17px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText((g.high ? 'H ' + tok(g.high) : '') + (g.low ? '  L ' + tok(g.low) : ''), x + w - 16, y + 84);
+      ctx.textAlign = 'left';
+    }
+    ctx.restore();
+  }
+
+  /** Market strip: instruments with price and signed delta colouring. */
+  drawFinance(ctx, ph) {
+    if (ph <= 0) return;
+    const g = state.graphics.finance;
+    const brand = state.brand;
+    const barH = 58;
+    const tickerOn = state.graphics.ticker.on;
+    const y = (tickerOn ? H - 36 - 64 - barH - 6 : H - 36 - barH) + (1 - ph) * (barH + 40);
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, ph * 1.3);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(6,9,15,0.95)';
+    ctx.fillRect(0, y, W, barH);
+    const labelW = 200;
+    ctx.fillStyle = '#0c1320';
+    ctx.fillRect(0, y, labelW, barH);
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(labelW - 4, y, 4, barH);
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(g.label).toUpperCase(), 24, y + barH / 2 + 1);
+    const items = g.items || [];
+    const cellW = (W - labelW) / Math.max(1, items.length);
+    items.forEach((it, i) => {
+      const cx2 = labelW + i * cellW + 30;
+      ctx.font = '700 21px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.fillText(tok(it.sym).toUpperCase(), cx2, y + barH / 2 + 1);
+      ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = '#fff';
+      const symW = ctx.measureText(tok(it.sym).toUpperCase()).width;
+      ctx.fillText(tok(it.price), cx2 + symW + 26, y + barH / 2 + 1);
+      const delta = tok(it.delta);
+      const neg = /^-/.test(delta);
+      const priceW = ctx.measureText(tok(it.price)).width;
+      ctx.fillStyle = neg ? '#ef5350' : '#2fc966';
+      ctx.font = '700 21px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText((neg ? '▼ ' : '▲ ') + delta.replace(/^[-+]/, ''), cx2 + symW + 26 + priceW + 22, y + barH / 2 + 1);
+      if (i) {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillRect(labelW + i * cellW, y + 12, 1, barH - 24);
+      }
+    });
+    ctx.restore();
+  }
+
+  /** Now-playing card: song, artist, station — ZAMCOPS metadata ready. */
+  drawMusic(ctx, ph) {
+    if (ph <= 0) return;
+    const g = state.graphics.music;
+    const brand = state.brand;
+    const song = tok(g.song), artist = tok(g.artist);
+    ctx.font = '700 28px "Segoe UI", system-ui, sans-serif';
+    const w = Math.min(620, Math.max(360, ctx.measureText(song).width + 150));
+    const h = 96;
+    const ltOn = state.graphics.lowerThird.on;
+    const x = SAFE_X + (1 - ph) * -(w + SAFE_X + 20);
+    const y = (ltOn ? H - 320 : H - 168) - (state.graphics.ticker.on ? 64 : 0);
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, ph * 1.3);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(8,11,18,0.94)';
+    ctx.fillRect(x, y, w, h);
+    // beat bars badge
+    ctx.fillStyle = brand.primary;
+    ctx.fillRect(x, y, 70, h);
+    const t = Date.now() / 1000;
+    for (let i = 0; i < 4; i++) {
+      const bh = 16 + 18 * Math.abs(Math.sin(t * 2.4 + i * 1.1));
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillRect(x + 16 + i * 11, y + h / 2 + 17 - bh, 7, bh);
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 28px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(song, x + 90, y + 30);
+    ctx.font = '600 20px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    const royalty = tok(g.royalty);
+    ctx.fillText(artist.toUpperCase() + (g.station ? '  ·  ' + tok(g.station).toUpperCase() : '')
+      + (royalty && royalty !== '—' ? '  ·  ' + royalty : ''), x + 90, y + 65);
+    ctx.restore();
+  }
+
+  /** Full-frame data takeover: dim field + centred results table. */
+  drawFullscreen(ctx, ph) {
+    if (ph <= 0) return;
+    const g = state.graphics.fullscreen;
+    const brand = state.brand;
+    ctx.save();
+    ctx.globalAlpha = ph;
+    ctx.fillStyle = 'rgba(4,6,11,0.88)';
+    ctx.fillRect(0, 0, W, H);
+    const w = 1100, rows = g.rows || [];
+    const rowH = 92, headH = 120;
+    const h = headH + rows.length * rowH + 76;
+    const x = W / 2 - w / 2, y = Math.max(SAFE_Y + 20, H / 2 - h / 2) + (1 - ph) * 40;
+    ctx.fillStyle = 'rgba(10,14,24,0.97)';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(x, y, w, 6);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = brand.accent;
+    ctx.font = '800 22px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(g.kicker).toUpperCase(), x + 50, y + 48);
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 56px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(g.title).toUpperCase(), x + 50, y + 92);
+    rows.forEach((r, i) => {
+      const ry = y + headH + 20 + i * rowH;
+      const reveal = clamp01(ph * 1.4 - i * 0.08);
+      ctx.globalAlpha = ph * reveal;
+      ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)';
+      ctx.fillRect(x + 30, ry, (w - 60) * reveal, rowH - 14);
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 34px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText(tok(r.k).toUpperCase().slice(0, 30), x + 60, ry + (rowH - 14) / 2);
+      ctx.font = '800 42px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(tok(r.v), x + w - 60, ry + (rowH - 14) / 2);
+      ctx.textAlign = 'left';
+    });
+    ctx.globalAlpha = ph;
+    ctx.font = '600 20px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fillText((state.brand.name || '').toUpperCase(), x + 50, y + h - 26);
+    ctx.restore();
+  }
+
+  /** Viewer comment card: handle, tag chip and wrapped comment body. */
+  drawComment(ctx, ph) {
+    if (ph <= 0) return;
+    const g = state.graphics.comment;
+    const brand = state.brand;
+    const w = 520;
+    const text = tok(g.text);
+    ctx.font = '600 24px "Segoe UI", system-ui, sans-serif';
+    // wrap to max 3 lines
+    const words = text.split(/\s+/);
+    const lines = [];
+    let line = '';
+    for (const wd of words) {
+      const probe = line ? line + ' ' + wd : wd;
+      if (ctx.measureText(probe).width > w - 60 && line) {
+        lines.push(line); line = wd;
+        if (lines.length === 3) break;
+      } else line = probe;
+    }
+    if (line && lines.length < 3) lines.push(line);
+    const h = 70 + lines.length * 32 + 18;
+    const x = SAFE_X + (1 - ph) * -(w + SAFE_X + 20);
+    const y = H * 0.32;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, ph * 1.3);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(8,11,18,0.94)';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(x, y, 6, h);
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(g.user), x + 28, y + 34);
+    if (g.tag) {
+      const tw = ctx.measureText(tok(g.user)).width;
+      ctx.fillStyle = brand.primary;
+      const tagTxt = tok(g.tag).toUpperCase();
+      ctx.font = '800 14px "Segoe UI", system-ui, sans-serif';
+      const tagW = ctx.measureText(tagTxt).width + 20;
+      ctx.fillRect(x + 28 + tw + 16, y + 22, tagW, 24);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(tagTxt, x + 28 + tw + 26, y + 35);
+    }
+    ctx.font = '600 24px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    lines.forEach((l, i) => ctx.fillText(l, x + 28, y + 72 + i * 32));
+    ctx.restore();
+  }
+
   drawClock(ctx, ph) {
     if (ph <= 0) return;
     const now = new Date();
     const txt = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    // stack clear of the ticker and market strip
+    const lift = (state.graphics.ticker.on ? 70 : 0) + (state.graphics.finance.on ? 64 : 0);
     ctx.save();
     ctx.globalAlpha = ph;
     ctx.fillStyle = 'rgba(8,10,16,0.8)';
-    rounded(ctx, 56, H - 120, 150, 56, 10);
+    rounded(ctx, 56, H - 120 - lift, 150, 56, 10);
     ctx.fill();
     ctx.fillStyle = '#fff';
     ctx.font = '700 32px "Segoe UI", system-ui, sans-serif';
     ctx.textBaseline = 'middle';
-    ctx.fillText(txt, 84, H - 90);
+    ctx.fillText(txt, 84, H - 90 - lift);
     ctx.restore();
   }
 }
