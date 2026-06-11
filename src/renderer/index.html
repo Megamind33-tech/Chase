@@ -20,7 +20,7 @@
   <div class="launcher-inner">
     <header class="launcher-head">
       <div class="brandmark"><span class="brandmark-dot"></span>CHASE&nbsp;STUDIO&nbsp;<b>PRO</b></div>
-      <div class="launcher-sub">Broadcast-grade virtual production for Windows</div>
+      <div class="launcher-sub">Virtual production · keying · switching · output</div>
     </header>
 
     <section class="wizard-step" id="wiz-home" data-active="true">
@@ -28,7 +28,7 @@
         <div class="launcher-main">
           <button class="btn-hero" id="btn-new-project">
             <span class="hero-title">New studio project</span>
-            <span class="hero-sub">Pick a set, plug in your camera, go live</span>
+            <span class="hero-sub">Set · Input · Key · Program Out</span>
           </button>
           <div class="launcher-row">
             <button class="btn ghost" id="btn-open-project">Open project…</button>
@@ -89,18 +89,18 @@
       <div class="bg-grid">
         <button class="bg-card" data-bgmode="chroma">
           <span class="bg-icon key"></span>
-          <span class="bg-name">Green screen</span>
-          <span class="bg-desc">Best quality. Your background is keyed out and you stand inside the 3D set.</span>
+          <span class="bg-name">Chroma Key</span>
+          <span class="bg-desc">Green/blue screen. Best edge quality.</span>
         </button>
         <button class="bg-card" data-bgmode="ai">
           <span class="bg-icon ai"></span>
-          <span class="bg-name">AI cutout — no green screen</span>
-          <span class="bg-desc">Person segmentation removes your background automatically. Softer edges, zero setup.</span>
+          <span class="bg-name">AI Matte</span>
+          <span class="bg-desc">Segmentation key. No screen required.</span>
         </button>
         <button class="bg-card" data-bgmode="framed">
           <span class="bg-icon frame"></span>
-          <span class="bg-name">Framed window</span>
-          <span class="bg-desc">Your full camera frame appears on an elegant panel in the set — the “remote studio” look.</span>
+          <span class="bg-name">Framed Source</span>
+          <span class="bg-desc">Full frame on an in-set monitor panel.</span>
         </button>
       </div>
       <footer class="wizard-foot">
@@ -264,16 +264,14 @@
       <!-- CAMERA -->
       <div class="panel" id="panel-camera" hidden>
         <h3>Virtual cameras</h3>
-        <p class="hint">Six studio angles from one physical camera: real 3D set parallax +
-        anchor-based presenter reframing. Not true multi-camera footage — the best honest
-        one-camera illusion.</p>
+        <p class="hint">Virtual rig: set parallax + anchor reframing from one input. Not true multi-camera.</p>
         <div class="field slim"><label>Focal length <output id="o-focal">1.00×</output></label>
           <input type="range" id="cam-focal" min="0.7" max="1.5" step="0.01" value="1"></div>
         <div class="field slim"><label>Move duration <output id="lbl-movedur">1.2s</output></label>
           <input type="range" id="cam-movedur" min="0.4" max="3" step="0.1" value="1.2"></div>
         <div class="field slim"><label>Punch-in <output id="lbl-punch">0%</output></label>
           <input type="range" id="cam-punch" min="0" max="40" step="1" value="0"></div>
-        <label class="checkrow"><input type="checkbox" id="chk-autoframe"> AutoFrame — follow the presenter (AI/Hybrid key)</label>
+        <label class="checkrow"><input type="checkbox" id="chk-autoframe"> AutoFrame (AI/Hybrid key)</label>
         <label class="checkrow"><input type="checkbox" id="chk-drift"> Live operator drift</label>
         <div class="field slim"><label>Drift / parallax amount</label>
           <input type="range" id="cam-driftamt" min="0.2" max="3" step="0.05" value="1"></div>
@@ -330,18 +328,17 @@
         </div>
         <div class="field slim" style="margin-top:8px"><label>Plate threshold <output id="o-plate">18%</output></label>
           <input type="range" id="ref-plate" min="0.05" max="0.5" step="0.005" value="0.18"></div>
-        <p class="hint">Step out of frame and capture: the empty studio becomes a difference
-        reference that kills wrinkles, rigs and uneven screens in any key mode.</p>
-        <h3 class="spaced">Person cleanup</h3>
-        <div class="field slim"><label>Edge cleanup (choke) <output id="o-erode">0%</output></label>
+        <p class="hint">Capture with the frame empty. Difference reference for any key mode.</p>
+        <h3 class="spaced">Matte Cleanup</h3>
+        <div class="field slim"><label>Choke <output id="o-erode">0%</output></label>
           <input type="range" id="enh-erode" min="0" max="1" step="0.01" value="0"></div>
         <div class="chipset">
-          <button class="chip" id="chk-matte">Matte preview</button>
+          <button class="chip" id="chk-matte">Matte Monitor</button>
         </div>
-        <h3 class="spaced">Wardrobe recolor · AI Season</h3>
+        <h3 class="spaced">Wardrobe Recolor</h3>
         <div class="chipset">
           <button class="chip" id="cloth-on">Enable</button>
-          <button class="chip" id="cloth-pick">Pick garment from program</button>
+          <button class="chip" id="cloth-pick">Sample from Program</button>
         </div>
         <div class="row gap">
           <div class="field slim grow"><label>Garment colour</label><input type="color" id="cloth-key" value="#3a3f4a"></div>
@@ -349,23 +346,18 @@
         </div>
         <div class="field slim"><label>Tolerance</label><input type="range" id="cloth-tol" min="0.02" max="0.4" step="0.005" value="0.12"></div>
         <div class="field slim"><label>Softness</label><input type="range" id="cloth-soft" min="0.005" max="0.2" step="0.005" value="0.08"></div>
-        <p class="hint">Retargets the garment's colour live while keeping real folds and
-        shading. Works best on solid-colour clothing. Full AI garment swap is a staged
-        cloud feature — no fake button.</p>
-        <h3 class="spaced">Intelligent relighting</h3>
-        <div class="field slim"><label>Studio light wrap <output id="o-wrap">0%</output></label>
+        <p class="hint">Luma-preserving recolor. Best on solid garments.</p>
+        <h3 class="spaced">Lighting Match</h3>
+        <div class="field slim"><label>Light Wrap <output id="o-wrap">0%</output></label>
           <input type="range" id="enh-wrap" min="0" max="1" step="0.01" value="0"></div>
         <button class="btn gold slim" id="btn-autofit" style="width:100%">AUTO-FIT TO SET</button>
-        <p class="hint">Auto-fit grounds the presenter to the floor, scales them to the set,
-        matches the lighting mood, and applies set-coloured light wrap. With AI cutout it
-        measures the body from the live mask.</p>
+        <p class="hint">Grounds, scales and grade-matches the talent to the set.</p>
         <h3 class="spaced">Environment (HDRI)</h3>
         <div class="row gap">
           <button class="btn ghost slim" id="btn-hdri">Load HDRI…</button>
           <button class="btn ghost slim" id="btn-hdri-clear">Clear</button>
         </div>
-        <p class="hint">Image-based relighting for the set and 3D objects (the camera feed
-        keeps its own grade controls).</p>
+        <p class="hint">IBL for set and 3D objects.</p>
         <h3 class="spaced">Cinematic grade</h3>
         <div class="field slim"><label>LED glow (bloom)</label><input type="range" id="look-bloom" min="0" max="1.4" step="0.01" value="0.55"></div>
         <div class="field slim"><label>Vignette</label><input type="range" id="look-vignette" min="0" max="1" step="0.01" value="0.5"></div>
@@ -375,8 +367,7 @@
           <button class="btn ghost slim" id="btn-led-media">Set media…</button>
           <button class="btn ghost slim" id="btn-led-reset">Branded loop</button>
         </div>
-        <p class="hint">Put any image or video on the main LED wall, or keep the live
-        branded loop that follows your station colours.</p>
+        <p class="hint">Media or live branded loop on the main wall.</p>
       </div>
 
       <!-- SKIN -->
@@ -388,8 +379,7 @@
         <div class="field slim"><label>Saturation</label><input type="range" id="enh-sat" min="0" max="2" step="0.01" value="1"></div>
         <div class="field slim"><label>Skin smoothing</label><input type="range" id="enh-smooth" min="0" max="1" step="0.01" value="0"></div>
         <div class="field slim"><label>Eye light</label><input type="range" id="enh-eyes" min="0" max="1" step="0.01" value="0"></div>
-        <p class="hint">Applied in the camera shader and matched to the lighting mood, so the
-        presenter always sits naturally in the room.</p>
+        <p class="hint">Applied in the source shader; tracks the lighting mood.</p>
       </div>
 
       <!-- BRAND -->
@@ -435,9 +425,7 @@
         <div id="dest-editor"></div>
         <div class="statusbox" id="engine-status"></div>
         <h3 class="spaced">Coming in updates</h3>
-        <p class="hint">Zoom/Teams virtual camera output and the website embed player are
-        staged for the next releases — they need a signed driver and an HLS relay. No fake
-        buttons until they're real.</p>
+        <p class="hint">Virtual camera and HLS embed: staged (driver / relay required).</p>
       </div>
     </aside>
   </div>
@@ -507,8 +495,7 @@
 <div class="modal-backdrop" id="modal-live" hidden>
   <div class="modal">
     <h2>Go live</h2>
-    <p class="hint">Enable one or more destinations. One encoder feeds all of them
-    (simulcast) — each extra destination costs upload bandwidth, not CPU.</p>
+    <p class="hint">Simulcast: one encoder, N destinations. Cost is upload bandwidth.</p>
     <div id="live-dest-rows"></div>
     <h3 class="ls-head">LIVE SAFETY CHECK</h3>
     <div class="ls-list" id="live-safety"></div>
@@ -543,9 +530,7 @@
 <div class="modal-backdrop" id="modal-capture" hidden>
   <div class="modal">
     <h2>Capture presenter profile</h2>
-    <p class="hint">One session per presenter. They stand on the green screen; Chase records
-    short keyed loops used automatically on rear cross-shot cameras. Hold a natural
-    listening posture — small movements are good, talking is not.</p>
+    <p class="hint">Records keyed BACK/SIDE loops from the live input. Hold a listening posture.</p>
     <div class="field"><label>Presenter name</label>
       <input type="text" id="cap-name" placeholder="e.g. Jane Mwangi" spellcheck="false"></div>
     <div class="cap-row" id="cap-back-row">

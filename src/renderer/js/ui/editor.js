@@ -303,7 +303,7 @@ export function initEditor(ctx) {
       refreshLayerList();
       if (activeNav === 'props') buildBrowser();
       logEvent(`Asset ingested: ${report.name} (${report.tris.toLocaleString()} tris, ${report.source})${report.liveSafe ? '' : ' — RENDER HEAVY'}`, report.liveSafe ? 'ok' : 'err');
-      toast(report.name + ' is now a Chase asset — drag it into position', 'ok');
+      toast(report.name + ' ingested.', 'ok');
     };
     $('ingest-cancel').onclick = () => { $('modal-ingest').hidden = true; };
   }
@@ -400,7 +400,7 @@ export function initEditor(ctx) {
 
   /* ---- talent & guest pane ---- */
   function buildTalentPane(body) {
-    $('browser-hint').textContent = 'Angle packs power rear cross-shots; the guest slot adds a second person.';
+    $('browser-hint').textContent = 'Angle packs drive REAR cams. Guest slot adds talent 2.';
     const t = state.talent;
 
     const h1 = document.createElement('h3');
@@ -432,7 +432,7 @@ export function initEditor(ctx) {
         t.activeProfile = t.activeProfile === pr.id ? null : pr.id;
         applyAngleSource();
         buildBrowser();
-        toast(t.activeProfile ? pr.name + ' is the active presenter — rear cams use their back loop.' : 'Profile deactivated — all cameras show the live feed.');
+        toast(t.activeProfile ? pr.name + ' active on REAR cams.' : 'Profile off — live feed on all cams.');
       });
       body.appendChild(card);
     });
@@ -470,7 +470,7 @@ export function initEditor(ctx) {
       t.guest.on = true;
       g.querySelector('#guest-on').classList.add('active');
       logEvent('Guest video loaded: ' + media.name, 'ok');
-      toast(media.name + ' keyed into the guest slot — set their position opposite your presenter.', 'ok', 4500);
+      toast(media.name + ' keyed into guest slot.', 'ok', 3000);
     });
     g.querySelector('#guest-x').addEventListener('input', (e) => { t.guest.x = parseFloat(e.target.value); });
     g.querySelector('#guest-scale').addEventListener('input', (e) => { t.guest.scale = parseFloat(e.target.value); });
@@ -543,7 +543,7 @@ export function initEditor(ctx) {
     applyAngleSource();
     if (activeNav === 'talent') buildBrowser();
     logEvent('Presenter profile captured: ' + name + (capDraft.side ? ' (back + side)' : ' (back)'), 'ok');
-    toast(name + ' saved and active — rear cameras now use their back loop.', 'ok', 4500);
+    toast(name + ' active — REAR cams use back loop.', 'ok', 3500);
   });
 
   /* ---- angle-aware source swap: live feed vs pre-captured back loop ---- */
@@ -566,7 +566,7 @@ export function initEditor(ctx) {
     const clean = document.createElement('button');
     clean.className = 'chip' + (state.audio.cleanup ? ' active' : '');
     clean.style.marginBottom = '9px';
-    clean.textContent = 'Noise clean room (hum filter · compressor · gate)';
+    clean.textContent = 'Clean Room · HPF / Comp / Gate';
     clean.addEventListener('click', () => {
       state.audio.cleanup = clean.classList.toggle('active');
       audio.setCleanup(state.audio.cleanup);
@@ -758,7 +758,7 @@ export function initEditor(ctx) {
     add.title = 'IP/NDI and second-camera inputs arrive in the camera update';
     add.innerHTML = '<span class="plus">+</span>ADD CAM';
     add.addEventListener('click', () =>
-      toast('IP/NDI and multi-camera inputs are staged for the camera update — phone cameras already work via virtual-webcam apps.', '', 5200));
+      toast('IP/NDI input: staged. Phone cams work via virtual-webcam apps.', '', 4200));
     camstrip.appendChild(add);
   }
 
@@ -1150,7 +1150,7 @@ export function initEditor(ctx) {
     if (data && g?.userData.setMedia) {
       data.media = { url: media.url, type: media.type, path: media.path };
       g.userData.setMedia(media.url, media.type);
-      toast(media.name + ' placed on screen');
+      toast(media.name + ' → screen');
     }
   });
 
@@ -1190,7 +1190,7 @@ export function initEditor(ctx) {
   $('chk-autoframe').addEventListener('change', (e) => {
     state.camera.autoFrame = e.target.checked;
     if (e.target.checked && state.bgMode !== 'ai' && state.bgMode !== 'hybrid') {
-      toast('AutoFrame uses the AI mask — switch the key to Hybrid or AI matte.', 'err', 4500);
+      toast('AutoFrame requires Hybrid or AI Matte key.', 'err', 3500);
     }
     logEvent(e.target.checked ? 'AutoFrame ON — framing follows the presenter' : 'AutoFrame off');
   });
@@ -1261,12 +1261,12 @@ export function initEditor(ctx) {
     if (!media) return;
     state.look.ledMedia = { url: media.url, type: media.type, path: media.path };
     studio.set.setLedMedia(state.look.ledMedia);
-    toast(media.name + ' is on the LED wall');
+    toast(media.name + ' → LED wall');
   });
   $('btn-led-reset').addEventListener('click', () => {
     state.look.ledMedia = null;
     studio.set.setLedMedia(null);
-    toast('LED wall back to the branded loop');
+    toast('LED wall: branded loop');
   });
 
   /* ---- skin panel ---- */
@@ -1321,7 +1321,7 @@ export function initEditor(ctx) {
     studio.presenter.setPlate(studio.canvasToTexture(cv));
     plateAge = Date.now();
     logEvent('Clean plate captured (' + cv.width + '×' + cv.height + ')', 'ok');
-    toast('Clean plate captured — wrinkles and rig now difference-keyed out.', 'ok', 4500);
+    toast('Clean plate captured.', 'ok', 2500);
   });
   $('btn-plate-clear').addEventListener('click', () => {
     studio.presenter.setPlate(null);
@@ -1346,7 +1346,7 @@ export function initEditor(ctx) {
   $('chk-matte').addEventListener('click', () => {
     const on = $('chk-matte').classList.toggle('active');
     studio.presenter.setMatteView(on);
-    toast(on ? 'Matte preview — white = keep, black = removed (also on program output)' : 'Matte preview off', '', 3500);
+    toast(on ? 'Matte monitor on Program: white = keep' : 'Matte monitor off', '', 3000);
   });
 
   // Wardrobe recolor (AI Season)
@@ -1364,7 +1364,7 @@ export function initEditor(ctx) {
   $('cloth-pick').addEventListener('click', () => {
     pickingCloth = !pickingCloth;
     $('cloth-pick').classList.toggle('picking', pickingCloth);
-    if (pickingCloth) toast('Click the garment on the program monitor to sample its colour.', '', 4200);
+    if (pickingCloth) toast('Click the garment on Program to sample.', '', 3500);
   });
   canvas.addEventListener('pointerdown', (e) => {
     if (!pickingCloth) return;
@@ -1379,7 +1379,7 @@ export function initEditor(ctx) {
     applyCloth();
     pickingCloth = false;
     $('cloth-pick').classList.remove('picking');
-    toast('Garment sampled (' + hex + ') — recolor active. Tune tolerance if needed.', 'ok', 4200);
+    toast('Sampled ' + hex + ' — recolor active.', 'ok', 3000);
   }, true);
 
   // AUTO-FIT TO SET: ground, scale, relight in one action
@@ -1408,7 +1408,7 @@ export function initEditor(ctx) {
     $('pres-x').value = 0; $('pres-y').value = state.presenter.y; $('pres-scale').value = state.presenter.scale;
     applyEnhance();
     logEvent('AUTO-FIT: presenter grounded, scaled and relit to ' + SETS[state.setId].name, 'ok');
-    toast('Auto-fit complete — grounded, scaled and relit to this set', 'ok');
+    toast('Auto-fit: grounded · scaled · relit', 'ok');
   });
 
   // HDRI environment relighting
@@ -1421,7 +1421,7 @@ export function initEditor(ctx) {
       hdriEnv = await ingestHDRI(media, studio.renderer);
       studio.setEnvironment(hdriEnv);
       logEvent('HDRI environment loaded: ' + media.name, 'ok');
-      toast('HDRI relighting active on set and 3D objects', 'ok');
+      toast('HDRI environment active', 'ok');
     } catch (e) {
       toast('HDRI could not be loaded: ' + (e.message || 'unsupported file'), 'err', 5000);
     }
@@ -2002,7 +2002,7 @@ export function initEditor(ctx) {
     if (on) {
       logEvent('Builder mode opened');
       document.querySelector('.irail-btn[data-nav="props"]').click();
-      toast('BUILDER — drag to orbit, use the gizmo to place objects, + ADD CAMERA saves your view as an angle.', '', 5200);
+      toast('BUILDER · Drag: orbit · Gizmo: place · ADD CAMERA: save view as angle', '', 4200);
       if (selectedId) studio.attachGizmo(selectedId);
     } else {
       studio.attachGizmo(null);

@@ -37,15 +37,15 @@ async function setBgMode(mode) {
   if (mode === 'ai' || mode === 'hybrid') {
     try {
       segmenter ||= new Segmenter();
-      toast('Loading AI background removal…');
+      toast('Loading segmentation model…');
       await segmenter.init();
       segmenter.start(document.getElementById('cam-video'));
       studio.presenter.setMaskTexture(segmenter.texture);
-      toast(mode === 'hybrid' ? 'HYBRID BROADCAST KEY — chroma edge + AI gate active' : 'AI cutout active', 'ok');
+      toast(mode === 'hybrid' ? 'HYBRID KEY: chroma edge + AI gate' : 'AI matte active', 'ok');
     } catch (e) {
       toast(mode === 'hybrid'
-        ? 'AI gate unavailable — falling back to pure chroma key.'
-        : 'AI cutout unavailable on this machine — using framed mode instead.', 'err', 5000);
+        ? 'AI gate unavailable — chroma only.'
+        : 'Segmentation unavailable — framed source.', 'err', 4000);
       mode = mode === 'hybrid' ? 'chroma' : 'framed';
     }
   } else if (segmenter) {
@@ -145,7 +145,7 @@ launcher = initLauncher({
     state.capture.height = wiz.height;
     state.bgMode = wiz.bgMode;
     await startStudio();
-    toast('Welcome to your studio. Keys 1–6 switch cameras; drag assets in from the left.', 'ok', 5000);
+    toast('1–6: stage PVW · Enter: TAKE · B: BLACK', 'ok', 4500);
   },
   onOpenProject: loadProject
 });
