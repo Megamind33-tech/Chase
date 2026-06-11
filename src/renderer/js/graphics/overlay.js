@@ -4,7 +4,23 @@
 import { state, tok } from '../state.js';
 
 const W = 1920, H = 1080;
-const EASE = (t) => 1 - Math.pow(1 - Math.min(Math.max(t, 0), 1), 3);
+// Title-safe inset (90% of frame) — all strap graphics anchor to these.
+export const SAFE_X = Math.round(W * 0.05), SAFE_Y = Math.round(H * 0.05);
+
+/* Broadcast easing curves */
+const clamp01 = (t) => Math.min(Math.max(t, 0), 1);
+const EASE = (t) => 1 - Math.pow(1 - clamp01(t), 3);          // easeOutCubic
+const OUT_QUINT = (t) => 1 - Math.pow(1 - clamp01(t), 5);     // fast settle
+const IN_CUBIC = (t) => Math.pow(clamp01(t), 3);              // accelerating exit
+const BACK_OUT = (t) => {                                     // slight overshoot pop
+  const c = 1.9; t = clamp01(t) - 1;
+  return 1 + (c + 1) * t * t * t + c * t * t;
+};
+// remap an overall phase into a staggered element window [a..b]
+const seg = (ph, a, b) => clamp01((ph - a) / (b - a));
+
+// Per-graphic in/out durations (seconds); default 0.45 / 0.35.
+const DUR = { lowerThird: { in: 0.8, out: 0.5 } };
 
 export class OverlayEngine {
   constructor() {
@@ -33,11 +49,23 @@ export class OverlayEngine {
   }
 
   _phase(key) {
-    // returns 0..1 visibility phase for animated in/out
+    // returns 0..1 visibility phase for animated in/out (eased)
     const a = this.anim[key];
     const on = state.graphics[key].on;
     if (!a) return on ? 1 : 0;
-    return a.dir > 0 ? EASE(a.t / 0.45) : 1 - EASE(a.t / 0.35);
+    const d = DUR[key] || { in: 0.45, out: 0.35 };
+    return a.dir > 0 ? EASE(a.t / d.in) : 1 - EASE(a.t / d.out);
+  }
+
+  _rawPhase(key) {
+    // linear 0..1 phase + direction, for graphics that choreograph their own elements
+    const a = this.anim[key];
+    const on = state.graphics[key].on;
+    if (!a) return { ph: on ? 1 : 0, dir: 1 };
+    const d = DUR[key] || { in: 0.45, out: 0.35 };
+    return a.dir > 0
+      ? { ph: clamp01(a.t / d.in), dir: 1 }
+      : { ph: 1 - clamp01(a.t / d.out), dir: -1 };
   }
 
   render(time) {
@@ -45,7 +73,8 @@ export class OverlayEngine {
     this._lastT = time;
     for (const k of Object.keys(this.anim)) {
       this.anim[k].t += dt;
-      if (this.anim[k].t > 0.6) delete this.anim[k];
+      const d = DUR[k] || { in: 0.45, out: 0.35 };
+      if (this.anim[k].t > Math.max(d.in, d.out) + 0.1) delete this.anim[k];
     }
 
     const ctx = this.ctx;
@@ -54,7 +83,7 @@ export class OverlayEngine {
     const brand = state.brand;
 
     if (g.ticker.on || this.anim.ticker) this.drawTicker(ctx, dt, this._phase('ticker'));
-    if (g.lowerThird.on || this.anim.lowerThird) this.drawLowerThird(ctx, this._phase('lowerThird'));
+    if (g.lowerThird.on || this.anim.lowerThird) this.drawLowerThird(ctx, time);
     if (g.banner.on || this.anim.banner) this.drawBanner(ctx, time, this._phase('banner'));
     if (g.title.on || this.anim.title) this.drawTitle(ctx, this._phase('title'));
     if (g.scoreboard.on || this.anim.scoreboard) this.drawScoreboard(ctx, this._phase('scoreboard'));
@@ -65,43 +94,164 @@ export class OverlayEngine {
     if (this._stinger) this.drawStinger(ctx, time);
   }
 
-  drawLowerThird(ctx, ph) {
+  /**
+   * Premium lower third: staggered slab choreography, material themes
+   * (glass / carbon / metal), logo slot, topic kicker, location field and
+   * pulsing live-status chip. All fields {{token}}-bindable, title-safe.
+   */
+  drawLowerThird(ctx, time) {
+    const { ph, dir } = this._rawPhase('lowerThird');
     if (ph <= 0) return;
-    const name = tok(state.graphics.lowerThird.name);
-    const title = tok(state.graphics.lowerThird.title);
+    const g = state.graphics.lowerThird;
     const brand = state.brand;
+    const name = tok(g.name);
+    const title = tok(g.title).toUpperCase();
+    const location = tok(g.location || '').toUpperCase();
+    const topic = tok(g.topic || '').toUpperCase();
+    const status = tok(g.status || '').toUpperCase();
+    const E = dir > 0 ? OUT_QUINT : (t) => 1 - IN_CUBIC(1 - clamp01(t));
+
     const tickerOn = state.graphics.ticker.on;
     const baseY = tickerOn ? H - 232 : H - 168;
-    const x = 96, w = Math.min(820, 240 + Math.max(name.length, title.length + 6) * 22);
-    const slide = (1 - ph) * -80;
+    const x = SAFE_X;
+    const logoW = this.logoImg ? 84 : 0;
+    const textX = x + 12 + (logoW ? logoW + 16 : 22);
+
+    // responsive width from real text metrics, clamped to title-safe
+    ctx.font = '700 40px "Segoe UI", system-ui, sans-serif';
+    const nameW = ctx.measureText(name).width;
+    ctx.font = '600 22px "Segoe UI", system-ui, sans-serif';
+    const titleLine = title + (location ? '   ·   ' + location : '');
+    const titleW = ctx.measureText(titleLine).width;
+    const statusW = status ? 150 : 0;
+    // title slab is 0.85×w — size w so both rows fit their text
+    const w = Math.min(W - 2 * SAFE_X,
+      Math.max(420, Math.max(nameW + (textX - x) + statusW + 60,
+        (titleW + (textX - x) + 40) / 0.85)));
+
+    // element stagger windows over the linear phase
+    const spine = E(seg(ph, 0, 0.3));
+    const slab1 = E(seg(ph, 0.08, 0.55));
+    const slab2 = E(seg(ph, 0.22, 0.7));
+    const meta = E(seg(ph, 0.42, 0.85));
+    const chip = (dir > 0 ? BACK_OUT : E)(seg(ph, 0.55, 1));
+
+    const slabPaint = (x0, y0, w0, h0) => {
+      if (g.theme === 'carbon') {
+        ctx.fillStyle = 'rgba(9,11,16,0.97)';
+        ctx.fillRect(x0, y0, w0, h0);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, y0, w0, h0); ctx.clip();
+        ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+        ctx.lineWidth = 1;
+        for (let d = -h0; d < w0; d += 7) {
+          ctx.beginPath();
+          ctx.moveTo(x0 + d, y0 + h0);
+          ctx.lineTo(x0 + d + h0, y0);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (g.theme === 'metal') {
+        const m = ctx.createLinearGradient(0, y0, 0, y0 + h0);
+        m.addColorStop(0, '#3d4658');
+        m.addColorStop(0.48, '#222a3a');
+        m.addColorStop(0.52, '#191f2d');
+        m.addColorStop(1, '#2b3344');
+        ctx.fillStyle = m;
+        ctx.fillRect(x0, y0, w0, h0);
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(x0, y0 + h0 * 0.46, w0, 2);
+      } else { // glass
+        const grad = ctx.createLinearGradient(x0, 0, x0 + w0, 0);
+        grad.addColorStop(0, 'rgba(10,13,20,0.94)');
+        grad.addColorStop(1, 'rgba(10,13,20,0.55)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(x0, y0, w0, h0);
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.fillRect(x0, y0, w0, 1);
+      }
+    };
 
     ctx.save();
-    ctx.globalAlpha = ph;
-    ctx.translate(slide, 0);
-
-    // accent spine
-    ctx.fillStyle = brand.accent;
-    ctx.fillRect(x, baseY, 10, 104);
-    // name slab
-    const grad = ctx.createLinearGradient(x, 0, x + w, 0);
-    grad.addColorStop(0, 'rgba(10,13,20,0.94)');
-    grad.addColorStop(1, 'rgba(10,13,20,0.55)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(x + 10, baseY, w * ph, 64);
-    // title slab in brand primary
-    const g2 = ctx.createLinearGradient(x, 0, x + w * 0.8, 0);
-    g2.addColorStop(0, brand.primary);
-    g2.addColorStop(1, shade(brand.primary, -0.4));
-    ctx.fillStyle = g2;
-    ctx.fillRect(x + 10, baseY + 64, w * 0.8 * ph, 40);
-
-    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = Math.min(1, ph * 1.5);
     ctx.textBaseline = 'middle';
-    ctx.font = '700 38px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(name, x + 34, baseY + 34);
-    ctx.font = '600 22px "Segoe UI", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.fillText(title.toUpperCase(), x + 34, baseY + 85);
+
+    // topic kicker — slides down into place above the strap
+    if (topic && meta > 0) {
+      ctx.save();
+      ctx.globalAlpha *= meta;
+      ctx.font = '800 20px "Segoe UI", system-ui, sans-serif';
+      const tw = ctx.measureText(topic).width + 36;
+      const ty = baseY - 36 + (1 - meta) * 14;
+      ctx.fillStyle = brand.accent;
+      ctx.fillRect(x + 10, ty, tw, 30);
+      ctx.fillStyle = '#161102';
+      ctx.fillText(topic, x + 28, ty + 16);
+      ctx.restore();
+    }
+
+    // accent spine grows up from the baseline
+    ctx.fillStyle = brand.accent;
+    ctx.fillRect(x, baseY + 104 * (1 - spine), 10, 104 * spine);
+
+    // name slab wipes right; text is revealed by the wipe (clip)
+    if (slab1 > 0) {
+      slabPaint(x + 10, baseY, w * slab1, 64);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x + 10, baseY, w * slab1, 64); ctx.clip();
+      if (this.logoImg) {
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(x + 12, baseY + 4, logoW, 56);
+        const s = Math.min((logoW - 10) / this.logoImg.width, 48 / this.logoImg.height);
+        const lw = this.logoImg.width * s, lh = this.logoImg.height * s;
+        ctx.drawImage(this.logoImg, x + 12 + (logoW - lw) / 2, baseY + 4 + (56 - lh) / 2, lw, lh);
+      }
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 40px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText(name, textX, baseY + 34);
+      ctx.restore();
+    }
+
+    // title slab tracks behind the name slab
+    if (slab2 > 0) {
+      const g2 = ctx.createLinearGradient(x, 0, x + w * 0.85, 0);
+      g2.addColorStop(0, brand.primary);
+      g2.addColorStop(1, shade(brand.primary, -0.4));
+      ctx.fillStyle = g2;
+      ctx.fillRect(x + 10, baseY + 64, w * 0.85 * slab2, 40);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x + 10, baseY + 64, w * 0.85 * slab2, 40); ctx.clip();
+      ctx.font = '600 22px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.94)';
+      ctx.fillText(title, textX, baseY + 85);
+      if (location) {
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.fillText('·   ' + location, textX + ctx.measureText(title).width + 22, baseY + 85);
+      }
+      ctx.restore();
+    }
+
+    // live-status chip pops on last with a slight overshoot
+    if (status && chip > 0) {
+      const cw = 26 + status.length * 13, chh = 34;
+      const cx2 = x + 10 + w - cw - 16, cy2 = baseY + 15;
+      ctx.save();
+      ctx.translate(cx2 + cw / 2, cy2 + chh / 2);
+      ctx.scale(chip, chip);
+      ctx.globalAlpha *= clamp01(chip);
+      ctx.fillStyle = '#c8102e';
+      rounded(ctx, -cw / 2, -chh / 2, cw, chh, 6);
+      ctx.fill();
+      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(time / 420));
+      ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+      ctx.beginPath();
+      ctx.arc(-cw / 2 + 16, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '800 18px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText(status, -cw / 2 + 30, 1);
+      ctx.restore();
+    }
     ctx.restore();
   }
 

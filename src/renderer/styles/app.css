@@ -1415,3 +1415,28 @@ button:disabled:hover { background: inherit; border-color: var(--line); }
   text-transform: uppercase; color: var(--txt-faint);
   border-top: 1px solid var(--line-soft);
 }
+
+/* ===== v15 · safe-zone guides (operator view only) ===== */
+.safezone { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.sz-box { position: absolute; border: 1px dashed rgba(255,255,255,0.35); }
+.sz-action { inset: 3.5%; }
+.sz-title { inset: 5%; border-color: rgba(255,210,77,0.5); }
+.sz-box span {
+  position: absolute; right: 6px; bottom: 4px;
+  font-size: 9px; letter-spacing: .1em; color: rgba(255,255,255,0.45);
+}
+.sz-title span { color: rgba(255,210,77,0.6); }
+.sz-cross {
+  position: absolute; left: 50%; top: 50%; width: 24px; height: 24px;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)) center/100% 1px no-repeat,
+    linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)) center/1px 100% no-repeat;
+}
+.vp-safe {
+  font-size: 9.5px; letter-spacing: .1em; font-weight: 700;
+  color: var(--txt-faint); background: rgba(8,10,16,0.6);
+  border: 1px solid var(--line-soft); border-radius: 4px;
+  padding: 2px 8px; cursor: pointer;
+}
+.vp-safe.on { color: var(--gold); border-color: var(--gold); }

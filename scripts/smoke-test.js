@@ -251,10 +251,25 @@ app.whenReady().then(async () => {
     await new Promise((r) => setTimeout(r, 300));
     const drawerOpen = !document.getElementById('gfx-drawer').hidden;
     const saveBtn = !!document.getElementById('gd-preset');
+    // premium lower-third fields: location, topic kicker, status chip, material theme
+    const ltFields = ['gd-loc', 'gd-topic', 'gd-status', 'gd-theme'].every((i) => !!document.getElementById(i));
     document.getElementById('gd-preset').click();
     await new Promise((r) => setTimeout(r, 300));
     const presetChips = document.querySelectorAll('#gfx-drawer-body .gp-load').length;
     document.getElementById('gfx-drawer-close').click();
+    // safe-zone guides toggle (operator-side overlay)
+    document.getElementById('vp-safe').click();
+    const safeOn = !document.getElementById('safezone').hidden
+      && document.getElementById('vp-safe').classList.contains('on');
+    document.getElementById('vp-safe').click();
+    // graphics playout hotkey: Shift+2 cuts the ticker in/out (state must flip)
+    const tickerState = () => document.querySelectorAll('#gfx-list li')[1]
+      .querySelector('.ly-vis').classList.contains('on');
+    const tickerBefore = tickerState();
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit2', key: '@', shiftKey: true }));
+    await new Promise((r) => setTimeout(r, 300));
+    const hotkeyTicker = tickerState() !== tickerBefore;
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit2', key: '@', shiftKey: true }));
     // AR data panel: prop catalog has it, adding one exposes token-bound fields
     document.querySelector('.irail-btn[data-nav="props"]').click();
     await new Promise((r) => setTimeout(r, 400));
@@ -268,7 +283,7 @@ app.whenReady().then(async () => {
     // latency / dropped-frame chip wired into the topbar
     const latChip = !!document.getElementById('stat-latency');
     return { armSet, tookOnAir, armCleared, drawerOpen, saveBtn, presetChips,
-      propCards, arInputs, arHeader, latChip };
+      ltFields, safeOn, hotkeyTicker, propCards, arInputs, arHeader, latChip };
   })()`);
   console.log('stage 9 checks:', JSON.stringify(stage9));
 
@@ -347,6 +362,7 @@ app.whenReady().then(async () => {
     && stage9.armSet && stage9.tookOnAir && stage9.armCleared
     && stage9.drawerOpen && stage9.saveBtn && stage9.presetChips === 1
     && stage9.propCards === 7 && stage9.arInputs === 3 && stage9.arHeader && stage9.latChip
+    && stage9.ltFields && stage9.safeOn && stage9.hotkeyTicker
     && stage10.capBtn && stage10.nextBtn && stage10.rows === 2
     && stage10.goLive && stage10.goCam && stage10.nextLive && stage10.nextCam
     && stage10.prompterOpen && stage10.prompterCue && stage10.prompterClosed

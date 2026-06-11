@@ -2044,7 +2044,19 @@ export function initEditor(ctx) {
       lowerThird: `
         <div class="field slim"><label>Name</label><input type="text" id="gd-name" value="${escAttr(g.name)}"></div>
         <div class="field slim"><label>Title / role</label><input type="text" id="gd-title" value="${escAttr(g.title)}"></div>
-        <div class="field slim"><label>Auto out (seconds · 0 = manual)</label><input type="text" id="gd-autoout" value="${g.autoOut || 0}"></div>`,
+        <div class="row gap">
+          <div class="field slim grow"><label>Location</label><input type="text" id="gd-loc" value="${escAttr(g.location || '')}"></div>
+          <div class="field slim grow"><label>Status chip</label><input type="text" id="gd-status" placeholder="LIVE" value="${escAttr(g.status || '')}"></div>
+        </div>
+        <div class="field slim"><label>Topic kicker</label><input type="text" id="gd-topic" value="${escAttr(g.topic || '')}"></div>
+        <div class="field slim"><label>Material</label>
+          <select id="gd-theme">
+            <option value="glass"${g.theme === 'glass' ? ' selected' : ''}>Glass</option>
+            <option value="carbon"${g.theme === 'carbon' ? ' selected' : ''}>Carbon</option>
+            <option value="metal"${g.theme === 'metal' ? ' selected' : ''}>Metal</option>
+          </select></div>
+        <div class="field slim"><label>Auto out (seconds · 0 = manual)</label><input type="text" id="gd-autoout" value="${g.autoOut || 0}"></div>
+        <p class="hint">All fields accept {{tokens}} · logo slot uses the Brand tab logo · edits apply on air.</p>`,
       ticker: `
         <div class="field slim"><label>Label</label><input type="text" id="gd-label" value="${escAttr(g.label)}"></div>
         <div class="field slim"><label>Headlines (use • between items)</label><input type="text" id="gd-text" value="${escAttr(g.text)}"></div>
@@ -2110,6 +2122,10 @@ export function initEditor(ctx) {
     const bind = (id, fn) => document.getElementById(id)?.addEventListener('input', (e) => fn(e.target.value));
     bind('gd-name', (v) => { g.name = v; });
     bind('gd-title', (v) => { g.title = v; });
+    bind('gd-loc', (v) => { g.location = v; });
+    bind('gd-topic', (v) => { g.topic = v; });
+    bind('gd-status', (v) => { g.status = v; });
+    bind('gd-theme', (v) => { g.theme = v; });
     bind('gd-autoout', (v) => { g.autoOut = Math.max(0, parseInt(v, 10) || 0); });
     bind('gd-label', (v) => { g.label = v; });
     bind('gd-text', (v) => { g.text = v; });
@@ -2521,9 +2537,30 @@ export function initEditor(ctx) {
 
   refreshBuilderCams();
 
+  /* ---- safe-zone guides (operator monitor only, never in program) ---- */
+  $('vp-safe').addEventListener('click', () => {
+    const sz = $('safezone');
+    sz.hidden = !sz.hidden;
+    $('vp-safe').classList.toggle('on', !sz.hidden);
+  });
+
   /* ================= KEYBOARD ================= */
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.shiftKey && /^Digit[1-9]$/.test(e.code)) {
+      // graphics playout hotkeys: Shift+1..9 cuts the Nth graphic in/out
+      const key = Object.keys(GRAPHICS)[Number(e.code.slice(5)) - 1];
+      if (key === 'stinger') {
+        overlay.fireStinger();
+        logEvent('Stinger fired (hotkey)');
+      } else if (key) {
+        overlay.toggle(key, !state.graphics[key].on);
+        scheduleAutoOut(key);
+        refreshGfxList();
+        logEvent(GRAPHICS[key].name + (state.graphics[key].on ? ' IN' : ' OUT') + ' (hotkey)');
+      }
+      return;
+    }
     if (e.key >= '1' && e.key <= '6') stagePreview(Number(e.key));
     if (e.key === 'Enter') takeProgram('take');
     if (e.key.toLowerCase() === 'b') $('btn-black').click();

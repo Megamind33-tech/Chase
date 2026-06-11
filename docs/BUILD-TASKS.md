@@ -147,6 +147,22 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
      engine is 1920×1080 fixed — real work, not a toggle), per-pixel
      temporal chroma smoothing (mask-side smoothing only today).
 
+## Phase 1h — Broadcast graphics upgrade G1 (✅ · plan: docs/GRAPHICS-UPGRADE.md)
+
+23a. ✅ Premium lower third: staggered slab choreography on broadcast
+     easing curves (quint-out in, cubic-in out, back-out chip pop);
+     glass / carbon / metal materials; logo slot; name, title, location,
+     topic kicker and pulsing live-status chip; responsive width from
+     text metrics; all fields {{token}}-bindable and editable on air.
+23b. ✅ Safe zones: title-safe 90% + action-safe 93% operator guides
+     (viewport only, never in the program feed); straps anchor to the
+     shared SAFE_X/SAFE_Y constants.
+23c. ✅ Graphics playout hotkeys: Shift+1–9 cuts any graphic in/out,
+     logged to the operator log.
+23d. Plan G2–G5 documented: election/weather/finance/music packs, AR pin
+     modes + charts, local control API (Stream Deck route), fill+key and
+     vertical outputs.
+
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.
 - NDI SDK native module (N-API) → NDI input sources.

@@ -36,7 +36,7 @@ export const state = {
     api: { url: '', intervalS: 30, on: false }
   },
   graphics: {
-    lowerThird: { on: false, name: '{{guest_name}}', title: '{{guest_title}}', align: 'left' },
+    lowerThird: { on: false, name: '{{guest_name}}', title: '{{guest_title}}', location: '', topic: '', status: '', theme: 'glass', align: 'left' },
     ticker: { on: false, label: 'LATEST', text: 'Welcome to Chase Studio Pro  •  Drag assets into your set  •  Switch virtual cameras with keys 1–6', speed: 1 },
     logoBug: { on: false, size: 1, opacity: 0.95, corner: 'tr' },
     banner: { on: false, text: 'BREAKING NEWS' },

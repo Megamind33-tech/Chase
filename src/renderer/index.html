@@ -184,10 +184,16 @@
     <main class="stage">
       <div class="viewport-wrap" id="viewport-wrap">
         <canvas id="program-canvas" width="1920" height="1080"></canvas>
+        <div class="safezone" id="safezone" hidden>
+          <div class="sz-box sz-action"><span>ACTION SAFE 93%</span></div>
+          <div class="sz-box sz-title"><span>TITLE SAFE 90%</span></div>
+          <div class="sz-cross"></div>
+        </div>
         <div class="vp-status">
           <span class="vp-live" id="vp-live"><span class="vp-live-dot"></span>LIVE PREVIEW</span>
           <span class="vp-cam" id="vp-cam">CAM 1 · WIDE</span>
           <span class="vp-aspect">16:9</span>
+          <button class="vp-safe" id="vp-safe" title="Safe-zone guides (operator view only — never in the program feed)">SAFE</button>
           <span class="vp-precap" id="vp-precap" hidden>PRE-CAP LOOP</span>
         </div>
         <div class="builder-bar" id="builder-bar" hidden>
