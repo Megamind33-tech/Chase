@@ -27,7 +27,7 @@ export const state = {
   lighting: { preset: 'newsNight', key: 1, fill: 0.6, back: 1.3, temp: -0.2, accent: 1.35, haze: 0.6, deskGlow: 1 },
   look: { bloom: 0.55, vignette: 0.5, floorReflection: 0.55, ledMedia: null },
   camera: { active: 1, mode: 'cut', moveDuration: 1.2, punch: 0, fovScale: 1, drift: false, driftAmount: 1, customAngles: [], autoFrame: false, shot: 'auto' },
-  preview: { camera: null, sceneId: null }, // staged PVW bus (not pushed live until TAKE)
+  preview: { camera: null, sceneId: null, gfx: {} }, // staged PVW bus (cameras, scenes, ARMED graphics)
   transition: { type: 'cut', duration: 0.6 }, // cut | move | fade | wipe
   objects: [], // { id, kind, x, z, rotY, scale, height, opacity, media?, visible }
   // Live data fields for {{token}} binding in any graphic text field
@@ -49,6 +49,7 @@ export const state = {
   },
   // Quick scenes: named snapshots of the live look (set, cam, graphics, mood)
   scenes: [],
+  gfxPresets: {}, // per-graphic saved presets: { lowerThird: [{name, data}], ... }
   // Ingested asset registry (Asset Manager metadata)
   assets: [], // { id, name, source, ext, tris, memMB, liveSafe, warnings, media }
   audio: {
@@ -67,6 +68,19 @@ export const state = {
     ]
   }
 };
+
+/** Resolve {{tokens}} against the live data store + built-ins. */
+export function tok(str) {
+  if (!str || String(str).indexOf('{{') < 0) return str || '';
+  const now = new Date();
+  const builtins = {
+    time: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+    date: now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+    station_name: state.brand.name
+  };
+  return String(str).replace(/\{\{(\w+)\}\}/g, (m, k) =>
+    state.data?.fields?.[k] ?? builtins[k] ?? '—');
+}
 
 const listeners = {};
 export function on(topic, fn) { (listeners[topic] ||= []).push(fn); }

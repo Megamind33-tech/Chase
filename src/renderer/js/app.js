@@ -126,6 +126,9 @@ async function startStudio() {
 async function loadProject(json, path) {
   if (outputs?.recording) await outputs.stopRecording();
   if (outputs?.streaming) await outputs.stopStreaming();
+  if (json.meta?.appVersion && json.meta.appVersion !== state.meta.appVersion) {
+    toast('Project was saved by version ' + json.meta.appVersion + ' — loaded with compatibility merge.', '', 4500);
+  }
   hydrate(json);
   state.projectPath = path || null;
   await startStudio();

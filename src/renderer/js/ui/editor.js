@@ -937,6 +937,18 @@ export function initEditor(ctx) {
   function takeProgram(mode) {
     // mode: 'take' = selected transition · 'cut' = hard
     const pv = state.preview;
+    // armed graphics ride the take
+    const armed = Object.entries(pv.gfx || {});
+    if (armed.length) {
+      for (const [key, on] of armed) {
+        overlay.toggle(key, on);
+        scheduleAutoOut(key);
+      }
+      logEvent('TAKE graphics: ' + armed.map(([k, on]) => GRAPHICS[k].name + (on ? ' IN' : ' OUT')).join(', '));
+      pv.gfx = {};
+      refreshGfxList();
+      if (!pv.sceneId && !pv.camera) { refreshBusStates(); return; }
+    }
     if (pv.sceneId) {
       const sc = state.scenes.find((x) => x.id === pv.sceneId);
       if (sc) {
@@ -1151,12 +1163,20 @@ export function initEditor(ctx) {
     for (const [key, g] of Object.entries(GRAPHICS)) {
       const on = state.graphics[key].on;
       const li = document.createElement('li');
+      const armed = state.preview.gfx[key] !== undefined;
       li.innerHTML = `<span class="ly-ico">${icon(g.ico)}</span>${g.name}
+        ${key === 'stinger' ? '' : `<button class="ly-arm ${armed ? 'armed' : ''}" title="ARM to PVW — applied on TAKE">PVW</button>`}
         <button class="ly-vis ${on ? 'on' : ''}" title="On air / off air">●</button>`;
       li.addEventListener('click', (e) => {
         if (key === 'stinger') {
           overlay.fireStinger();
           logEvent('Stinger fired');
+          return;
+        }
+        if (e.target.classList.contains('ly-arm')) {
+          if (state.preview.gfx[key] !== undefined) delete state.preview.gfx[key];
+          else state.preview.gfx[key] = !state.graphics[key].on; // arm the opposite state
+          e.target.classList.toggle('armed', state.preview.gfx[key] !== undefined);
           return;
         }
         if (e.target.classList.contains('ly-vis')) {
@@ -1176,6 +1196,31 @@ export function initEditor(ctx) {
   function buildMaterialsModule(data) {
     const box = $('obj-materials');
     box.innerHTML = '';
+    if (data.kind === 'arpanel') {
+      const g = studio.objects.get(data.id);
+      const f = g?.userData.arFields;
+      if (!f) return;
+      data.arFields = data.arFields || { ...f };
+      const h = document.createElement('h3');
+      h.className = 'spaced';
+      h.textContent = 'AR Panel · Data Binding';
+      box.appendChild(h);
+      for (const [fk, label] of [['kicker', 'Kicker'], ['value', 'Value'], ['sub', 'Sub line']]) {
+        const d = document.createElement('div');
+        d.className = 'field slim';
+        d.innerHTML = `<label>${label}</label><input type="text" value="${(f[fk] || '').replace(/"/g, '&quot;')}" spellcheck="false">`;
+        d.querySelector('input').addEventListener('input', (e) => {
+          f[fk] = e.target.value;
+          data.arFields[fk] = e.target.value;
+        });
+        box.appendChild(d);
+      }
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.textContent = 'Fields accept {{tokens}} from Data Sources.';
+      box.appendChild(hint);
+      return;
+    }
     if (data.kind !== 'model') return;
     const g = studio.objects.get(data.id);
     if (g?.userData.loading) {
@@ -1916,10 +1961,29 @@ export function initEditor(ctx) {
         <p class="hint">Counts to zero, flashes, then clears itself.</p>`,
       clock: `<p class="hint">Shows the studio wall-clock time on screen.</p>`
     };
+    const presets = state.gfxPresets[key] || [];
     body.innerHTML = (forms[key] || '') + `
+      ${presets.length ? '<div class="chipset" style="margin-top:8px">' + presets.map((p, i) =>
+        `<button class="chip gp-load" data-i="${i}" title="Load preset">${p.name}</button>`).join('') + '</div>' : ''}
       <div class="row gap" style="margin-top:10px">
         <button class="btn primary slim" id="gd-air">${g.on ? 'Take off air' : 'Put on air'}</button>
+        ${key === 'clock' || key === 'stinger' ? '' : '<button class="btn ghost slim" id="gd-preset">Save preset</button>'}
       </div>`;
+    body.querySelectorAll('.gp-load').forEach((b) =>
+      b.addEventListener('click', () => {
+        const p2 = presets[Number(b.dataset.i)];
+        Object.assign(state.graphics[key], JSON.parse(JSON.stringify(p2.data)), { on: state.graphics[key].on });
+        openGfxDrawer(key);
+        toast('Preset "' + p2.name + '" loaded');
+      }));
+    document.getElementById('gd-preset')?.addEventListener('click', () => {
+      const list = state.gfxPresets[key] = state.gfxPresets[key] || [];
+      const { on, ...data } = state.graphics[key];
+      list.push({ name: 'P' + (list.length + 1), data: JSON.parse(JSON.stringify(data)) });
+      if (list.length > 8) list.shift();
+      openGfxDrawer(key);
+      logEvent(GRAPHICS[key].name + ' preset saved (P' + list.length + ')');
+    });
     const bind = (id, fn) => document.getElementById(id)?.addEventListener('input', (e) => fn(e.target.value));
     bind('gd-name', (v) => { g.name = v; });
     bind('gd-title', (v) => { g.title = v; });
@@ -2001,7 +2065,13 @@ export function initEditor(ctx) {
       if (p) {
         $('btn-record').classList.add('on');
         startTimer(Date.now());
-        toast('Recording started', 'ok');
+        if (outputs.lowDisk) {
+          toast('LOW DISK: ' + outputs.freeGB + ' GB free — recording anyway, watch space.', 'err', 6000);
+          logEvent('Recording started with LOW DISK (' + outputs.freeGB + ' GB free)', 'err');
+        } else {
+          toast('Recording — crash-safe segments' + (outputs.freeGB ? ' · ' + outputs.freeGB + ' GB free' : ''), 'ok');
+          logEvent('Recording started' + (outputs.freeGB ? ' · ' + outputs.freeGB + ' GB free' : ''), 'ok');
+        }
       }
     } else {
       const r = await outputs.stopRecording();
@@ -2157,11 +2227,47 @@ export function initEditor(ctx) {
     }
   }
 
+  // WebGL context loss: warn loudly, recover when the driver returns
+  studio.canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    $('stat-sys').className = 'statchip err';
+    $('stat-sys').textContent = '● RENDERER LOST';
+    logEvent('WebGL context lost — renderer halted', 'err');
+    toast('RENDERER LOST — GPU reset. Recovery in progress…', 'err', 8000);
+  });
+  studio.canvas.addEventListener('webglcontextrestored', () => {
+    logEvent('WebGL context restored', 'ok');
+    toast('Renderer recovered.', 'ok');
+    studio.loadSet(state.setId);
+    studio.rebuildObjects();
+  });
+
   /* ================= HEALTH CHIPS ================= */
+  // input latency + dropped frames from requestVideoFrameCallback metadata
+  let inputLatency = null, droppedFrames = 0, lastPresented = null;
+  (function vfcLoop() {
+    const v = document.getElementById('cam-video');
+    if (v && v.requestVideoFrameCallback) {
+      v.requestVideoFrameCallback((now, meta) => {
+        if (meta.captureTime) inputLatency = Math.max(0, Math.round(now - meta.captureTime));
+        else if (meta.expectedDisplayTime) inputLatency = Math.max(0, Math.round(meta.expectedDisplayTime - now));
+        if (lastPresented !== null && meta.presentedFrames - lastPresented > 1) {
+          droppedFrames += meta.presentedFrames - lastPresented - 1;
+        }
+        lastPresented = meta.presentedFrames;
+        vfcLoop();
+      });
+    } else {
+      setTimeout(vfcLoop, 2000);
+    }
+  })();
+
   setInterval(async () => {
     $('stat-fps').textContent = (studio.fps || '—') + ' fps';
     $('stat-gpu').textContent = 'GPU ' + Math.round(studio.qualityScale * 100) + '%';
     if (outputs.streaming) $('stat-bitrate').textContent = outputs.bitrateKbps() + ' kbps';
+    const lat = $('stat-latency');
+    if (lat) lat.textContent = 'IN ' + (inputLatency === null ? '—' : inputLatency + 'ms') + (droppedFrames ? ' · DROP ' + droppedFrames : '');
     try {
       const h = await window.chase.sysHealth();
       $('stat-cpu').textContent = 'CPU ' + h.cpuPercent + '%';

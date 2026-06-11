@@ -236,6 +236,42 @@ app.whenReady().then(async () => {
   })()`);
   console.log('stage 8 checks:', JSON.stringify(stage8));
 
+  // ---- stage 9: graphics ARM/PVW bus, presets, AR data panel, latency chip ----
+  const stage9 = await win.webContents.executeJavaScript(`(async () => {
+    // ARM a graphic on PVW, then TAKE must put it on air and clear the arm
+    const armBtn = document.querySelector('#gfx-list li .ly-arm');
+    armBtn.click();
+    const armSet = armBtn.classList.contains('armed');
+    document.getElementById('btn-take').click();
+    await new Promise((r) => setTimeout(r, 1200));
+    const tookOnAir = document.querySelector('#gfx-list li .ly-vis').classList.contains('on');
+    const armCleared = !document.querySelector('#gfx-list li .ly-arm').classList.contains('armed');
+    // preset library: open the drawer, save a preset, expect a P1 chip
+    document.querySelector('#gfx-list li').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const drawerOpen = !document.getElementById('gfx-drawer').hidden;
+    const saveBtn = !!document.getElementById('gd-preset');
+    document.getElementById('gd-preset').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const presetChips = document.querySelectorAll('#gfx-drawer-body .gp-load').length;
+    document.getElementById('gfx-drawer-close').click();
+    // AR data panel: prop catalog has it, adding one exposes token-bound fields
+    document.querySelector('.irail-btn[data-nav="props"]').click();
+    await new Promise((r) => setTimeout(r, 400));
+    const propCards = document.querySelectorAll('#browser-body .lib-card').length;
+    const cards = [...document.querySelectorAll('#browser-body .lib-card')];
+    const arCard = cards.find((c) => c.textContent.includes('AR Data Panel'));
+    arCard.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 800));
+    const arInputs = document.querySelectorAll('#obj-materials input').length;
+    const arHeader = (document.querySelector('#obj-materials h3')?.textContent || '').includes('AR Panel');
+    // latency / dropped-frame chip wired into the topbar
+    const latChip = !!document.getElementById('stat-latency');
+    return { armSet, tookOnAir, armCleared, drawerOpen, saveBtn, presetChips,
+      propCards, arInputs, arHeader, latChip };
+  })()`);
+  console.log('stage 9 checks:', JSON.stringify(stage9));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -270,6 +306,9 @@ app.whenReady().then(async () => {
     && stage7.playlistBtn && stage7.dwellInput && stage7.shotSelect && stage7.fps60
     && stage8.gfxCards === 10 && stage8.dataBtn && stage8.dataModal
     && stage8.dataRows >= 3 && stage8.gfxTypes === 10
+    && stage9.armSet && stage9.tookOnAir && stage9.armCleared
+    && stage9.drawerOpen && stage9.saveBtn && stage9.presetChips === 1
+    && stage9.propCards === 7 && stage9.arInputs === 3 && stage9.arHeader && stage9.latChip
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

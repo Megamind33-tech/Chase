@@ -309,7 +309,16 @@ export function buildSet(theme, brand, headline, opts = {}) {
     },
     dispose() {
       if (this._ledVideo) { this._ledVideo.pause(); this._ledVideo.remove(); }
-      group.traverse((o) => { o.geometry?.dispose(); });
+      group.traverse((o) => {
+        o.geometry?.dispose();
+        const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+        for (const m of mats) {
+          for (const key of ['map', 'normalMap', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap']) {
+            m[key]?.dispose?.();
+          }
+          m.dispose?.();
+        }
+      });
       reflector?.dispose?.();
     }
   };

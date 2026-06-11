@@ -153,7 +153,8 @@ export const PROPS = {
   panel:    { name: 'Glass panel',    desc: 'Frosted panel with brand glow', ico: 'overlays' },
   plinth:   { name: 'Plinth',         desc: 'Display pedestal, lit edge', ico: 'cube' },
   lightbar: { name: 'Floor light bar', desc: 'Accent strip in brand colour', ico: 'lighting' },
-  plant:    { name: 'Studio plant',   desc: 'Greenery for talk formats', ico: 'plant' }
+  plant:    { name: 'Studio plant',   desc: 'Greenery for talk formats', ico: 'plant' },
+  arpanel:  { name: 'AR Data Panel',  desc: 'Floating in-set panel · {{token}} bindable', ico: 'gauge' }
 };
 
 export const GRAPHICS = {

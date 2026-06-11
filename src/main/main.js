@@ -160,7 +160,13 @@ function registerIpc() {
     recSegIdx = 0;
     recParts = [segPath(recPath, 0)];
     recStream = fs.createWriteStream(recParts[0]);
-    return recPath;
+    // disk-space guard (statfs available on modern Node; soft-fail otherwise)
+    let freeGB = null;
+    try {
+      const st = await fs.promises.statfs(path.dirname(recPath));
+      freeGB = +(st.bavail * st.bsize / 1e9).toFixed(1);
+    } catch {}
+    return { path: recPath, freeGB };
   });
   ipcMain.on('rec:chunk', (e, buf) => {
     if (recStream) recStream.write(Buffer.from(buf));

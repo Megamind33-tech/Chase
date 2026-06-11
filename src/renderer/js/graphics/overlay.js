@@ -1,23 +1,10 @@
 // Broadcast graphics engine: lower thirds, ticker, logo bug, breaking
 // banner, title card and clock — drawn on a 1920×1080 2D canvas that the
 // compositor layers over the 3D program. All animation is time-based.
-import { state } from '../state.js';
+import { state, tok } from '../state.js';
 
 const W = 1920, H = 1080;
 const EASE = (t) => 1 - Math.pow(1 - Math.min(Math.max(t, 0), 1), 3);
-
-/** Data binding: resolve {{tokens}} from the live data store + built-ins. */
-function tok(str) {
-  if (!str || str.indexOf('{{') < 0) return str || '';
-  const now = new Date();
-  const builtins = {
-    time: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-    date: now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-    station_name: state.brand.name
-  };
-  return str.replace(/\{\{(\w+)\}\}/g, (m, k) =>
-    state.data?.fields?.[k] ?? builtins[k] ?? '—');
-}
 
 export class OverlayEngine {
   constructor() {

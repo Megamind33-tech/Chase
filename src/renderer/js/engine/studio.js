@@ -160,6 +160,7 @@ export class Studio {
     this.objects.set(id, group);
     if (data.media && group.userData.setMedia) group.userData.setMedia(data.media.url, data.media.type);
     if (group.userData.setShadow) group.userData.setShadow(data.shadow ?? 0.55);
+    if (group.userData.arFields && data.arFields) Object.assign(group.userData.arFields, data.arFields);
     if (kind === 'model' && data.matOverrides) {
       const prev = group.userData.onReady;
       group.userData.onReady = (g2) => { prev?.(g2); this.applyAllMatOverrides(data, this.brandFactory || null); };
@@ -504,8 +505,14 @@ export class Studio {
       }
     }
 
-    // imported model animations
-    for (const [, g] of this.objects) g.userData.mixer?.update(dt);
+    // imported model animations + AR data panel repaints (change-detected)
+    this._arClock = (this._arClock || 0) + dt;
+    const repaintDue = this._arClock > 0.5;
+    if (repaintDue) this._arClock = 0;
+    for (const [, g] of this.objects) {
+      g.userData.mixer?.update(dt);
+      if (repaintDue) g.userData.repaint?.();
+    }
 
     // animated LED surfaces at ~12fps
     this._wallClock += dt;

@@ -110,6 +110,36 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
 20h. ✅ 1080p60 path: 60fps output + 60fps capture request (UNVALIDATED on
      real hardware — labelled in UI).
 
+## Phase 1f — Broadcast graphics engine (✅)
+
+21a. ✅ Data binding: {{token}} resolver across all text graphics, built-in
+     tokens (time/date/station_name) + custom fields.
+21b. ✅ New graphic types: scoreboard, data card, countdown (self-clearing),
+     stinger transition wipe — 10 types total.
+21c. ✅ Data Sources desk: field table, CSV/JSON import, HTTPS API polling
+     with interval control.
+
+## Phase 1g — Pipeline loops: PVW graphics bus, AR panels, hygiene, metrics (✅)
+
+22a. ✅ Graphics ARM/PVW bus: PVW button per graphic arms it to the preview
+     bus; TAKE applies all armed graphics with the switch (logged, auto-out
+     honoured) — vMix-style "overlay on transition".
+22b. ✅ Graphics preset library: per-type Save preset (P1–P8) + one-click
+     load chips in the graphic drawer.
+22c. ✅ AR Data Panel prop: floating in-set panel rendered in true 3D with
+     token-bound kicker/value/sub fields ({{tokens}} resolve live, repaint
+     is change-detected at 2Hz, fields persist in the project).
+22d. ✅ Reliability hygiene: low-disk guard on record start (<2 GB toast),
+     WebGL context-loss recovery (RENDERER LOST chip + automatic set
+     rebuild on restore), project version-mismatch warning on load, full
+     material/texture disposal on set switch.
+22e. ✅ Real pipeline metrics: camera input latency + dropped-frame counter
+     from requestVideoFrameCallback, surfaced in the topbar (IN ms · DROP).
+22f. Deferred (honest): 9:16 / 1:1 vertical-output render targets (overlay
+     engine is 1920×1080 fixed — real work, not a toggle), per-pixel
+     temporal chroma smoothing (mask-side smoothing only today), full cue
+     timeline (approved for next update).
+
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.
 - NDI SDK native module (N-API) → NDI input sources.

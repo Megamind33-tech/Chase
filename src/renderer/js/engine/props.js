@@ -2,6 +2,7 @@
 // is a Group with userData: { kind, id, setMedia?, setShadow }, carrying a
 // soft contact shadow so objects sit on the floor instead of floating.
 import * as THREE from 'three';
+import { state, tok } from '../state.js';
 
 
 export function buildProp(kind, theme, brand, media, prebuilt) {
@@ -13,6 +14,7 @@ export function buildProp(kind, theme, brand, media, prebuilt) {
     case 'plinth': g = plinthProp(theme); break;
     case 'lightbar': g = lightbarProp(theme, brand); break;
     case 'plant': g = plantProp(); break;
+    case 'arpanel': g = arPanelProp(theme, brand); break;
     case 'model': g = modelProp(media, prebuilt); break;
     default: g = plinthProp(theme);
   }
@@ -61,6 +63,62 @@ function normaliseModel(g, model, ph, clips) {
     mixer.clipAction(clips[0]).play();
     g.userData.mixer = mixer;
   }
+}
+
+// Floating AR data panel: token-bound canvas surface living in set space —
+// real depth, occlusion and reflections like any studio object.
+function arPanelProp(theme, brand) {
+  const g = new THREE.Group();
+  const cv = document.createElement('canvas');
+  cv.width = 640; cv.height = 400;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.28, 0.8),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide })
+  );
+  panel.position.y = 1.6;
+  g.add(panel);
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(1.34, 0.86, 0.03),
+    new THREE.MeshStandardMaterial({
+      color: '#0b0d12', metalness: 0.7, roughness: 0.35,
+      emissive: theme.trim || '#2277ff', emissiveIntensity: 0.3
+    })
+  );
+  frame.position.set(0, 1.6, -0.025);
+  g.add(frame);
+
+  g.userData.arFields = { kicker: 'LIVE DATA', value: '{{percentage}}', sub: '{{party_name}}' };
+  let lastPaint = '';
+  g.userData.repaint = () => {
+    const f = g.userData.arFields;
+    const key = tok(f.kicker) + '|' + tok(f.value) + '|' + tok(f.sub) + '|' + state.brand.primary;
+    if (key === lastPaint) return;
+    lastPaint = key;
+    const ctx = cv.getContext('2d');
+    const gr = ctx.createLinearGradient(0, 0, 0, 400);
+    gr.addColorStop(0, 'rgba(10,15,26,0.96)');
+    gr.addColorStop(1, 'rgba(6,9,16,0.96)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, 640, 400);
+    ctx.fillStyle = state.brand.accent;
+    ctx.fillRect(0, 0, 12, 400);
+    ctx.fillStyle = state.brand.primary;
+    ctx.fillRect(12, 0, 628, 74);
+    ctx.fillStyle = '#fff';
+    ctx.textBaseline = 'middle';
+    ctx.font = '800 34px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(f.kicker).toUpperCase(), 42, 40);
+    ctx.font = '800 128px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(f.value), 42, 198);
+    ctx.font = '600 40px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.fillText(tok(f.sub), 42, 320);
+    tex.needsUpdate = true;
+  };
+  g.userData.repaint();
+  return g;
 }
 
 function modelProp(media, prebuilt) {

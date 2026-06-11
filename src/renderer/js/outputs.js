@@ -69,8 +69,11 @@ export class Outputs {
     if (this.recording) return null;
     const safe = (projectName || 'chase').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-');
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
-    const path = await window.chase.recStart(`${safe}-${stamp}.webm`);
-    if (!path) return null;
+    const started = await window.chase.recStart(`${safe}-${stamp}.webm`);
+    if (!started) return null;
+    const path = started.path || started;
+    this.lowDisk = started.freeGB !== null && started.freeGB !== undefined && started.freeGB < 2;
+    this.freeGB = started.freeGB;
     this.recPath = path;
     this.recRecorder = new MediaRecorder(this.getStream(), {
       mimeType: this.codec.mime || undefined,
