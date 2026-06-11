@@ -272,6 +272,36 @@ app.whenReady().then(async () => {
   })()`);
   console.log('stage 9 checks:', JSON.stringify(stage9));
 
+  // ---- stage 10: rundown cue stack (capture, GO, NEXT through the switcher) ----
+  const stage10 = await win.webContents.executeJavaScript(`(async () => {
+    document.querySelector('.irail-btn[data-nav="scripts"]').click();
+    await new Promise((r) => setTimeout(r, 400));
+    const capBtn = !!document.getElementById('rd-capture');
+    const nextBtn = !!document.getElementById('rd-next');
+    const cut = (n) => document.querySelector('.cam-tile[data-cam="' + n + '"]')
+      .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const camNow = () => document.querySelector('.cam-tile.program')?.dataset.cam;
+    cut(2);
+    await new Promise((r) => setTimeout(r, 800));
+    document.getElementById('rd-capture').click();   // cue 1 = CAM 2
+    await new Promise((r) => setTimeout(r, 200));
+    cut(4);
+    await new Promise((r) => setTimeout(r, 800));
+    document.getElementById('rd-capture').click();   // cue 2 = CAM 4
+    await new Promise((r) => setTimeout(r, 300));
+    const rows = document.querySelectorAll('#browser-body .cue-row').length;
+    document.querySelector('#browser-body .cue-row .cue-go').click();
+    await new Promise((r) => setTimeout(r, 1400));
+    const goLive = document.querySelector('#browser-body .cue-row').classList.contains('live');
+    const goCam = camNow() === '2';
+    document.getElementById('rd-next').click();
+    await new Promise((r) => setTimeout(r, 1400));
+    const nextLive = document.querySelectorAll('#browser-body .cue-row')[1].classList.contains('live');
+    const nextCam = camNow() === '4';
+    return { capBtn, nextBtn, rows, goLive, goCam, nextLive, nextCam, cam: camNow() };
+  })()`);
+  console.log('stage 10 checks:', JSON.stringify(stage10));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -309,6 +339,8 @@ app.whenReady().then(async () => {
     && stage9.armSet && stage9.tookOnAir && stage9.armCleared
     && stage9.drawerOpen && stage9.saveBtn && stage9.presetChips === 1
     && stage9.propCards === 7 && stage9.arInputs === 3 && stage9.arHeader && stage9.latChip
+    && stage10.capBtn && stage10.nextBtn && stage10.rows === 2
+    && stage10.goLive && stage10.goCam && stage10.nextLive && stage10.nextCam
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

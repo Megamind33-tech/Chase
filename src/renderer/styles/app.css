@@ -1355,3 +1355,34 @@ button:disabled:hover { background: inherit; border-color: var(--line); }
 .ly-arm:hover { color: var(--green); border-color: #1d4d2e; }
 .ly-arm.armed { color: #04140c; background: var(--green); border-color: var(--green); }
 .ly-arm + .ly-vis { margin-left: 6px; }
+
+/* ===== v15 · rundown cue stack ===== */
+.cue-row {
+  display: flex; align-items: stretch; gap: 8px;
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: var(--r-md);
+  padding: 7px 8px; margin: 0 0 6px;
+}
+.cue-row.live { border-color: var(--red); box-shadow: 0 0 0 1px var(--red), 0 0 14px rgba(230,57,70,.25); }
+.cue-go {
+  width: 38px; flex: none; font: 700 11px/1 var(--font-ui, inherit); letter-spacing: .08em;
+  color: var(--green); background: transparent; border: 1px solid #1d4d2e; border-radius: var(--r-md);
+  cursor: pointer;
+}
+.cue-go:hover { color: #04140c; background: var(--green); border-color: var(--green); }
+.cue-row.live .cue-go { color: #fff; background: var(--red); border-color: var(--red); }
+.cue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cue-name {
+  background: transparent; border: none; outline: none; color: var(--txt);
+  font-size: 12px; font-weight: 600; padding: 0;
+}
+.cue-meta { font-size: 9.5px; letter-spacing: .06em; color: var(--txt-faint); text-transform: uppercase; }
+.cue-note {
+  background: transparent; border: none; border-top: 1px dashed var(--line-soft); outline: none;
+  color: var(--txt-dim); font-size: 10.5px; padding: 3px 0 0;
+}
+.cue-ops { display: flex; flex-direction: column; gap: 2px; flex: none; }
+.cue-ops button {
+  font-size: 9px; color: var(--txt-faint); background: transparent;
+  border: 1px solid transparent; border-radius: 4px; padding: 1px 5px; cursor: pointer;
+}
+.cue-ops button:hover { color: var(--txt); background: var(--bg-3); border-color: var(--line-soft); }

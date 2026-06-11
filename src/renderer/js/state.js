@@ -50,6 +50,8 @@ export const state = {
   // Quick scenes: named snapshots of the live look (set, cam, graphics, mood)
   scenes: [],
   gfxPresets: {}, // per-graphic saved presets: { lowerThird: [{name, data}], ... }
+  // Rundown: ordered cue stack — each cue snapshots camera + scene + graphics
+  rundown: { cues: [], live: -1 }, // cues: { id, name, camera, sceneId, gfx:{key:on}, note }
   // Ingested asset registry (Asset Manager metadata)
   assets: [], // { id, name, source, ext, tris, memMB, liveSafe, warnings, media }
   audio: {

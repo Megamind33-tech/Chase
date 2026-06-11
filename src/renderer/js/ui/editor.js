@@ -57,7 +57,7 @@ export function initEditor(ctx) {
   const NAV_TITLES = {
     sets: 'Studio sets', props: '3D objects', graphics: 'Graphics & overlays',
     lighting: 'Lighting moods', cameras: 'Virtual cameras', talent: 'Talent & guest', audio: 'Audio & jingles',
-    scripts: 'Scripts & rundowns', plugins: 'Plugins'
+    scripts: 'Rundown', plugins: 'Plugins'
   };
 
   document.querySelectorAll('.irail-btn').forEach((b) =>
@@ -92,6 +92,7 @@ export function initEditor(ctx) {
     else if (activeNav === 'cameras') buildCamerasPane(body);
     else if (activeNav === 'talent') buildTalentPane(body);
     else if (activeNav === 'audio') buildAudioPane(body);
+    else if (activeNav === 'scripts') buildRundownPane(body);
     else buildStagedPane(body, activeNav);
   }
 
@@ -724,14 +725,109 @@ export function initEditor(ctx) {
     });
   }
 
+  /* ---- rundown: ordered cue stack fired through the switcher ---- */
+  function buildRundownPane(body) {
+    $('browser-hint').textContent = 'GO fires a cue through the switcher · NEXT advances down the stack.';
+    const rd = state.rundown;
+    const bar = document.createElement('div');
+    bar.className = 'row gap';
+    bar.style.marginBottom = '9px';
+    bar.innerHTML = `<button class="btn gold slim grow" id="rd-next">NEXT ▸</button>
+      <button class="btn ghost slim" id="rd-capture">+ Capture cue</button>`;
+    body.appendChild(bar);
+    bar.querySelector('#rd-capture').addEventListener('click', () => {
+      const gfx = {};
+      for (const key of Object.keys(GRAPHICS)) {
+        if (key !== 'stinger') gfx[key] = !!state.graphics[key].on;
+      }
+      rd.cues.push({
+        id: 'cue' + Date.now().toString(36) + rd.cues.length,
+        name: 'Cue ' + (rd.cues.length + 1),
+        camera: state.camera.active,
+        sceneId: liveSceneId || null,
+        gfx, note: ''
+      });
+      logEvent('Rundown cue captured (CAM ' + state.camera.active + ')');
+      buildRundownPane(clearPane(body));
+    });
+    bar.querySelector('#rd-next').addEventListener('click', () => {
+      if (!rd.cues.length) { toast('Rundown is empty — capture a cue first.'); return; }
+      goCue(Math.min(rd.live + 1, rd.cues.length - 1), body);
+    });
+    if (!rd.cues.length) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'No cues yet. Set up a shot (camera, scene, graphics), then Capture cue. GO replays it through the switcher in order.';
+      body.appendChild(p);
+      return;
+    }
+    rd.cues.forEach((cue, i) => {
+      const row = document.createElement('div');
+      row.className = 'cue-row' + (i === rd.live ? ' live' : '');
+      row.innerHTML = `
+        <button class="cue-go" title="Fire this cue">GO</button>
+        <div class="cue-main">
+          <input class="cue-name" type="text" value="${cue.name.replace(/"/g, '&quot;')}" spellcheck="false">
+          <span class="cue-meta">CAM ${cue.camera}${cue.sceneId ? ' · scene' : ''} · ${Object.values(cue.gfx).filter(Boolean).length} gfx</span>
+          <input class="cue-note" type="text" placeholder="Story note…" value="${(cue.note || '').replace(/"/g, '&quot;')}" spellcheck="false">
+        </div>
+        <div class="cue-ops">
+          <button data-op="up" title="Move up">▲</button>
+          <button data-op="down" title="Move down">▼</button>
+          <button data-op="del" title="Remove cue">✕</button>
+        </div>`;
+      row.querySelector('.cue-go').addEventListener('click', () => goCue(i, body));
+      row.querySelector('.cue-name').addEventListener('input', (e) => { cue.name = e.target.value; });
+      row.querySelector('.cue-note').addEventListener('input', (e) => { cue.note = e.target.value; });
+      row.querySelectorAll('.cue-ops button').forEach((b) => b.addEventListener('click', () => {
+        const op = b.dataset.op;
+        if (op === 'del') {
+          rd.cues.splice(i, 1);
+          if (rd.live >= rd.cues.length) rd.live = rd.cues.length - 1;
+        } else {
+          const j = op === 'up' ? i - 1 : i + 1;
+          if (j < 0 || j >= rd.cues.length) return;
+          [rd.cues[i], rd.cues[j]] = [rd.cues[j], rd.cues[i]];
+          if (rd.live === i) rd.live = j; else if (rd.live === j) rd.live = i;
+        }
+        buildRundownPane(clearPane(body));
+      }));
+      body.appendChild(row);
+    });
+  }
+
+  function clearPane(body) { body.innerHTML = ''; return body; }
+
+  function goCue(i, body) {
+    const rd = state.rundown;
+    const cue = rd.cues[i];
+    if (!cue) return;
+    const pv = state.preview;
+    pv.gfx = {};
+    for (const [key, on] of Object.entries(cue.gfx)) {
+      if (state.graphics[key] && !!state.graphics[key].on !== on) pv.gfx[key] = on;
+    }
+    if (cue.sceneId && state.scenes.some((s) => s.id === cue.sceneId)) {
+      pv.sceneId = cue.sceneId;
+    } else {
+      pv.sceneId = null;
+      pv.camera = cue.camera;
+    }
+    takeProgram('take');
+    // a cue reproduces the exact shot: if the operator had cut away from the
+    // scene's snapshot camera before capture, honour the cue's camera
+    if (cue.camera && state.camera.active !== cue.camera) switchCam(cue.camera, true);
+    rd.live = i;
+    logEvent('Rundown GO → ' + cue.name);
+    if (activeNav === 'scripts' && body) buildRundownPane(clearPane(body));
+  }
+
   /* ---- staged panes (honest placeholders, no fake buttons) ---- */
   function buildStagedPane(body, nav) {
-    const copy = nav === 'scripts'
-      ? 'Scripts & rundowns — teleprompter text, story order and timed segments — are a staged rollout. The data model already saves with your project, so rundowns you plan now will carry over.'
-      : 'The plugin system (custom graphics packs, data feeds, scoreboards) is a staged rollout. Scene templates already cover shareable looks today via Export.';
+    const copy = 'The plugin system (custom graphics packs, data feeds, scoreboards) is a staged rollout. Scene templates already cover shareable looks today via Export.';
     const div = document.createElement('div');
     div.className = 'staged-pane';
-    div.innerHTML = `<div class="big">${icon(nav === 'scripts' ? 'scripts' : 'plugins')}</div><p>${copy}</p>`;
+    div.innerHTML = `<div class="big">${icon('plugins')}</div><p>${copy}</p>`;
     body.appendChild(div);
     $('browser-hint').textContent = 'Staged rollout — nothing fake to click here.';
   }
