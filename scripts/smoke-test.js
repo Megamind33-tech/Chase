@@ -433,7 +433,7 @@ app.whenReady().then(async () => {
     && stage12.fkBtn && stage12.auxWindow
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
-    && stage2.scenes === 1 && stage2.macros === 5 && stage2.transBtns === 6
+    && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6
     && stage2.mixerChannels === 3 && stage2.setBrowserCards === 9;
   if (!ok) {
     console.error('SMOKE TEST FAILED');

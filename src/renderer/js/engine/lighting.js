@@ -10,6 +10,18 @@ export class LightRig {
     this.hemi = new THREE.HemisphereLight('#aebcd8', '#0a0c12', 0.5);
     this.key = new THREE.DirectionalLight('#ffffff', 2.2);
     this.key.position.set(2.6, 4.6, 5.2);
+    // the key is the single shadow-casting source (broadcast practice:
+    // one readable shadow direction, soft edges)
+    this.key.castShadow = true;
+    this.key.shadow.mapSize.set(1024, 1024);
+    this.key.shadow.camera.left = -6;
+    this.key.shadow.camera.right = 6;
+    this.key.shadow.camera.top = 6;
+    this.key.shadow.camera.bottom = -3;
+    this.key.shadow.camera.near = 1;
+    this.key.shadow.camera.far = 18;
+    this.key.shadow.bias = -0.0008;
+    this.key.shadow.radius = 5;
     this.fill = new THREE.DirectionalLight('#dfe7ff', 0.9);
     this.fill.position.set(-3.2, 3.0, 4.6);
     this.back = new THREE.PointLight('#ffffff', 14, 14, 1.8);

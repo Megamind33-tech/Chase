@@ -8,6 +8,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildSet } from './sets.js';
 import { buildProp } from './props.js';
 import { Presenter } from './presenter.js';
@@ -16,15 +17,28 @@ import { LightRig } from './lighting.js';
 import { SETS, PRESETS, LIGHT_MOODS } from '../templates.js';
 import { state, nextObjectId } from '../state.js';
 
-const VignetteShader = {
-  uniforms: { tDiffuse: { value: null }, strength: { value: 0.55 } },
+// Camera response: lens vignette + fine animated photographic grain.
+// Grain is luminance-weighted (stronger in shadows, like a real sensor)
+// and is what stops clean CG from reading as CG.
+const CameraResponseShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    strength: { value: 0.55 },
+    grain: { value: 0.05 },
+    time: { value: 0 }
+  },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: `
-    uniform sampler2D tDiffuse; uniform float strength; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float strength; uniform float grain; uniform float time;
+    varying vec2 vUv;
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
       float d = distance(vUv, vec2(0.5));
       c.rgb *= 1.0 - smoothstep(0.42, 0.95, d) * strength;
+      float n = hash(vUv * vec2(1920.0, 1080.0) + mod(time, 97.0));
+      float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+      c.rgb += (n - 0.5) * grain * (1.0 - lum * 0.65);
       gl_FragColor = c;
     }`
 };
@@ -42,9 +56,20 @@ export class Studio {
     this.renderer.toneMappingExposure = 1.5;
     this.qualityScale = 1;
     this.renderer.setSize(outWidth, outHeight, false);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#04060a');
+
+    // default image-based environment: neutral studio room reflected in
+    // every PBR surface (desk, trims, glass, imported assets). An imported
+    // HDRI replaces it; clearing the HDRI falls back here, never to flat.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this._defaultEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    this.scene.environment = this._defaultEnv;
+    this.scene.environmentIntensity = 0.3;
 
     this.rig = new CameraRig(outWidth / outHeight);
     this.lights = new LightRig(this.scene);
@@ -64,7 +89,7 @@ export class Studio {
     this.composer = new EffectComposer(this.renderer);
     this.renderPass = new RenderPass(this.scene, this.rig.camera);
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(outWidth / 2, outHeight / 2), 0.55, 0.7, 0.82);
-    this.vignettePass = new ShaderPass(VignetteShader);
+    this.vignettePass = new ShaderPass(CameraResponseShader);
     this.outputPass = new OutputPass();
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.bloomPass);
@@ -135,7 +160,8 @@ export class Studio {
 
   /** HDRI environment for image-based studio relighting (PBR surfaces). */
   setEnvironment(envTexture) {
-    this.scene.environment = envTexture || null;
+    this.scene.environment = envTexture || this._defaultEnv;
+    this.scene.environmentIntensity = envTexture ? 1 : 0.3;
   }
 
   applyHaze() {
@@ -172,126 +198,65 @@ export class Studio {
   }
 
   // ---------- atmosphere FX ----------
-  /** Drifting dust motes in the light field — filmic depth, near-free. */
+  /** Drifting dust motes in the light field — filmic depth, near-free.
+      Merged camera-facing quads: verified to render on every raster path. */
   _initDust() {
-    const N = 220;
-    const pos = new Float32Array(N * 3);
+    const N = 160;
+    this._dustP = new Float32Array(N * 3);
+    this._dustSeed = new Float32Array(N);
     for (let i = 0; i < N; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 9;
-      pos[i * 3 + 1] = 0.3 + Math.random() * 3.4;
-      pos[i * 3 + 2] = -3.5 + Math.random() * 5.5;
+      this._dustP[i * 3] = (Math.random() - 0.5) * 9;
+      this._dustP[i * 3 + 1] = 0.3 + Math.random() * 3.4;
+      this._dustP[i * 3 + 2] = -3.5 + Math.random() * 5.5;
+      this._dustSeed[i] = Math.random() * Math.PI * 2;
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.dust = new THREE.Points(geo, new THREE.PointsMaterial({
-      color: '#9fb4d0', size: 0.012, transparent: true, opacity: 0.32,
-      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
-    }));
-    this.dust.userData._noPick = true;
-    this.scene.add(this.dust);
-  }
-
-  /** One-shot confetti burst above the set (Celebration FX macro). */
-  confettiBurst() {
-    this._disposeConfetti();
-    const N = 420;
     const pos = new Float32Array(N * 4 * 3);
-    const col = new Float32Array(N * 4 * 3);
     const idx = new Uint16Array(N * 6);
-    const palette = [new THREE.Color(state.brand.primary), new THREE.Color(state.brand.accent),
-      new THREE.Color('#f2f2f2'), new THREE.Color('#3aa86b'), new THREE.Color('#d92b38')];
-    this._confP = new Float32Array(N * 3);   // flake centres
-    this._confVel = new Float32Array(N * 3);
-    this._confRot = new Float32Array(N * 2); // phase, speed
     for (let i = 0; i < N; i++) {
-      this._confP[i * 3] = (Math.random() - 0.5) * 6;
-      this._confP[i * 3 + 1] = 2.6 + Math.random() * 0.8;
-      this._confP[i * 3 + 2] = -2 + Math.random() * 3.6;
-      this._confVel[i * 3] = (Math.random() - 0.5) * 0.5;
-      this._confVel[i * 3 + 1] = -(0.15 + Math.random() * 0.35);
-      this._confVel[i * 3 + 2] = (Math.random() - 0.5) * 0.35;
-      this._confRot[i * 2] = Math.random() * Math.PI * 2;
-      this._confRot[i * 2 + 1] = 3 + Math.random() * 7;
-      const c = palette[i % palette.length];
-      for (let v = 0; v < 4; v++) {
-        col[(i * 4 + v) * 3] = c.r;
-        col[(i * 4 + v) * 3 + 1] = c.g;
-        col[(i * 4 + v) * 3 + 2] = c.b;
-      }
       idx[i * 6] = i * 4; idx[i * 6 + 1] = i * 4 + 1; idx[i * 6 + 2] = i * 4 + 2;
       idx[i * 6 + 3] = i * 4; idx[i * 6 + 4] = i * 4 + 2; idx[i * 6 + 5] = i * 4 + 3;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.setIndex(new THREE.BufferAttribute(idx, 1));
-    this.confetti = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-      vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1, toneMapped: false
+    this.dust = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      color: '#7c8da6', transparent: true, opacity: 0.16,
+      blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    this.confetti.frustumCulled = false;
-    this.confetti.userData._noPick = true;
-    this._confT = 0;
-    this._writeConfetti(); // valid geometry before first render
-    this.scene.add(this.confetti);
+    this.dust.frustumCulled = false;
+    this.dust.userData._noPick = true;
+    this.scene.add(this.dust);
   }
 
-  /** Recompute the 4 corners of every tumbling flake from its centre. */
-  _writeConfetti() {
-    const p = this.confetti.geometry.attributes.position.array;
-    const n = this._confP.length / 3;
-    const hw = 0.042, hh = 0.055;
+  _writeDust(time) {
+    const cam = this.rig.camera;
+    // camera-right/up vectors so each mote faces the lens
+    const m = cam.matrixWorld.elements;
+    const rx = m[0], ry = m[1], rz = m[2];
+    const ux = m[4], uy = m[5], uz = m[6];
+    const r = 0.0075;
+    const p = this.dust.geometry.attributes.position.array;
+    const n = this._dustP.length / 3;
     for (let i = 0; i < n; i++) {
-      const cx = this._confP[i * 3], cy = this._confP[i * 3 + 1], cz = this._confP[i * 3 + 2];
-      const a = this._confRot[i * 2] + this._confT * this._confRot[i * 2 + 1];
-      const ca = Math.cos(a), sa = Math.sin(a);
-      const tilt = Math.sin(a * 0.7) * 0.9; // paper tumble: width collapses as it flips
-      const ux = ca * hw, uy = sa * hw * tilt;            // width axis
-      const vx = -sa * hh * tilt, vy = ca * hh;           // height axis
+      let y = this._dustP[i * 3 + 1] + Math.sin(time / 4000 + this._dustSeed[i]) * 0.0006 - 0.0003;
+      if (y < 0.2) y = 3.7;
+      this._dustP[i * 3 + 1] = y;
+      const x = this._dustP[i * 3] + Math.cos(time / 5000 + this._dustSeed[i] * 1.7) * 0.0008;
+      this._dustP[i * 3] = x;
+      const z = this._dustP[i * 3 + 2];
       const o = i * 12;
-      p[o] = cx - ux - vx; p[o + 1] = cy - uy - vy; p[o + 2] = cz;
-      p[o + 3] = cx + ux - vx; p[o + 4] = cy + uy - vy; p[o + 5] = cz;
-      p[o + 6] = cx + ux + vx; p[o + 7] = cy + uy + vy; p[o + 8] = cz;
-      p[o + 9] = cx - ux + vx; p[o + 10] = cy - uy + vy; p[o + 11] = cz;
+      p[o] = x - (rx + ux) * r; p[o + 1] = y - (ry + uy) * r; p[o + 2] = z - (rz + uz) * r;
+      p[o + 3] = x + (rx - ux) * r; p[o + 4] = y + (ry - uy) * r; p[o + 5] = z + (rz - uz) * r;
+      p[o + 6] = x + (rx + ux) * r; p[o + 7] = y + (ry + uy) * r; p[o + 8] = z + (rz + uz) * r;
+      p[o + 9] = x - (rx - ux) * r; p[o + 10] = y - (ry - uy) * r; p[o + 11] = z - (rz - uz) * r;
     }
-    this.confetti.geometry.attributes.position.needsUpdate = true;
-  }
-
-  _disposeConfetti() {
-    if (!this.confetti) return;
-    this.scene.remove(this.confetti);
-    this.confetti.geometry.dispose();
-    this.confetti.material.dispose();
-    this.confetti = null;
+    this.dust.geometry.attributes.position.needsUpdate = true;
   }
 
   _tickFx(dt, time) {
     if (!this.dust) this._initDust();
     this.dust.visible = this.qualityScale >= 0.7;
-    if (this.dust.visible) {
-      const p = this.dust.geometry.attributes.position;
-      for (let i = 0; i < p.count; i++) {
-        let y = p.getY(i) + Math.sin(time / 4000 + i) * 0.0006 - dt * 0.018;
-        if (y < 0.2) y = 3.7;
-        p.setY(i, y);
-        p.setX(i, p.getX(i) + Math.cos(time / 5000 + i * 1.7) * 0.0008);
-      }
-      p.needsUpdate = true;
-    }
-    if (this.confetti) {
-      this._confT += dt;
-      const n = this._confP.length / 3;
-      for (let i = 0; i < n; i++) {
-        // gravity with drag -> paper flutter, not a brick drop
-        this._confVel[i * 3 + 1] = Math.max(-0.85, this._confVel[i * 3 + 1] - dt * 0.7);
-        const sway = Math.sin(this._confT * 5 + i * 1.3) * 0.25;
-        this._confP[i * 3] += (this._confVel[i * 3] + sway) * dt;
-        this._confP[i * 3 + 1] = Math.max(0.02, this._confP[i * 3 + 1] + this._confVel[i * 3 + 1] * dt);
-        this._confP[i * 3 + 2] += this._confVel[i * 3 + 2] * dt;
-      }
-      this._writeConfetti();
-      this.confetti.material.opacity = Math.min(1, Math.max(0, 1.15 - this._confT / 5.5));
-      if (this._confT > 6.4) this._disposeConfetti();
-    }
+    if (this.dust.visible) this._writeDust(time);
   }
 
   /** Feed the guest slot from a live MediaStream (platform feed / capture). */
@@ -749,6 +714,8 @@ export class Studio {
     const cam = this.activeCamera();
     if (this.postEnabled && !this.builder) {
       this.vignettePass.uniforms.strength.value = state.look?.vignette ?? 0.5;
+      this.vignettePass.uniforms.time.value = time / 1000;
+      this.vignettePass.uniforms.grain.value = state.look?.grain ?? 0.05;
       this.bloomPass.strength = state.look?.bloom ?? 0.55;
       this.composer.render();
     } else {

@@ -323,6 +323,24 @@ export function buildSet(theme, brand, headline, opts = {}) {
       reflector?.dispose?.();
     }
   };
+  // real shadow pass: architecture casts onto a soft catcher over the
+  // reflective floor (PCF-filtered key-light shadows)
+  const catcher = new THREE.Mesh(
+    new THREE.CircleGeometry(17, 48),
+    new THREE.ShadowMaterial({ opacity: 0.38 })
+  );
+  catcher.rotation.x = -Math.PI / 2;
+  catcher.position.y = 0.012;
+  catcher.receiveShadow = true;
+  catcher.userData._noPick = true;
+  group.add(catcher);
+  group.traverse((o) => {
+    if (o.isMesh && o.material?.isMeshStandardMaterial) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    }
+  });
+
   api.paint(0);
   return api;
 }

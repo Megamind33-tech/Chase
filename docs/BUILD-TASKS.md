@@ -202,6 +202,25 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
      - needs TURN infrastructure for internet calls), RTMP/SRT ingest
      (needs decoder pipeline), NDI ingest (SDK procurement).
 
+## Phase 1k — Photorealism pass (✅ · direction: Vizrt / Zero Density)
+
+26a. ✅ Confetti macro REMOVED — decoration, not photorealism. Dust motes
+     kept but rebuilt as camera-facing merged quads (verified to render
+     on every raster path), subtle and quality-gated.
+26b. ✅ Image-based lighting: PMREM RoomEnvironment as the default
+     scene environment — every PBR surface (desk, trims, glass, imported
+     assets) gets real specular response; imported HDRI replaces it,
+     clearing falls back to the room, never to flat.
+26c. ✅ Real shadow mapping: key light casts PCF-soft 1024px shadows;
+     set architecture and props cast/receive; ShadowMaterial catcher
+     over the reflective floor. One shadow direction, broadcast style.
+26d. ✅ Camera response pass: vignette + fine animated photographic
+     grain, luminance-weighted (stronger in shadows like a real sensor);
+     SENSOR GRAIN operator control in the Look panel.
+26e. Next photoreal tier: depth-of-field on punch-ins (BokehPass,
+     quality-gated), presenter cast shadow from the key matte,
+     per-set roughness/normal detail maps.
+
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.
 - NDI SDK native module (N-API) → NDI input sources.

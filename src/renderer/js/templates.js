@@ -185,6 +185,5 @@ export const MACROS = {
   breaking:  { name: 'Breaking news', desc: 'Banner + ticker on, cut to Centre', ico: 'banner' },
   opener:    { name: 'Show opener',   desc: 'Title card up, wide shot, logo on', ico: 'macro' },
   clearGfx:  { name: 'Clear graphics', desc: 'All overlays off air', ico: 'close' },
-  interview: { name: 'Interview look', desc: 'Cross-shot, warm mood, L3 on', ico: 'talent' },
-  celebrate: { name: 'Celebration FX', desc: 'Confetti burst over the set — shows & results', ico: 'lighting' }
+  interview: { name: 'Interview look', desc: 'Cross-shot, warm mood, L3 on', ico: 'talent' }
 };

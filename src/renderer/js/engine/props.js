@@ -21,6 +21,12 @@ export function buildProp(kind, theme, brand, media, prebuilt) {
     default: g = plinthProp(theme);
   }
   addContactShadow(g, kind === 'lightbar' ? 0 : 0.55);
+  g.traverse((o) => {
+    if (o.isMesh && o.material?.isMeshStandardMaterial) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    }
+  });
   return g;
 }
 

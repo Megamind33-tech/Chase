@@ -1649,6 +1649,7 @@ export function initEditor(ctx) {
 
   bindSlider('look-bloom', (v) => { state.look.bloom = v; });
   bindSlider('look-vignette', (v) => { state.look.vignette = v; });
+  bindSlider('look-grain', (v) => { state.look.grain = v; });
   bindSlider('look-floor', (v) => { state.look.floorReflection = v; studio.set.setFloorReflection(v); });
   $('btn-led-media').addEventListener('click', async () => {
     const media = await window.chase.pickMedia('any');
@@ -2100,7 +2101,7 @@ export function initEditor(ctx) {
       list.appendChild(item);
     });
   }
-  const sceneCtx = () => ({ studio, overlay, compositor, switchCam, applyLighting, refreshGfx: refreshGfxList, confetti: () => studio.confettiBurst() });
+  const sceneCtx = () => ({ studio, overlay, compositor, switchCam, applyLighting, refreshGfx: refreshGfxList });
 
   /* ---- macros ---- */
   const macroList = $('macro-list');
@@ -3017,6 +3018,7 @@ export function initEditor(ctx) {
     $('pres-y').value = state.presenter.y;
     $('chk-drift').checked = state.camera.drift;
     $('look-bloom').value = state.look.bloom;
+    $('look-grain').value = state.look.grain ?? 0.05;
     $('look-vignette').value = state.look.vignette;
     $('look-floor').value = state.look.floorReflection;
     $('out-res').value = state.output.width + 'x' + state.output.height;
