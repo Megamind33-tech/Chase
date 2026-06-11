@@ -2783,7 +2783,11 @@ export function initEditor(ctx) {
 
   setInterval(async () => {
     $('stat-fps').textContent = (studio.fps || '—') + ' fps';
-    $('stat-gpu').textContent = 'GPU ' + Math.round(studio.qualityScale * 100) + '%';
+    const tierNames = { cpu: 'CPU SAFE', low: 'LOW', balanced: 'BALANCED', high: 'HIGH', ultra: 'ULTRA' };
+    $('stat-gpu').textContent = (studio.softwareRender ? 'CPU RENDER · ' : 'GPU · ') + (tierNames[studio.tier] || 'HIGH');
+    $('stat-gpu').title = (studio.gpuName || 'renderer') + ' · render tier ' + (studio.tier || 'high')
+      + ' · ' + Math.round(studio.qualityScale * 100) + '% scale';
+    $('stat-gpu').classList.toggle('warn', studio.tier === 'cpu');
     if (outputs.streaming) $('stat-bitrate').textContent = outputs.bitrateKbps() + ' kbps';
     const lat = $('stat-latency');
     if (lat) lat.textContent = 'IN ' + (inputLatency === null ? '—' : inputLatency + 'ms') + (droppedFrames ? ' · DROP ' + droppedFrames : '');

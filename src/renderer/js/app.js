@@ -40,6 +40,7 @@ async function setBgMode(mode) {
       toast('Loading segmentation model…');
       await segmenter.init();
       segmenter.start(document.getElementById('cam-video'));
+      segmenter.setLowPower(studio.softwareRender || studio.tier === 'cpu' || studio.tier === 'low');
       studio.presenter.setMaskTexture(segmenter.texture);
       toast(mode === 'hybrid' ? 'HYBRID KEY: chroma edge + AI gate' : 'AI matte active', 'ok');
     } catch (e) {
@@ -118,6 +119,10 @@ async function startStudio() {
 
   await setBgMode(state.bgMode);
   studio.setQuality(state.output.quality);
+  if (studio.softwareRender && state.output.height > 720 && !startStudio._cpuTip) {
+    startStudio._cpuTip = true;
+    toast('CPU renderer detected — running the CPU SAFE tier. 16:9 · 720p output is recommended on this machine.', '', 8000);
+  }
   studio.rig.switchTo(state.camera.active, 'cut', state.presenter.x);
 
   launcher.hide();

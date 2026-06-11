@@ -274,7 +274,14 @@ export function buildSet(theme, brand, headline, opts = {}) {
       deskGlow.material.opacity = 0.95 * v;
       deskEdge.material.opacity = 0.95 * v;
     },
-    setFloorReflection(v) { floorTint.material.opacity = reflector ? 1 - v : 1; },
+    setFloorReflection(v) { floorTint.material.opacity = (reflector && reflector.visible) ? 1 - v : 1; },
+    /** Planar reflection on/off — the single most expensive render feature
+        (a full extra scene pass per frame). Low tiers trade it away. */
+    setReflectorEnabled(on) {
+      if (!reflector) return;
+      reflector.visible = on;
+      floorTint.material.opacity = on ? 1 - theme.floorRefl : 1;
+    },
     /** LED media override: { url, type } or null to return to the loop */
     setLedMedia(media) {
       if (this._ledVideo) { this._ledVideo.pause(); this._ledVideo.remove(); this._ledVideo = null; }

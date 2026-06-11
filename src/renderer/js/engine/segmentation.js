@@ -72,16 +72,22 @@ export class Segmenter {
   start(videoEl) {
     this.running = true;
     this._busy = false;
+    // mask cadence: 20fps normally; small machines drop to 10fps — the
+    // temporal-stability blend in the presenter shader hides the gap
+    this.intervalMs = 50;
     const pump = async () => {
       if (!this.running) return;
       if (!this._busy && videoEl.readyState >= 2) {
         this._busy = true;
         try { await this.seg.send({ image: videoEl }); } catch { this._busy = false; }
       }
-      setTimeout(pump, 50); // ~20 fps is plenty for a mask
+      setTimeout(pump, this.intervalMs);
     };
     pump();
   }
+
+  /** Low tiers halve the mask rate — the single biggest CPU saving in AI key. */
+  setLowPower(on) { this.intervalMs = on ? 100 : 50; }
 
   stop() { this.running = false; }
 }

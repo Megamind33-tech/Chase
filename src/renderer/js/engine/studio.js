@@ -59,6 +59,17 @@ export class Studio {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+    // Detect software rasterisers (SwiftShader / llvmpipe / Mesa soft) so
+    // small machines start on the CPU tier instead of stuttering into it.
+    this.softwareRender = false;
+    try {
+      const gl = this.renderer.getContext();
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      const rname = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : (gl.getParameter(gl.RENDERER) || '');
+      this.softwareRender = /swiftshader|llvmpipe|software|basic render/i.test(String(rname));
+      this.gpuName = String(rname);
+    } catch {}
+
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#04060a');
 
@@ -137,6 +148,7 @@ export class Studio {
     this._fpsSamples = [];
     this.fps = 0;
     this.loadSet(state.setId);
+    this.setQuality(state.output?.quality || 'auto');
   }
 
   // ---------- set ----------
@@ -255,7 +267,7 @@ export class Studio {
 
   _tickFx(dt, time) {
     if (!this.dust) this._initDust();
-    this.dust.visible = this.qualityScale >= 0.7;
+    this.dust.visible = this.fxEnabled !== false;
     if (this.dust.visible) this._writeDust(time);
   }
 
@@ -415,15 +427,41 @@ export class Studio {
   }
 
   // ---------- quality ----------
+  /* ---- performance tiers ----
+     Quality degrades feature-by-feature in the order that best protects
+     the image: resolution last, planar reflection first (it is a whole
+     extra scene pass), then shadows, then post. The CPU tier is tuned so
+     software rasterisers hold a stable broadcast frame. */
+  static TIERS = {
+    ultra:    { scale: 1,    reflector: true,  shadows: true,  post: true,  dust: true,  wallFps: 12 },
+    high:     { scale: 1,    reflector: true,  shadows: true,  post: true,  dust: true,  wallFps: 12 },
+    balanced: { scale: 0.85, reflector: false, shadows: true,  post: true,  dust: false, wallFps: 8 },
+    low:      { scale: 0.7,  reflector: false, shadows: false, post: false, dust: false, wallFps: 6 },
+    cpu:      { scale: 0.55, reflector: false, shadows: false, post: false, dust: false, wallFps: 4 }
+  };
+  static TIER_ORDER = ['cpu', 'low', 'balanced', 'high', 'ultra'];
+
   setQuality(mode) {
-    const scales = { high: 1, medium: 0.75, low: 0.55 };
-    if (mode !== 'auto') {
-      this.qualityScale = scales[mode] || 1;
-      this._auto = false;
-    } else {
+    if (mode === 'auto') {
       this._auto = true;
-      this.qualityScale = 1;
+      this._applyTier(this.softwareRender ? 'cpu' : 'high');
+    } else {
+      this._auto = false;
+      this._applyTier({ high: 'ultra', medium: 'balanced', low: this.softwareRender ? 'cpu' : 'low' }[mode] || 'high');
     }
+  }
+
+  _applyTier(name) {
+    const t = Studio.TIERS[name] || Studio.TIERS.high;
+    this.tier = name;
+    this.qualityScale = t.scale;
+    this.lights.key.castShadow = t.shadows;
+    this.renderer.shadowMap.enabled = t.shadows;
+    this.set?.setReflectorEnabled?.(t.reflector);
+    if (t.reflector) this.set?.setFloorReflection?.(state.look?.floorReflection ?? 0.5);
+    this.fxEnabled = t.dust;
+    this._wallInterval = 1 / t.wallFps;
+    this.postEnabled = t.post;
     this._applyScale();
   }
 
@@ -432,7 +470,6 @@ export class Studio {
     const h = Math.round(this.height * this.qualityScale);
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
-    this.postEnabled = this.qualityScale >= 0.7; // bloom off on weak machines
     this.rig.setAspect(this.width / this.height);
   }
 
@@ -596,13 +633,22 @@ export class Studio {
   // ---------- frame ----------
   tick(time, dt) {
     this._fpsSamples.push(dt);
-    if (this._fpsSamples.length >= 30) {
+    // 12-sample window: tier decisions land in under half a second on
+    // healthy machines and within seconds even on software rasterisers
+    if (this._fpsSamples.length >= 12) {
       const avg = this._fpsSamples.reduce((a, b) => a + b, 0) / this._fpsSamples.length;
       this.fps = Math.round(1 / Math.max(avg, 0.001));
       this._fpsSamples.length = 0;
       if (this._auto) {
-        if (this.fps < 22 && this.qualityScale > 0.55) { this.qualityScale -= 0.15; this._applyScale(); }
-        else if (this.fps > 29 && this.qualityScale < 1) { this.qualityScale = Math.min(1, this.qualityScale + 0.1); this._applyScale(); }
+        const order = Studio.TIER_ORDER;
+        const i = order.indexOf(this.tier);
+        if (this.fps < 21 && i > 0) {
+          this._applyTier(order[i - 1]);
+        } else if (this.fps > 29 && i < order.length - 1 && !(this.softwareRender && i >= 1)) {
+          // software rasterisers cap at LOW: reflection/shadow passes are
+          // never worth their CPU cost there
+          this._applyTier(order[i + 1]);
+        }
       }
     }
 
@@ -631,9 +677,9 @@ export class Studio {
       }
     }
 
-    // animated LED surfaces at ~12fps
+    // animated LED surfaces — repaint cadence follows the tier
     this._wallClock += dt;
-    if (this._wallClock > 0.08) { this.set.paint(time); this._wallClock = 0; }
+    if (this._wallClock > (this._wallInterval || 0.08)) { this.set.paint(time); this._wallClock = 0; }
 
     // atmosphere FX: dust motes + active confetti
     this._tickFx(dt, time);

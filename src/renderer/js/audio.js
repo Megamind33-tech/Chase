@@ -8,11 +8,20 @@ export class AudioMixer {
     this.ctx = new AudioContext();
     this.master = this.ctx.createGain();
     this.dest = this.ctx.createMediaStreamDestination();
-    this.master.connect(this.dest);
-    // master meter
+    // brick-wall program limiter: the output bus can never clip, whatever
+    // the operator does on the faders (broadcast transmission practice)
+    this.limiter = this.ctx.createDynamicsCompressor();
+    this.limiter.threshold.value = -1.5;
+    this.limiter.knee.value = 0;
+    this.limiter.ratio.value = 20;
+    this.limiter.attack.value = 0.002;
+    this.limiter.release.value = 0.08;
+    this.master.connect(this.limiter);
+    this.limiter.connect(this.dest);
+    // master meter (post-limiter: what the transmission actually carries)
     this.masterAnalyser = this.ctx.createAnalyser();
     this.masterAnalyser.fftSize = 256;
-    this.master.connect(this.masterAnalyser);
+    this.limiter.connect(this.masterAnalyser);
 
     this.channels = new Map(); // id -> { gain, analyser, source, label }
     this._jingleEl = null;

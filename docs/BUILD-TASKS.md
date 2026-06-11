@@ -221,6 +221,28 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
      quality-gated), presenter cast shadow from the key matte,
      per-set roughness/normal detail maps.
 
+## Phase 1l — Small-machine performance engineering (✅)
+
+27a. ✅ Performance tier engine: ULTRA / HIGH / BALANCED / LOW / CPU SAFE.
+     Features degrade in image-protecting order: planar reflection first
+     (a whole extra scene pass), then shadows, then post, resolution
+     last; LED-wall repaint cadence follows the tier (12→4 fps).
+27b. ✅ Software-rasteriser detection (SwiftShader/llvmpipe/Mesa): small
+     machines BOOT on the CPU SAFE tier instead of stuttering into it;
+     CPU RENDER status chip + honest 720p output recommendation toast.
+27c. ✅ Auto tier stepping from a 12-frame fps window (sub-second
+     reaction on healthy machines); software renderers cap at LOW —
+     reflection/shadow passes are never worth their CPU cost there.
+27d. ✅ AI key low-power mode: segmentation mask rate halves (20→10fps)
+     on CPU/LOW tiers — the presenter shader's temporal-stability blend
+     hides the gap. The single biggest CPU saving in AI/hybrid key.
+27e. ✅ Program audio limiter: brick-wall (-1.5dB, 20:1) on the master
+     bus before recording/streaming — program sound can never clip;
+     master meter reads post-limiter (what transmission carries).
+27f. HONEST: tier feature toggles are verified headless; the fps GAIN
+     numbers require real hardware (the container caps occluded-window
+     rAF at ~10fps, masking workload differences). Validation week item.
+
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.
 - NDI SDK native module (N-API) → NDI input sources.
