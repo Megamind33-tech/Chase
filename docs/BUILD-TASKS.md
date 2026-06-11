@@ -181,6 +181,27 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
 24e. Procurement-gated, unchanged: NDI, virtual camera driver, encoded
      alpha output, physical-camera tracking. Honest staging only.
 
+## Phase 1j — Remote operations + import surfaces + FX (✅)
+
+25a. ✅ Typeface import: TTF/OTF/WOFF via FontFace; the brand face drives
+     every graphic, strap, LED chyron and AR panel (fontStack cascade);
+     faces persist with the project and reload on open.
+25b. ✅ Still frame graphic: imported image as full-frame or corner
+     insert (PNG alpha honoured), size/opacity/corner controls.
+25c. ✅ Clip player: video playout over program, contain/cover, play-once
+     self-clear or loop; clip audio routed into the program mix on a
+     CLIP channel (jingle fader).
+25d. ✅ Platform feed: capture any running window (Zoom / Meet / Teams /
+     browser) as a live framed source in the guest slot — thumbnail
+     source picker, stop control. Verified end-to-end against the real
+     desktopCapturer. Feed audio loopback into the mixer: staged.
+25e. ✅ Atmosphere FX: drifting dust motes in the light field (quality-
+     gated) + Celebration FX macro - 420 paper-flutter confetti flakes
+     (merged-geometry mesh, brand-coloured, drag physics, self-clears).
+25f. Staged honestly: CHASE CALL (browser-based remote guest over WebRTC
+     - needs TURN infrastructure for internet calls), RTMP/SRT ingest
+     (needs decoder pipeline), NDI ingest (SDK procurement).
+
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.
 - NDI SDK native module (N-API) → NDI input sources.

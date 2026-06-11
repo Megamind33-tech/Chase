@@ -43,5 +43,8 @@ contextBridge.exposeInMainWorld('chase', {
 
   // Control API (localhost HTTP trigger surface)
   apiInfo: () => ipcRenderer.invoke('api:info'),
-  onRemote: (cb) => ipcRenderer.on('remote:cmd', (e, msg) => cb(msg))
+  onRemote: (cb) => ipcRenderer.on('remote:cmd', (e, msg) => cb(msg)),
+
+  // Platform feed: capturable windows/screens for remote-platform ingest
+  listCaptureSources: () => ipcRenderer.invoke('sources:list')
 });

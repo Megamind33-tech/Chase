@@ -3,6 +3,7 @@
 // branded anchor desk, ceiling rig, haze-ready emissive architecture.
 import * as THREE from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
+import { fontStack } from '../state.js';
 
 const LED_W = 2048, LED_H = 640;
 const DESK_W = 768, DESK_H = 224;
@@ -355,11 +356,11 @@ function paintLed(cv, theme, brand, headline, t) {
   ctx.fillStyle = brand.accent || theme.trim;
   ctx.fillRect(0, bandY - 3, W, 2);
   ctx.textBaseline = 'middle';
-  ctx.font = '300 52px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+  ctx.font = '300 52px ' + fontStack();
   ctx.letterSpacing = '0.12em';
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
   ctx.fillText((headline || 'CHASE NEWS').toUpperCase(), 70, bandY + 44);
-  ctx.font = '600 22px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+  ctx.font = '600 22px ' + fontStack();
   ctx.letterSpacing = '0.3em';
   ctx.fillStyle = 'rgba(255,255,255,0.42)';
   const name = (brand.name || 'CHASE NEWS').toUpperCase();
@@ -512,7 +513,7 @@ function election(ctx, W, H, theme, time) {
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.fillRect(60, y, (half - 200) * a, 30);
     ctx.fillRect(half + 140, y, (half - 200) * b, 30);
-    ctx.font = '800 26px "Segoe UI", system-ui, sans-serif';
+    ctx.font = '800 26px ' + fontStack();
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.fillText(Math.round(a * 100) + '%', half - 130, y + 15);
     ctx.fillText(Math.round(b * 100) + '%', W - 130, y + 15);
@@ -578,7 +579,7 @@ function neon(ctx, W, H, theme, time) {
   ctx.shadowColor = theme.trim;
   ctx.strokeStyle = hexA(theme.trim, 0.95 * flick);
   ctx.lineWidth = 6;
-  ctx.font = '700 130px "Segoe UI", system-ui, sans-serif';
+  ctx.font = '700 130px ' + fontStack();
   ctx.strokeText('ON AIR', W * 0.08, H * 0.36);
   ctx.shadowColor = theme.accent;
   ctx.strokeStyle = hexA(theme.accent, 0.9);
@@ -683,7 +684,7 @@ function panels(ctx, W, H, theme, time) {
     ctx.fillRect(x + 5, 24 + sh + ph, W / cols - 10, 4);
   }
   // big typography
-  ctx.font = '800 170px "Segoe UI", system-ui, sans-serif';
+  ctx.font = '800 170px ' + fontStack();
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fillText('LEARN · EXPLAIN · INSPIRE', 40, H * 0.5);
 }
@@ -725,7 +726,7 @@ function paintDesk(cv, theme, brand) {
   ctx.fillRect(0, 0, W, 8);
   ctx.fillStyle = 'rgba(255,255,255,0.96)';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = '800 64px "Segoe UI", system-ui, sans-serif';
+  ctx.font = '800 64px ' + fontStack();
   ctx.fillText((brand.name || 'CHASE NEWS').toUpperCase(), W / 2, H / 2 + 6);
   ctx.textAlign = 'left';
 }

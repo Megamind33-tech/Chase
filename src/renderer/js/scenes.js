@@ -61,6 +61,9 @@ export function runMacro(id, ctx) {
     case 'clearGfx':
       for (const key of Object.keys(g)) if (g[key].on) ctx.overlay.toggle(key, false);
       break;
+    case 'celebrate':
+      ctx.confetti?.();
+      break;
     case 'interview': {
       const mood = LIGHT_MOODS.warmTalk;
       Object.assign(state.lighting, { preset: 'warmTalk', key: mood.key, fill: mood.fill, back: mood.back, temp: mood.temp, accent: mood.accent, haze: mood.haze });

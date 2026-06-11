@@ -175,7 +175,9 @@ export const GRAPHICS = {
   finance:    { name: 'Market strip', desc: 'Instruments with price + delta', ico: 'health' },
   music:      { name: 'Now playing',  desc: 'Song, artist and station metadata', ico: 'audio' },
   fullscreen: { name: 'Full screen',  desc: 'Full-frame data takeover panel', ico: 'screen' },
-  comment:    { name: 'Comment card', desc: 'Viewer comment with handle + tag', ico: 'talent' }
+  comment:    { name: 'Comment card', desc: 'Viewer comment with handle + tag', ico: 'talent' },
+  still:      { name: 'Still frame',  desc: 'Imported image — full frame or corner insert', ico: 'overlays' },
+  vtr:        { name: 'Clip player',  desc: 'Video clip playout over program · audio on the clip fader', ico: 'screen' }
 };
 
 // Control-room macros: one button = several real actions.
@@ -183,5 +185,6 @@ export const MACROS = {
   breaking:  { name: 'Breaking news', desc: 'Banner + ticker on, cut to Centre', ico: 'banner' },
   opener:    { name: 'Show opener',   desc: 'Title card up, wide shot, logo on', ico: 'macro' },
   clearGfx:  { name: 'Clear graphics', desc: 'All overlays off air', ico: 'close' },
-  interview: { name: 'Interview look', desc: 'Cross-shot, warm mood, L3 on', ico: 'talent' }
+  interview: { name: 'Interview look', desc: 'Cross-shot, warm mood, L3 on', ico: 'talent' },
+  celebrate: { name: 'Celebration FX', desc: 'Confetti burst over the set — shows & results', ico: 'lighting' }
 };

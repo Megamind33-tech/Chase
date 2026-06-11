@@ -8,7 +8,9 @@ export const state = {
     name: 'CHASE NEWS',
     primary: '#0e63d8',
     accent: '#e8b220',
-    logo: null // { url, path }
+    logo: null, // { url, path }
+    font: '',   // active graphics typeface (imported family name; '' = house stack)
+    fonts: []   // imported faces: { name, path, url }
   },
   capture: { cameraId: null, micId: null, width: 1920, height: 1080, muted: false },
   bgMode: 'chroma', // chroma | ai | framed
@@ -82,7 +84,9 @@ export const state = {
         { k: 'OTHERS', v: '6%' }
       ]
     },
-    comment: { on: false, user: '{{comment_user}}', text: '{{comment_text}}', tag: 'VIEWER' }
+    comment: { on: false, user: '{{comment_user}}', text: '{{comment_text}}', tag: 'VIEWER' },
+    still: { on: false, media: null, mode: 'full', corner: 'br', size: 1, opacity: 1 },
+    vtr: { on: false, media: null, loop: false, fit: 'contain' }
   },
   // Quick scenes: named snapshots of the live look (set, cam, graphics, mood)
   scenes: [],
@@ -107,6 +111,12 @@ export const state = {
     ]
   }
 };
+
+/** Graphics type stack — imported brand face first, house stack behind it. */
+export function fontStack() {
+  const f = state.brand.font;
+  return (f ? `"${f}", ` : '') + '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
+}
 
 /** Resolve {{tokens}} against the live data store + built-ins. */
 export function tok(str) {

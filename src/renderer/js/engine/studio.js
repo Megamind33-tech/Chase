@@ -171,6 +171,138 @@ export class Studio {
     return data;
   }
 
+  // ---------- atmosphere FX ----------
+  /** Drifting dust motes in the light field — filmic depth, near-free. */
+  _initDust() {
+    const N = 220;
+    const pos = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 9;
+      pos[i * 3 + 1] = 0.3 + Math.random() * 3.4;
+      pos[i * 3 + 2] = -3.5 + Math.random() * 5.5;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.dust = new THREE.Points(geo, new THREE.PointsMaterial({
+      color: '#9fb4d0', size: 0.012, transparent: true, opacity: 0.32,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
+    }));
+    this.dust.userData._noPick = true;
+    this.scene.add(this.dust);
+  }
+
+  /** One-shot confetti burst above the set (Celebration FX macro). */
+  confettiBurst() {
+    this._disposeConfetti();
+    const N = 420;
+    const pos = new Float32Array(N * 4 * 3);
+    const col = new Float32Array(N * 4 * 3);
+    const idx = new Uint16Array(N * 6);
+    const palette = [new THREE.Color(state.brand.primary), new THREE.Color(state.brand.accent),
+      new THREE.Color('#f2f2f2'), new THREE.Color('#3aa86b'), new THREE.Color('#d92b38')];
+    this._confP = new Float32Array(N * 3);   // flake centres
+    this._confVel = new Float32Array(N * 3);
+    this._confRot = new Float32Array(N * 2); // phase, speed
+    for (let i = 0; i < N; i++) {
+      this._confP[i * 3] = (Math.random() - 0.5) * 6;
+      this._confP[i * 3 + 1] = 2.6 + Math.random() * 0.8;
+      this._confP[i * 3 + 2] = -2 + Math.random() * 3.6;
+      this._confVel[i * 3] = (Math.random() - 0.5) * 0.5;
+      this._confVel[i * 3 + 1] = -(0.15 + Math.random() * 0.35);
+      this._confVel[i * 3 + 2] = (Math.random() - 0.5) * 0.35;
+      this._confRot[i * 2] = Math.random() * Math.PI * 2;
+      this._confRot[i * 2 + 1] = 3 + Math.random() * 7;
+      const c = palette[i % palette.length];
+      for (let v = 0; v < 4; v++) {
+        col[(i * 4 + v) * 3] = c.r;
+        col[(i * 4 + v) * 3 + 1] = c.g;
+        col[(i * 4 + v) * 3 + 2] = c.b;
+      }
+      idx[i * 6] = i * 4; idx[i * 6 + 1] = i * 4 + 1; idx[i * 6 + 2] = i * 4 + 2;
+      idx[i * 6 + 3] = i * 4; idx[i * 6 + 4] = i * 4 + 2; idx[i * 6 + 5] = i * 4 + 3;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    this.confetti = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1, toneMapped: false
+    }));
+    this.confetti.frustumCulled = false;
+    this.confetti.userData._noPick = true;
+    this._confT = 0;
+    this._writeConfetti(); // valid geometry before first render
+    this.scene.add(this.confetti);
+  }
+
+  /** Recompute the 4 corners of every tumbling flake from its centre. */
+  _writeConfetti() {
+    const p = this.confetti.geometry.attributes.position.array;
+    const n = this._confP.length / 3;
+    const hw = 0.042, hh = 0.055;
+    for (let i = 0; i < n; i++) {
+      const cx = this._confP[i * 3], cy = this._confP[i * 3 + 1], cz = this._confP[i * 3 + 2];
+      const a = this._confRot[i * 2] + this._confT * this._confRot[i * 2 + 1];
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const tilt = Math.sin(a * 0.7) * 0.9; // paper tumble: width collapses as it flips
+      const ux = ca * hw, uy = sa * hw * tilt;            // width axis
+      const vx = -sa * hh * tilt, vy = ca * hh;           // height axis
+      const o = i * 12;
+      p[o] = cx - ux - vx; p[o + 1] = cy - uy - vy; p[o + 2] = cz;
+      p[o + 3] = cx + ux - vx; p[o + 4] = cy + uy - vy; p[o + 5] = cz;
+      p[o + 6] = cx + ux + vx; p[o + 7] = cy + uy + vy; p[o + 8] = cz;
+      p[o + 9] = cx - ux + vx; p[o + 10] = cy - uy + vy; p[o + 11] = cz;
+    }
+    this.confetti.geometry.attributes.position.needsUpdate = true;
+  }
+
+  _disposeConfetti() {
+    if (!this.confetti) return;
+    this.scene.remove(this.confetti);
+    this.confetti.geometry.dispose();
+    this.confetti.material.dispose();
+    this.confetti = null;
+  }
+
+  _tickFx(dt, time) {
+    if (!this.dust) this._initDust();
+    this.dust.visible = this.qualityScale >= 0.7;
+    if (this.dust.visible) {
+      const p = this.dust.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        let y = p.getY(i) + Math.sin(time / 4000 + i) * 0.0006 - dt * 0.018;
+        if (y < 0.2) y = 3.7;
+        p.setY(i, y);
+        p.setX(i, p.getX(i) + Math.cos(time / 5000 + i * 1.7) * 0.0008);
+      }
+      p.needsUpdate = true;
+    }
+    if (this.confetti) {
+      this._confT += dt;
+      const n = this._confP.length / 3;
+      for (let i = 0; i < n; i++) {
+        // gravity with drag -> paper flutter, not a brick drop
+        this._confVel[i * 3 + 1] = Math.max(-0.85, this._confVel[i * 3 + 1] - dt * 0.7);
+        const sway = Math.sin(this._confT * 5 + i * 1.3) * 0.25;
+        this._confP[i * 3] += (this._confVel[i * 3] + sway) * dt;
+        this._confP[i * 3 + 1] = Math.max(0.02, this._confP[i * 3 + 1] + this._confVel[i * 3 + 1] * dt);
+        this._confP[i * 3 + 2] += this._confVel[i * 3 + 2] * dt;
+      }
+      this._writeConfetti();
+      this.confetti.material.opacity = Math.min(1, Math.max(0, 1.15 - this._confT / 5.5));
+      if (this._confT > 6.4) this._disposeConfetti();
+    }
+  }
+
+  /** Feed the guest slot from a live MediaStream (platform feed / capture). */
+  setGuestStream(stream) {
+    if (this._guestStream) {
+      for (const t of this._guestStream.getTracks()) t.stop();
+    }
+    this._guestStream = stream || null;
+    if (!stream) this.guestVideo.srcObject = null;
+  }
+
   removeObject(id) {
     const g = this.objects.get(id);
     if (g) {
@@ -538,6 +670,9 @@ export class Studio {
     this._wallClock += dt;
     if (this._wallClock > 0.08) { this.set.paint(time); this._wallClock = 0; }
 
+    // atmosphere FX: dust motes + active confetti
+    this._tickFx(dt, time);
+
     this.presenter.applyPlacement(state.presenter);
 
     // AutoFrame v2: centre, headroom and shot size from the live mask
@@ -571,10 +706,16 @@ export class Studio {
       this.rig.autoPunch = null;
     }
 
-    // guest slot
+    // guest slot — file loop, or a live platform feed (captured window)
     const gst = state.talent?.guest;
-    if (gst?.on && gst.media) {
-      if (this.guestVideo.src !== gst.media.url) {
+    if (gst?.on && (gst.media || this._guestStream)) {
+      if (this._guestStream) {
+        if (this.guestVideo.srcObject !== this._guestStream) {
+          this.guestVideo.srcObject = this._guestStream;
+          this.guestVideo.play().catch(() => {});
+        }
+      } else if (this.guestVideo.src !== gst.media.url) {
+        this.guestVideo.srcObject = null;
         this.guestVideo.src = gst.media.url;
         this.guestVideo.play().catch(() => {});
       }
@@ -582,11 +723,12 @@ export class Studio {
       this.guest.applyPlacement(gst);
       this.guest.applyChroma(state.chroma);
       this.guest.applyEnhance(state.enhance, this.lights.grade);
-      this.guest.setMode('chroma');
+      // platform feeds are not chroma sources — show them framed
+      this.guest.setMode(this._guestStream ? 'framed' : 'chroma');
       this.guest.tick(this.rig.camera);
     } else {
       this.guest.group.visible = false;
-      if (this.guestVideo.src) { this.guestVideo.pause(); }
+      if (this.guestVideo.src || this.guestVideo.srcObject) { this.guestVideo.pause(); }
     }
     this.rig.punch = state.camera.punch;
     this.rig.fovScale = state.camera.fovScale ?? 1;

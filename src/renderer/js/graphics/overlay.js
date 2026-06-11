@@ -1,7 +1,7 @@
 // Broadcast graphics engine: lower thirds, ticker, logo bug, breaking
 // banner, title card and clock — drawn on a 1920×1080 2D canvas that the
 // compositor layers over the 3D program. All animation is time-based.
-import { state, tok } from '../state.js';
+import { state, tok, fontStack } from '../state.js';
 
 // Frame size follows the program format (16:9 / 9:16 / 1:1) — every layout
 // in this engine is anchored to W/H and the title-safe insets, never to
@@ -30,8 +30,7 @@ const DUR = { lowerThird: { in: 0.8, out: 0.5 } };
    1px top hairline, soft drop shadow for separation from video, thin
    accent rules (never large filled areas), tracked-out caps for labels,
    light-weight numerals for big values. */
-const TYPE = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
-const F = (weight, size) => `${weight} ${size}px ${TYPE}`;
+const F = (weight, size) => `${weight} ${size}px ${fontStack()}`;
 const INK_TOP = 'rgba(10,12,16,0.93)';
 const INK_BOT = 'rgba(5,6,9,0.95)';
 const INK_SOFT = 'rgba(16,19,25,0.93)';
@@ -90,6 +89,25 @@ export class OverlayEngine {
     this.logoImg = null;
     this.tickerX = 0;
     this._lastT = 0;
+    this.stillImg = null;
+    // persistent clip player — its audio is wired into the mixer once
+    this.vtrEl = document.createElement('video');
+    this.vtrEl.crossOrigin = 'anonymous';
+    this.vtrEl.playsInline = true;
+    this.vtrEl.addEventListener('ended', () => {
+      if (!state.graphics.vtr.loop) this.toggle('vtr', false);
+    });
+  }
+
+  setStill(url) {
+    if (!url) { this.stillImg = null; return; }
+    const img = new Image();
+    img.onload = () => { this.stillImg = img; };
+    img.src = url;
+  }
+
+  setVtr(url) {
+    this.vtrEl.src = url || '';
   }
 
   /** Re-flow the whole graphics layer to a new program format. */
@@ -113,6 +131,15 @@ export class OverlayEngine {
     state.graphics[key].on = on;
     this.anim[key] = { t: 0, dir: on ? 1 : -1 };
     if (key === 'countdown' && on) { this._cdStart = Date.now(); this._cdDone = false; }
+    if (key === 'vtr') {
+      if (on) {
+        this.vtrEl.loop = !!state.graphics.vtr.loop;
+        this.vtrEl.currentTime = 0;
+        this.vtrEl.play().catch(() => {});
+      } else {
+        this.vtrEl.pause();
+      }
+    }
   }
 
   _phase(key) {
@@ -149,6 +176,8 @@ export class OverlayEngine {
     const g = state.graphics;
     const brand = state.brand;
 
+    if (g.vtr.on || this.anim.vtr) this.drawVtr(ctx, this._phase('vtr'));
+    if (g.still.on || this.anim.still) this.drawStill(ctx, this._phase('still'));
     if (g.fullscreen.on || this.anim.fullscreen) this.drawFullscreen(ctx, this._phase('fullscreen'));
     if (g.ticker.on || this.anim.ticker) this.drawTicker(ctx, dt, this._phase('ticker'));
     if (g.finance.on || this.anim.finance) this.drawFinance(ctx, this._phase('finance'));
@@ -914,6 +943,55 @@ export class OverlayEngine {
     ctx.font = F(400, 23);
     ctx.fillStyle = 'rgba(255,255,255,0.82)';
     lines.forEach((l, i) => ctx.fillText(l, x + 28, y + 70 + i * 32));
+    ctx.restore();
+  }
+
+  /** Imported still: full-frame (fit) or corner insert with shadow. */
+  drawStill(ctx, ph) {
+    if (ph <= 0 || !this.stillImg) return;
+    const g = state.graphics.still;
+    const img = this.stillImg;
+    ctx.save();
+    ctx.globalAlpha = ph * (g.opacity ?? 1);
+    if (g.mode === 'full') {
+      const s = Math.min(W / img.width, H / img.height);
+      const dw = img.width * s, dh = img.height * s;
+      ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    } else {
+      const maxW = W * 0.28 * (g.size || 1);
+      const s = Math.min(maxW / img.width, (H * 0.4) / img.height);
+      const dw = img.width * s, dh = img.height * s;
+      const pos = {
+        tr: [W - SAFE_X - dw, SAFE_Y], tl: [SAFE_X, SAFE_Y],
+        br: [W - SAFE_X - dw, H - SAFE_Y - dh], bl: [SAFE_X, H - SAFE_Y - dh]
+      }[g.corner || 'br'];
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 8;
+      ctx.drawImage(img, pos[0], pos[1] + (1 - ph) * 24, dw, dh);
+    }
+    ctx.restore();
+  }
+
+  /** Clip playout: imported video over program, contain or cover. */
+  drawVtr(ctx, ph) {
+    if (ph <= 0) return;
+    const v = this.vtrEl;
+    if (!v.videoWidth) return;
+    const g = state.graphics.vtr;
+    ctx.save();
+    ctx.globalAlpha = ph;
+    if (g.fit === 'cover') {
+      const s = Math.max(W / v.videoWidth, H / v.videoHeight);
+      const dw = v.videoWidth * s, dh = v.videoHeight * s;
+      ctx.drawImage(v, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,' + 0.92 * ph + ')';
+      ctx.fillRect(0, 0, W, H);
+      const s = Math.min(W / v.videoWidth, H / v.videoHeight);
+      const dw = v.videoWidth * s, dh = v.videoHeight * s;
+      ctx.drawImage(v, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    }
     ctx.restore();
   }
 

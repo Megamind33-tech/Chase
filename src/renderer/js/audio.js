@@ -84,6 +84,15 @@ export class AudioMixer {
     this._jingleEl.onended = () => { if (!loop) this.stopJingle(); };
   }
 
+  /** Route the clip player's audio through the CLIP channel (rides the jingle fader). */
+  attachClip(videoEl) {
+    if (this._clipSrc) return; // a media element can only be wired once
+    try {
+      this._clipSrc = this.ctx.createMediaElementSource(videoEl);
+      this._addChannel('clip', 'CLIP', this._clipSrc);
+    } catch {}
+  }
+
   stopJingle() {
     if (this._jingleEl) { this._jingleEl.pause(); this._jingleEl.src = ''; this._jingleEl = null; }
     this.removeChannel('jingle');
@@ -95,6 +104,7 @@ export class AudioMixer {
     const a = state.audio;
     this.channels.get('mic')?.gain.gain.setTargetAtTime(state.capture.muted ? 0 : a.micGain, this.ctx.currentTime, 0.02);
     this.channels.get('jingle')?.gain.gain.setTargetAtTime(a.jingleGain, this.ctx.currentTime, 0.02);
+    this.channels.get('clip')?.gain.gain.setTargetAtTime(a.jingleGain, this.ctx.currentTime, 0.02);
     this.master.gain.setTargetAtTime(a.masterGain, this.ctx.currentTime, 0.02);
   }
 

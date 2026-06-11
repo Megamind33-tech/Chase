@@ -562,18 +562,20 @@ export function initEditor(ctx) {
       <div class="chipset">
         <button class="chip${t.guest.on ? ' active' : ''}" id="guest-on">Enable</button>
         <button class="chip" id="guest-media">Load guest video…</button>
+        <button class="chip" id="guest-feed" title="Capture a running call window (Zoom, Meet, Teams, browser) as a live framed source">Platform feed…</button>
       </div>
       <div class="field slim"><label>Position</label><input type="range" id="guest-x" min="-2.5" max="2.5" step="0.01" value="${t.guest.x}"></div>
       <div class="field slim"><label>Size</label><input type="range" id="guest-scale" min="0.5" max="1.8" step="0.01" value="${t.guest.scale}"></div>
-      <p class="hint">A keyed second person from a video file (recorded on green screen) —
-      place them opposite your live presenter for the two-shot discussion. A second live
-      camera input is the staged next step.</p>`;
+      <p class="hint">Two sources: a keyed green-screen video file, or a live platform feed —
+      a captured call window (Zoom/Meet/Teams), shown framed. Feed audio plays on the
+      system as normal; mixer loopback capture is the staged next step.</p>`;
     body.appendChild(g);
     g.querySelector('#guest-on').addEventListener('click', (e) => {
-      if (!t.guest.media) { toast('Load the guest video first.', 'err'); return; }
+      if (!t.guest.media && !studio._guestStream) { toast('Load a guest video or start a platform feed first.', 'err'); return; }
       t.guest.on = e.target.classList.toggle('active');
       logEvent(t.guest.on ? 'Guest slot ON' : 'Guest slot off');
     });
+    g.querySelector('#guest-feed').addEventListener('click', openSourcePicker);
     g.querySelector('#guest-media').addEventListener('click', async () => {
       const media = await window.chase.pickMedia('video');
       if (!media) return;
@@ -586,6 +588,56 @@ export function initEditor(ctx) {
     g.querySelector('#guest-x').addEventListener('input', (e) => { t.guest.x = parseFloat(e.target.value); });
     g.querySelector('#guest-scale').addEventListener('input', (e) => { t.guest.scale = parseFloat(e.target.value); });
   }
+
+  /* ---- platform feed: ingest a captured window as a live guest source ---- */
+  async function openSourcePicker() {
+    $('modal-sources').hidden = false;
+    const grid = $('source-grid');
+    grid.innerHTML = '<p class="hint">Scanning windows…</p>';
+    let sources = [];
+    try { sources = await window.chase.listCaptureSources(); } catch {}
+    if (!sources.length) {
+      grid.innerHTML = '<p class="hint">No capturable windows found. Open the call application first, then Refresh.</p>';
+      return;
+    }
+    grid.innerHTML = '';
+    for (const s of sources) {
+      const card = document.createElement('button');
+      card.className = 'source-card';
+      card.innerHTML = `<img src="${s.thumb}" alt=""><span>${s.name.slice(0, 42)}</span>`;
+      card.addEventListener('click', () => startPlatformFeed(s));
+      grid.appendChild(card);
+    }
+  }
+  async function startPlatformFeed(s) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          mandatory: {
+            chromeMediaSource: 'desktop', chromeMediaSourceId: s.id,
+            maxWidth: 1920, maxHeight: 1080, maxFrameRate: 30
+          }
+        }
+      });
+      studio.setGuestStream(stream);
+      state.talent.guest.on = true;
+      $('modal-sources').hidden = true;
+      logEvent('Platform feed live: ' + s.name, 'ok');
+      toast('"' + s.name.slice(0, 32) + '" is live in the guest slot.', 'ok', 3500);
+      if (activeNav === 'talent') buildBrowser();
+    } catch (e) {
+      toast('Could not capture that window: ' + e.message, 'err', 5000);
+    }
+  }
+  $('sources-cancel').addEventListener('click', () => { $('modal-sources').hidden = true; });
+  $('sources-refresh').addEventListener('click', openSourcePicker);
+  $('sources-stop').addEventListener('click', () => {
+    studio.setGuestStream(null);
+    state.talent.guest.on = !!state.talent.guest.media;
+    logEvent('Platform feed stopped');
+    toast('Platform feed stopped.');
+  });
 
   /* ---- capture wizard: records keyed loops from the live camera ---- */
   let capDraft = null;
@@ -1791,6 +1843,53 @@ export function initEditor(ctx) {
     refreshGfxList();
   });
 
+  /* ---- typeface import: one face drives every graphic surface ---- */
+  function rebuildFontSelect() {
+    $('brand-font').innerHTML = '<option value="">House stack (Segoe UI)</option>' +
+      (state.brand.fonts || []).map((f) =>
+        `<option value="${f.name}"${state.brand.font === f.name ? ' selected' : ''}>${f.name}</option>`).join('');
+  }
+  async function loadBrandFonts() {
+    for (const f of state.brand.fonts || []) {
+      if ([...document.fonts].some((ff) => ff.family === f.name)) continue;
+      try {
+        const face = new FontFace(f.name, `url("${f.url}")`);
+        await face.load();
+        document.fonts.add(face);
+      } catch {
+        toast('Typeface "' + f.name + '" could not be loaded from disk.', 'err');
+      }
+    }
+    rebuildFontSelect();
+  }
+  $('btn-brand-font').addEventListener('click', async () => {
+    const media = await window.chase.pickMedia('font');
+    if (!media) return;
+    const name = media.name.replace(/\.(ttf|otf|woff2?)$/i, '').replace(/[_\s]+/g, ' ').trim();
+    try {
+      const face = new FontFace(name, `url("${media.url}")`);
+      await face.load();
+      document.fonts.add(face);
+    } catch {
+      toast('That file could not be read as a typeface.', 'err');
+      return;
+    }
+    state.brand.fonts = state.brand.fonts || [];
+    if (!state.brand.fonts.some((f) => f.name === name)) {
+      state.brand.fonts.push({ name, path: media.path, url: media.url });
+    }
+    state.brand.font = name;
+    rebuildFontSelect();
+    studio.set?.markDirty?.();
+    logEvent('Typeface imported: ' + name);
+    toast('"' + name + '" is now the graphics typeface.');
+  });
+  $('brand-font').addEventListener('change', (e) => {
+    state.brand.font = e.target.value;
+    studio.set?.markDirty?.();
+    logEvent('Graphics typeface → ' + (e.target.value || 'house stack'));
+  });
+
   /* ---- stream panel (inspector) ---- */
   function applyFormatChrome() {
     const { width: w, height: h } = state.output;
@@ -2001,7 +2100,7 @@ export function initEditor(ctx) {
       list.appendChild(item);
     });
   }
-  const sceneCtx = () => ({ studio, overlay, compositor, switchCam, applyLighting, refreshGfx: refreshGfxList });
+  const sceneCtx = () => ({ studio, overlay, compositor, switchCam, applyLighting, refreshGfx: refreshGfxList, confetti: () => studio.confettiBurst() });
 
   /* ---- macros ---- */
   const macroList = $('macro-list');
@@ -2288,7 +2387,40 @@ export function initEditor(ctx) {
           <div class="field slim"><label>Tag</label><input type="text" id="gd-c-tag" value="${escAttr(g.tag)}" style="width:100px"></div>
         </div>
         <div class="field slim"><label>Comment</label><input type="text" id="gd-c-text" value="${escAttr(g.text)}"></div>
-        <p class="hint">Paste a viewer comment, or bind {{comment_user}} / {{comment_text}} and drive them from the Control API.</p>`
+        <p class="hint">Paste a viewer comment, or bind {{comment_user}} / {{comment_text}} and drive them from the Control API.</p>`,
+      still: `
+        <div class="field slim"><label>Image</label>
+          <button class="btn ghost slim" id="gd-still-pick">${g.media ? g.media.name : 'Import image…'}</button></div>
+        <div class="row gap">
+          <div class="field slim grow"><label>Mode</label>
+            <select id="gd-still-mode">
+              <option value="full"${g.mode === 'full' ? ' selected' : ''}>Full frame</option>
+              <option value="corner"${g.mode === 'corner' ? ' selected' : ''}>Corner insert</option>
+            </select></div>
+          <div class="field slim grow"><label>Corner</label>
+            <select id="gd-still-corner">
+              ${['tr', 'tl', 'br', 'bl'].map((c) => `<option value="${c}"${g.corner === c ? ' selected' : ''}>${c.toUpperCase()}</option>`).join('')}
+            </select></div>
+        </div>
+        <div class="field slim"><label>Size</label><input type="range" id="gd-still-size" min="0.4" max="2" step="0.05" value="${g.size}"></div>
+        <div class="field slim"><label>Opacity</label><input type="range" id="gd-still-op" min="0.2" max="1" step="0.05" value="${g.opacity}"></div>
+        <p class="hint">PNG alpha is honoured — sponsor cards, maps, OTS inserts.</p>`,
+      vtr: `
+        <div class="field slim"><label>Clip</label>
+          <button class="btn ghost slim" id="gd-vtr-pick">${g.media ? g.media.name : 'Import clip…'}</button></div>
+        <div class="row gap">
+          <div class="field slim grow"><label>Fit</label>
+            <select id="gd-vtr-fit">
+              <option value="contain"${g.fit === 'contain' ? ' selected' : ''}>Contain (pillarbox)</option>
+              <option value="cover"${g.fit === 'cover' ? ' selected' : ''}>Cover (fill frame)</option>
+            </select></div>
+          <div class="field slim"><label>Loop</label>
+            <select id="gd-vtr-loop">
+              <option value=""${!g.loop ? ' selected' : ''}>Play once, self-clear</option>
+              <option value="1"${g.loop ? ' selected' : ''}>Loop</option>
+            </select></div>
+        </div>
+        <p class="hint">Clip audio rides the JINGLE fader in the mixer. Put on air to roll from the top.</p>`
     };
     const presets = state.gfxPresets[key] || [];
     body.innerHTML = (forms[key] || '') + `
@@ -2365,6 +2497,28 @@ export function initEditor(ctx) {
     bind('gd-c-user', (v) => { g.user = v; });
     bind('gd-c-text', (v) => { g.text = v; });
     bind('gd-c-tag', (v) => { g.tag = v; });
+    bind('gd-still-mode', (v) => { g.mode = v; });
+    bind('gd-still-corner', (v) => { g.corner = v; });
+    bind('gd-still-size', (v) => { g.size = parseFloat(v); });
+    bind('gd-still-op', (v) => { g.opacity = parseFloat(v); });
+    bind('gd-vtr-fit', (v) => { g.fit = v; });
+    bind('gd-vtr-loop', (v) => { g.loop = !!v; });
+    document.getElementById('gd-still-pick')?.addEventListener('click', async () => {
+      const media = await window.chase.pickMedia('image');
+      if (!media) return;
+      g.media = { url: media.url, path: media.path, name: media.name };
+      overlay.setStill(media.url);
+      logEvent('Still imported: ' + media.name);
+      openGfxDrawer(key);
+    });
+    document.getElementById('gd-vtr-pick')?.addEventListener('click', async () => {
+      const media = await window.chase.pickMedia('video');
+      if (!media) return;
+      g.media = { url: media.url, path: media.path, name: media.name };
+      overlay.setVtr(media.url);
+      logEvent('Clip loaded: ' + media.name);
+      openGfxDrawer(key);
+    });
     bind('gd-kicker', (v) => { g.kicker = v; });
     bind('gd-value', (v) => { g.value = v; });
     bind('gd-sub', (v) => { g.sub = v; });
@@ -2845,6 +2999,10 @@ export function initEditor(ctx) {
     $('brand-name').value = state.brand.name;
     $('brand-primary').value = state.brand.primary;
     $('brand-accent').value = state.brand.accent;
+    loadBrandFonts();
+    if (state.graphics.still?.media) overlay.setStill(state.graphics.still.media.url);
+    if (state.graphics.vtr?.media) overlay.setVtr(state.graphics.vtr.media.url);
+    audio.attachClip(overlay.vtrEl);
     if (state.brand.logo?.url) {
       overlay.setLogo(state.brand.logo.url);
       $('brand-logo-preview').src = state.brand.logo.url;

@@ -41,6 +41,7 @@ app.whenReady().then(async () => {
     'recovery:load', 'recovery:clear', 'log:path', 'data:openText']) {
     ipcMain.handle(ch, () => null);
   }
+  ipcMain.handle('sources:list', () => [{ id: 'screen:0:0', name: 'Smoke Screen', thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==' }]);
   ipcMain.handle('project:recent', () => []);
   ipcMain.handle('api:info', () => ({ port: 7611, on: true }));
   ipcMain.handle('sys:health', () => ({ cpuPercent: 12, memMB: 800, sysMemMB: 16384 }));
@@ -231,8 +232,21 @@ app.whenReady().then(async () => {
     const dataModal = !document.getElementById('modal-data').hidden;
     const dataRows = document.querySelectorAll('#data-table .data-row').length;
     document.getElementById('data-close').click();
-    // token binding live test: set a field, enable scoreboard, read program pixels later
-    return { gfxCards, dataBtn, dataModal, dataRows,
+    // remote-operations import surfaces: typeface, platform feed, clip player
+    document.querySelector('.insp-tab[data-panel="brand"]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const fontUI = !!document.getElementById('brand-font') && !!document.getElementById('btn-brand-font');
+    document.querySelector('.irail-btn[data-nav="talent"]').click();
+    await new Promise((r) => setTimeout(r, 400));
+    const feedBtn = !!document.getElementById('guest-feed');
+    document.getElementById('guest-feed').click();
+    await new Promise((r) => setTimeout(r, 500));
+    const sourceModal = !document.getElementById('modal-sources').hidden;
+    const sourceCards = document.querySelectorAll('.source-card').length;
+    document.getElementById('sources-cancel').click();
+    document.querySelector('.irail-btn[data-nav="graphics"]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    return { gfxCards, dataBtn, dataModal, dataRows, fontUI, feedBtn, sourceModal, sourceCards,
       gfxTypes: document.querySelectorAll('#gfx-list li').length };
   })()`);
   console.log('stage 8 checks:', JSON.stringify(stage8));
@@ -403,8 +417,9 @@ app.whenReady().then(async () => {
     && stage6.plateBtns && stage6.plateCaptured && stage6.afOn
     && stage7.segBridge && stage7.recoveryBridge && stage7.logBridge
     && stage7.playlistBtn && stage7.dwellInput && stage7.shotSelect && stage7.fps60
-    && stage8.gfxCards === 16 && stage8.dataBtn && stage8.dataModal
-    && stage8.dataRows >= 3 && stage8.gfxTypes === 16
+    && stage8.gfxCards === 18 && stage8.dataBtn && stage8.dataModal
+    && stage8.dataRows >= 3 && stage8.gfxTypes === 18
+    && stage8.fontUI && stage8.feedBtn && stage8.sourceModal && stage8.sourceCards === 1
     && stage9.armSet && stage9.tookOnAir && stage9.armCleared
     && stage9.drawerOpen && stage9.saveBtn && stage9.presetChips === 1
     && stage9.propCards === 9 && stage9.arInputs === 4 && stage9.arHeader && stage9.latChip
@@ -418,7 +433,7 @@ app.whenReady().then(async () => {
     && stage12.fkBtn && stage12.auxWindow
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
-    && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6
+    && stage2.scenes === 1 && stage2.macros === 5 && stage2.transBtns === 6
     && stage2.mixerChannels === 3 && stage2.setBrowserCards === 9;
   if (!ok) {
     console.error('SMOKE TEST FAILED');

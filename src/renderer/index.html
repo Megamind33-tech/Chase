@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self' app: media: blob: data:; script-src 'self' app: 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' app: 'unsafe-inline'; img-src 'self' app: media: blob: data:; media-src 'self' app: media: blob: data:; connect-src 'self' app: blob: data: https:;" />
+      content="default-src 'self' app: media: blob: data:; script-src 'self' app: 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' app: 'unsafe-inline'; img-src 'self' app: media: blob: data:; media-src 'self' app: media: blob: data:; font-src 'self' app: media: blob: data:; connect-src 'self' app: blob: data: https:;" />
 <title>Chase Studio Pro</title>
 <link rel="stylesheet" href="./styles/app.css" />
 <script type="importmap">
@@ -410,8 +410,14 @@
             <img id="brand-logo-preview" class="logo-preview" hidden alt="logo" />
           </div>
         </div>
+        <div class="field slim"><label>Graphics typeface</label>
+          <div class="row gap">
+            <select id="brand-font" class="grow"><option value="">House stack (Segoe UI)</option></select>
+            <button class="btn ghost slim" id="btn-brand-font" title="Import a TTF/OTF/WOFF typeface — drives every graphic, strap and in-set panel">Import…</button>
+          </div>
+        </div>
         <p class="hint">Branding cascades everywhere: LED wall, desk front, lower thirds,
-        ticker and the logo bug.</p>
+        ticker, the logo bug and AR panels — including the imported typeface.</p>
       </div>
 
       <!-- STREAM / OUTPUT -->
@@ -580,6 +586,20 @@
     </div>
     <div class="statusbox" id="data-status" hidden></div>
     <footer class="modal-foot"><button class="btn ghost" id="data-close">Close</button></footer>
+  </div>
+</div>
+
+<!-- platform feed: pick a window/screen to ingest as a live source -->
+<div class="modal-backdrop" id="modal-sources" hidden>
+  <div class="modal">
+    <h2>Platform feed</h2>
+    <p class="hint">Bring any running call window in as a live source — Zoom, Meet, Teams, a browser tab, a second screen. The feed lands in the guest slot, framed.</p>
+    <div class="source-grid" id="source-grid"></div>
+    <div class="row gap" style="margin-top:12px">
+      <button class="btn ghost slim" id="sources-refresh">Refresh</button>
+      <button class="btn ghost slim" id="sources-stop">Stop feed</button>
+      <button class="btn ghost slim" id="sources-cancel" style="margin-left:auto">Close</button>
+    </div>
   </div>
 </div>
 

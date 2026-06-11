@@ -1440,3 +1440,16 @@ button:disabled:hover { background: inherit; border-color: var(--line); }
   padding: 2px 8px; cursor: pointer;
 }
 .vp-safe.on { color: var(--gold); border-color: var(--gold); }
+
+/* ===== v16 · platform feed source picker ===== */
+.source-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  max-height: 420px; overflow-y: auto; margin-top: 10px;
+}
+.source-card {
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: var(--r-md);
+  padding: 6px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 5px;
+}
+.source-card:hover { border-color: var(--blue); }
+.source-card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 2px; background: #000; }
+.source-card span { font-size: 10.5px; color: var(--txt-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

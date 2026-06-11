@@ -2,7 +2,7 @@
 // is a Group with userData: { kind, id, setMedia?, setShadow }, carrying a
 // soft contact shadow so objects sit on the floor instead of floating.
 import * as THREE from 'three';
-import { state, tok } from '../state.js';
+import { state, tok, fontStack } from '../state.js';
 
 
 export function buildProp(kind, theme, brand, media, prebuilt) {
@@ -95,7 +95,7 @@ function arPanelProp(theme, brand) {
   let lastPaint = '';
   g.userData.repaint = () => {
     const f = g.userData.arFields;
-    const key = tok(f.kicker) + '|' + tok(f.value) + '|' + tok(f.sub) + '|' + state.brand.primary;
+    const key = tok(f.kicker) + '|' + tok(f.value) + '|' + tok(f.sub) + '|' + state.brand.primary + fontStack();
     if (key === lastPaint) return;
     lastPaint = key;
     const ctx = cv.getContext('2d');
@@ -109,7 +109,7 @@ function arPanelProp(theme, brand) {
     ctx.fillStyle = state.brand.accent;
     ctx.fillRect(0, 0, 5, 400);
     ctx.textBaseline = 'middle';
-    ctx.font = '600 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+    ctx.font = '600 26px ' + fontStack();
     ctx.letterSpacing = '0.2em';
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.fillText(tok(f.kicker).toUpperCase(), 42, 52);
@@ -117,9 +117,9 @@ function arPanelProp(theme, brand) {
     ctx.fillStyle = 'rgba(255,255,255,0.14)';
     ctx.fillRect(42, 86, 556, 2);
     ctx.fillStyle = 'rgba(255,255,255,0.96)';
-    ctx.font = '300 132px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+    ctx.font = '300 132px ' + fontStack();
     ctx.fillText(tok(f.value), 38, 200);
-    ctx.font = '500 34px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+    ctx.font = '500 34px ' + fontStack();
     ctx.fillStyle = 'rgba(255,255,255,0.62)';
     ctx.fillText(tok(f.sub), 42, 322);
     tex.needsUpdate = true;
@@ -159,7 +159,7 @@ function arChartProp(theme, brand) {
   let lastPaint = '';
   g.userData.repaint = () => {
     const f = g.userData.arFields;
-    const key = tok(f.title) + '|' + tok(f.bars) + '|' + state.brand.primary + state.brand.accent;
+    const key = tok(f.title) + '|' + tok(f.bars) + '|' + state.brand.primary + state.brand.accent + fontStack();
     if (key === lastPaint) return;
     lastPaint = key;
     const ctx = cv.getContext('2d');
@@ -173,7 +173,7 @@ function arChartProp(theme, brand) {
     ctx.fillStyle = state.brand.accent;
     ctx.fillRect(0, 0, 5, 520);
     ctx.textBaseline = 'middle';
-    ctx.font = '600 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+    ctx.font = '600 26px ' + fontStack();
     ctx.letterSpacing = '0.18em';
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
     ctx.fillText(tok(f.title).toUpperCase(), 36, 44);
@@ -188,14 +188,14 @@ function arChartProp(theme, brand) {
     rows.forEach((r, i) => {
       const ry = 116 + i * 84;
       const leadRow = i === rows.findIndex((x) => x.val === max);
-      ctx.font = '600 24px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+      ctx.font = '600 24px ' + fontStack();
       ctx.fillStyle = leadRow ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.72)';
       ctx.fillText(r.label.toUpperCase().slice(0, 22), 36, ry);
       ctx.fillStyle = 'rgba(255,255,255,0.1)';
       ctx.fillRect(36, ry + 20, 540, 10);
       ctx.fillStyle = leadRow ? state.brand.accent : state.brand.primary;
       ctx.fillRect(36, ry + 20, 540 * (r.val / max), 10);
-      ctx.font = '300 38px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+      ctx.font = '300 38px ' + fontStack();
       ctx.fillStyle = 'rgba(255,255,255,0.96)';
       ctx.textAlign = 'right';
       ctx.fillText(String(r.val % 1 ? r.val.toFixed(1) : r.val), 684, ry + 12);
@@ -238,7 +238,7 @@ function calloutProp(theme, brand) {
   let lastPaint = '';
   g.userData.repaint = () => {
     const f = g.userData.arFields;
-    const key = tok(f.text) + '|' + tok(f.tag) + '|' + state.brand.accent;
+    const key = tok(f.text) + '|' + tok(f.tag) + '|' + state.brand.accent + fontStack();
     if (key === lastPaint) return;
     lastPaint = key;
     const ctx = cv.getContext('2d');
@@ -256,11 +256,11 @@ function calloutProp(theme, brand) {
     ctx.fillRect(4, 4, 5, 132);
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(255,255,255,0.96)';
-    ctx.font = '600 42px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+    ctx.font = '600 42px ' + fontStack();
     ctx.fillText(tok(f.text), 36, 54);
     const tag = tok(f.tag).toUpperCase();
     if (tag && tag !== '\u2014') {
-      ctx.font = '600 20px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+      ctx.font = '600 20px ' + fontStack();
       ctx.letterSpacing = '0.18em';
       ctx.fillStyle = state.brand.accent;
       ctx.fillText(tag, 38, 102);
@@ -340,10 +340,10 @@ function slateTexture(brand, label) {
   ctx.fillStyle = 'rgba(160,200,255,0.7)';
   ctx.fill();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = '700 19px "Segoe UI", system-ui, sans-serif';
+  ctx.font = '700 19px ' + fontStack();
   ctx.fillStyle = 'rgba(210,228,255,0.85)';
   ctx.fillText('DROP VIDEO · IMAGE · LIVE FEED', 256, 172);
-  ctx.font = '600 13px "Segoe UI", system-ui, sans-serif';
+  ctx.font = '600 13px ' + fontStack();
   ctx.fillStyle = 'rgba(140,170,210,0.55)';
   ctx.fillText((brand.name || 'CHASE').toUpperCase() + ' · MEDIA ZONE', 256, 196);
   const tex = new THREE.CanvasTexture(cv);

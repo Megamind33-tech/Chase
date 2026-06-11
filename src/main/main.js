@@ -172,6 +172,8 @@ function registerIpc() {
             ? [{ name: '3D models', extensions: ['glb', 'gltf', 'fbx', 'obj'] }]
             : kind === 'hdri'
               ? [{ name: 'HDRI environment', extensions: ['hdr'] }]
+            : kind === 'font'
+              ? [{ name: 'Fonts', extensions: ['ttf', 'otf', 'woff', 'woff2'] }]
             : [{ name: 'Media', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'webm', 'mov'] }];
     const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters });
     if (r.canceled || !r.filePaths[0]) return null;
@@ -180,7 +182,8 @@ function registerIpc() {
     const type = ['.mp4', '.webm', '.mov'].includes(ext) ? 'video'
       : ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext) ? 'audio'
         : ['.glb', '.gltf', '.fbx', '.obj'].includes(ext) ? 'model'
-          : ext === '.hdr' ? 'hdri' : 'image';
+          : ['.ttf', '.otf', '.woff', '.woff2'].includes(ext) ? 'font'
+            : ext === '.hdr' ? 'hdri' : 'image';
     return { url: 'media://local/?p=' + encodeURIComponent(p), path: p, type, name: path.basename(p) };
   });
 
@@ -287,4 +290,13 @@ function registerIpc() {
     ffmpeg: streamer.ffmpegAvailable()
   }));
   ipcMain.handle('api:info', () => ({ port: apiPort, on: apiPort > 0 }));
+
+  // Platform feed: enumerate capturable windows/screens (Zoom, Meet, Teams…)
+  ipcMain.handle('sources:list', async () => {
+    const { desktopCapturer } = require('electron');
+    const sources = await desktopCapturer.getSources({
+      types: ['window', 'screen'], thumbnailSize: { width: 320, height: 180 }
+    });
+    return sources.map((s) => ({ id: s.id, name: s.name, thumb: s.thumbnail.toDataURL() }));
+  });
 }
