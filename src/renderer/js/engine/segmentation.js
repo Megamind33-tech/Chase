@@ -26,7 +26,7 @@ export class Segmenter {
     this.seg.onResults((res) => {
       const c = this.maskCanvas, ctx = this.maskCtx;
       // temporal smoothing: blend with the previous mask → anti-flicker
-      ctx.globalAlpha = 0.65;
+      ctx.globalAlpha = 1 - (this.stability ?? 0.35);
       ctx.drawImage(res.segmentationMask, 0, 0, c.width, c.height);
       ctx.globalAlpha = 1;
       this.texture.needsUpdate = true;
@@ -37,16 +37,30 @@ export class Segmenter {
         this._lastBounds = now;
         try {
           const d = ctx.getImageData(0, 0, c.width, c.height).data;
-          let top = -1, bottom = -1;
-          for (let y = 0; y < c.height; y++) {
-            let hit = false;
-            for (let x = 0; x < c.width; x += 4) {
-              if (d[(y * c.width + x) * 4] > 128) { hit = true; break; }
+          let top = -1, bottom = -1, left = c.width, right = -1, sum = 0, count = 0;
+          for (let y = 0; y < c.height; y += 2) {
+            for (let x = 0; x < c.width; x += 3) {
+              const v = d[(y * c.width + x) * 4];
+              if (v > 128) {
+                if (top < 0) top = y;
+                bottom = y;
+                if (x < left) left = x;
+                if (x > right) right = x;
+                sum += v; count++;
+              }
             }
-            if (hit) { if (top < 0) top = y; bottom = y; }
           }
-          if (top >= 0) {
-            this.bounds = { top: top / c.height, bottom: bottom / c.height, height: (bottom - top) / c.height };
+          if (top >= 0 && right > left) {
+            this.bounds = {
+              top: top / c.height, bottom: bottom / c.height,
+              left: left / c.width, right: right / c.width,
+              cx: (left + right) / 2 / c.width,
+              height: (bottom - top) / c.height
+            };
+            // matte confidence: how solid the body core reads (0..1)
+            this.confidence = Math.min(1, (sum / count / 255) * (count > 300 ? 1 : count / 300));
+          } else {
+            this.confidence = 0;
           }
         } catch {}
       }

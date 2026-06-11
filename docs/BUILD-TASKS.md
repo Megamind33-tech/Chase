@@ -70,6 +70,29 @@ canonical order for rebuilding, onboarding engineers, or porting.
      show timecode in the status bar, operator log (timestamped session
      events: takes, black, AR kill, camera loss, imports).
 
+## Phase 1d — Hybrid broadcast keying engine (✅ this repo)
+
+19n. ✅ Hybrid Broadcast key mode (default professional): chroma keeps the
+     hair/fine edge while a soft-dilated AI person gate kills rigs,
+     wrinkles and gear outside the body; per-mode fallbacks stay honest.
+19o. ✅ Edge refinement engine: 5-tap matte feather, matte contrast
+     (gamma), hair recovery (borderline-detail lift), AI gate width,
+     temporal stability control (anti-flicker mask blending).
+19p. ✅ Clean plate: capture the empty studio as a difference reference
+     (kills uneven/wrinkled screens in any mode), threshold control,
+     live key monitor (mode · matte confidence · plate age).
+19q. ✅ AutoFrame: AI-mask person tracking glides the virtual rig to keep
+     the presenter centred with smooth follow (AI/Hybrid modes).
+19r. ✅ Audio clean room: 90Hz hum high-pass + broadcast compressor +
+     level-driven soft noise gate, live-bypassable.
+19s. ✅ Smoke stage 6 verifies the hybrid chip, refinement stack, plate
+     capture, key monitor and AutoFrame headless.
+
+Staged honestly for the keying roadmap: NDI/OBS-virtual-camera input,
+Free-D / SteamVR / OpenXR / PTZ tracking sources, AI-inpainted and
+camera-pose synthetic plates, separate hair/hand mattes, multi-presenter
+segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
+
 ## Phase 2 — Field-hardened MVP (next)
 
 20. Audio meters + gain + music bed player.

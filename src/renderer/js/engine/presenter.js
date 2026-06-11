@@ -34,6 +34,13 @@ uniform vec3 clothKey;
 uniform vec3 clothNew;
 uniform float clothTol;
 uniform float clothSoft;
+uniform float feather;      // edge softness via multi-tap alpha
+uniform float matteGamma;   // matte contrast
+uniform float hairBoost;    // recover borderline semi-transparent detail
+uniform float maskGate;     // hybrid: AI mask gates the chroma matte
+uniform sampler2D plateMap; // captured clean plate (difference assist)
+uniform float plateOn;
+uniform float plateThresh;
 uniform vec2 texel;
 varying vec2 vUv;
 
@@ -43,20 +50,61 @@ vec2 rgb2uv(vec3 c) {
     c.r *  0.500 + c.g * -0.419 + c.b * -0.081 + 0.5);
 }
 
+// raw matte at any uv: chroma distance + AI gate + clean-plate difference
+float rawAlpha(vec2 uv) {
+  vec3 px = texture2D(map, uv).rgb;
+  float a = 1.0;
+  if (keyEnabled > 0.5) {
+    float d = distance(rgb2uv(px), rgb2uv(keyColor));
+    a = smoothstep(similarity, similarity + max(smoothness, 0.001), d);
+    // hair/fine-detail recovery: lift borderline semi-transparency
+    if (hairBoost > 0.01) {
+      float border = smoothstep(similarity * 0.55, similarity, d) * (1.0 - a);
+      a = max(a, border * hairBoost);
+    }
+  }
+  if (maskEnabled > 0.5) {
+    float m = texture2D(maskMap, uv).r;
+    // hybrid: soft-dilated AI mask gates the chroma matte — kills rig,
+    // wrinkles and gear outside the person while chroma keeps the hair edge
+    a *= clamp(m * (1.0 + maskGate * 1.6), 0.0, 1.0);
+  }
+  if (plateOn > 0.5) {
+    // difference assist against the captured clean plate
+    vec3 bg = texture2D(plateMap, uv).rgb;
+    float diff = distance(px, bg);
+    a *= smoothstep(plateThresh * 0.5, plateThresh, diff);
+  }
+  return a;
+}
+
 void main() {
   vec4 c = texture2D(map, vUv);
-  float alpha = 1.0;
+  float alpha = rawAlpha(vUv);
+
+  // edge feather: 5-tap matte blur for camera-natural softness
+  if (feather > 0.01) {
+    float f = feather * 2.5;
+    float acc = alpha * 2.0
+      + rawAlpha(vUv + vec2( texel.x, 0.0) * f)
+      + rawAlpha(vUv + vec2(-texel.x, 0.0) * f)
+      + rawAlpha(vUv + vec2(0.0,  texel.y) * f)
+      + rawAlpha(vUv + vec2(0.0, -texel.y) * f);
+    alpha = acc / 6.0;
+  }
 
   if (keyEnabled > 0.5) {
-    float d = distance(rgb2uv(c.rgb), rgb2uv(keyColor));
-    alpha = smoothstep(similarity, similarity + max(smoothness, 0.001), d);
     // spill suppression: pull keyed hue towards neutral near the edge
+    float d = distance(rgb2uv(c.rgb), rgb2uv(keyColor));
     float edge = 1.0 - smoothstep(similarity, similarity + smoothness + 0.12, d);
     float grey = dot(c.rgb, vec3(0.299, 0.587, 0.114));
     c.rgb = mix(c.rgb, vec3(grey), edge * spill);
   }
-  if (maskEnabled > 0.5) {
-    alpha *= texture2D(maskMap, vUv).r;
+
+  // matte contrast (gamma) — firms the core without hardening the edge
+  if (matteGamma > 0.01) {
+    alpha = pow(alpha, 1.0 + matteGamma * 1.5);
+    alpha = smoothstep(0.0, 1.0 - matteGamma * 0.35, alpha);
   }
 
   // matte cleanup: choke the soft edge band inward (kills dirty fringes)
@@ -154,6 +202,13 @@ export class Presenter {
         clothNew: { value: new THREE.Color('#8e1424') },
         clothTol: { value: 0.12 },
         clothSoft: { value: 0.08 },
+        feather: { value: 0 },
+        matteGamma: { value: 0 },
+        hairBoost: { value: 0 },
+        maskGate: { value: 0.35 },
+        plateMap: { value: this.blankMask },
+        plateOn: { value: 0 },
+        plateThresh: { value: 0.18 },
         texel: { value: new THREE.Vector2(1 / 1280, 1 / 720) }
       }
     });
@@ -195,12 +250,12 @@ export class Presenter {
     this.group.add(this.shadow);
   }
 
-  /** chroma | ai | framed */
+  /** chroma | ai | hybrid | framed */
   setMode(mode) {
     this.mode = mode;
     const u = this.material.uniforms;
-    u.keyEnabled.value = mode === 'chroma' ? 1 : 0;
-    u.maskEnabled.value = mode === 'ai' ? 1 : 0;
+    u.keyEnabled.value = (mode === 'chroma' || mode === 'hybrid') ? 1 : 0;
+    u.maskEnabled.value = (mode === 'ai' || mode === 'hybrid') ? 1 : 0;
     this.frame.visible = mode === 'framed';
     this.shadow.visible = mode !== 'framed';
     if (mode === 'framed') {
@@ -248,6 +303,22 @@ export class Presenter {
     u.clothNew.value.set(cl.to);
     u.clothTol.value = cl.tol;
     u.clothSoft.value = cl.soft;
+  }
+
+  applyRefine(r) {
+    const u = this.material.uniforms;
+    u.feather.value = r.feather || 0;
+    u.matteGamma.value = r.gamma || 0;
+    u.hairBoost.value = r.hair || 0;
+    u.maskGate.value = r.gate ?? 0.35;
+    u.plateThresh.value = r.plateThresh ?? 0.18;
+  }
+
+  /** Capture/clear the clean plate (difference-keying assist). */
+  setPlate(texture) {
+    const u = this.material.uniforms;
+    u.plateMap.value = texture || this.blankMask;
+    u.plateOn.value = texture ? 1 : 0;
   }
 
   setWrapColor(hex) {

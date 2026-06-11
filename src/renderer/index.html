@@ -273,6 +273,7 @@
           <input type="range" id="cam-movedur" min="0.4" max="3" step="0.1" value="1.2"></div>
         <div class="field slim"><label>Punch-in <output id="lbl-punch">0%</output></label>
           <input type="range" id="cam-punch" min="0" max="40" step="1" value="0"></div>
+        <label class="checkrow"><input type="checkbox" id="chk-autoframe"> AutoFrame — follow the presenter (AI/Hybrid key)</label>
         <label class="checkrow"><input type="checkbox" id="chk-drift"> Live operator drift</label>
         <div class="field slim"><label>Drift / parallax amount</label>
           <input type="range" id="cam-driftamt" min="0.2" max="3" step="0.05" value="1"></div>
@@ -299,16 +300,38 @@
       <div class="panel" id="panel-look" hidden>
         <h3>Presenter background</h3>
         <div class="chipset" id="bgmode-chips">
-          <button class="chip" data-bg="chroma">Green screen</button>
-          <button class="chip" data-bg="ai">AI cutout</button>
+          <button class="chip" data-bg="hybrid" title="Chroma edge detail + AI person gate — the default professional mode">Hybrid broadcast</button>
+          <button class="chip" data-bg="chroma">Chroma only</button>
+          <button class="chip" data-bg="ai">AI matte</button>
           <button class="chip" data-bg="framed">Framed</button>
         </div>
+        <div class="statusbox" id="key-monitor" style="margin:0 0 10px">Key: —</div>
         <div id="chroma-controls">
           <div class="field slim"><label>Key colour</label><input type="color" id="key-color" value="#1eb955"></div>
           <div class="field slim"><label>Similarity</label><input type="range" id="key-sim" min="0.01" max="0.6" step="0.005" value="0.30"></div>
           <div class="field slim"><label>Edge softness</label><input type="range" id="key-smooth" min="0.0" max="0.3" step="0.005" value="0.08"></div>
           <div class="field slim"><label>Spill removal</label><input type="range" id="key-spill" min="0" max="1" step="0.01" value="0.6"></div>
         </div>
+        <h3 class="spaced">Edge refinement</h3>
+        <div class="field slim"><label>Edge feather <output id="o-feather">25%</output></label>
+          <input type="range" id="ref-feather" min="0" max="1" step="0.01" value="0.25"></div>
+        <div class="field slim"><label>Matte contrast <output id="o-gamma">15%</output></label>
+          <input type="range" id="ref-gamma" min="0" max="1" step="0.01" value="0.15"></div>
+        <div class="field slim"><label>Hair recovery <output id="o-hair">20%</output></label>
+          <input type="range" id="ref-hair" min="0" max="1" step="0.01" value="0.2"></div>
+        <div class="field slim"><label>AI gate width <output id="o-gate">35%</output></label>
+          <input type="range" id="ref-gate" min="0" max="1" step="0.01" value="0.35"></div>
+        <div class="field slim"><label>Temporal stability <output id="o-stab">35%</output></label>
+          <input type="range" id="ref-stab" min="0" max="0.85" step="0.01" value="0.35"></div>
+        <h3 class="spaced">Clean plate</h3>
+        <div class="row gap">
+          <button class="btn slim" id="btn-plate">Capture clean plate</button>
+          <button class="btn ghost slim" id="btn-plate-clear">Clear</button>
+        </div>
+        <div class="field slim" style="margin-top:8px"><label>Plate threshold <output id="o-plate">18%</output></label>
+          <input type="range" id="ref-plate" min="0.05" max="0.5" step="0.005" value="0.18"></div>
+        <p class="hint">Step out of frame and capture: the empty studio becomes a difference
+        reference that kills wrinkles, rigs and uneven screens in any key mode.</p>
         <h3 class="spaced">Person cleanup</h3>
         <div class="field slim"><label>Edge cleanup (choke) <output id="o-erode">0%</output></label>
           <input type="range" id="enh-erode" min="0" max="1" step="0.01" value="0"></div>

@@ -513,6 +513,14 @@ export class Studio {
 
     this.presenter.applyPlacement(state.presenter);
 
+    // AutoFrame: derive the person's world X from the live mask centre
+    if (state.camera.autoFrame && this.segBounds?.cx !== undefined) {
+      const planeW = this.presenter.planeH * 16 / 9 * (state.presenter.scale || 1);
+      this.rig.followX = state.presenter.x + (this.segBounds.cx - 0.5) * planeW;
+    } else {
+      this.rig.followX = null;
+    }
+
     // guest slot
     const gst = state.talent?.guest;
     if (gst?.on && gst.media) {

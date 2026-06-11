@@ -180,6 +180,32 @@ app.whenReady().then(async () => {
   })()`);
   console.log('stage 5 checks:', JSON.stringify(stage5));
 
+  // ---- stage 6: hybrid keying engine ----
+  const stage6 = await win.webContents.executeJavaScript(`(async () => {
+    document.querySelector('.insp-tab[data-panel="look"]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const hybridChip = !!document.querySelector('#bgmode-chips [data-bg="hybrid"]');
+    document.querySelector('#bgmode-chips [data-bg="hybrid"]').click();
+    await new Promise((r) => setTimeout(r, 2500));
+    const keyMonitor = document.getElementById('key-monitor').textContent;
+    document.getElementById('btn-plate').click();
+    await new Promise((r) => setTimeout(r, 500));
+    const plateCaptured = document.getElementById('key-monitor') !== null;
+    document.querySelector('.insp-tab[data-panel="camera"]').click();
+    await new Promise((r) => setTimeout(r, 200));
+    document.getElementById('chk-autoframe').click();
+    const afOn = document.getElementById('chk-autoframe').checked;
+    document.getElementById('chk-autoframe').click();
+    return {
+      hybridChip,
+      keyMonitorLive: keyMonitor.length > 5,
+      refineSliders: ['ref-feather','ref-gamma','ref-hair','ref-gate','ref-stab','ref-plate'].every((i) => !!document.getElementById(i)),
+      plateBtns: !!document.getElementById('btn-plate') && !!document.getElementById('btn-plate-clear'),
+      plateCaptured, afOn
+    };
+  })()`);
+  console.log('stage 6 checks:', JSON.stringify(stage6));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -208,6 +234,8 @@ app.whenReady().then(async () => {
     && stage4.clothOn && stage4.clothControls && stage4.matBox
     && stage5.talentPane && stage5.captureBtn && stage5.guestControls
     && stage5.wizardOpen && stage5.rearToggles >= 7 && stage5.precapBadge
+    && stage6.hybridChip && stage6.keyMonitorLive && stage6.refineSliders
+    && stage6.plateBtns && stage6.plateCaptured && stage6.afOn
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

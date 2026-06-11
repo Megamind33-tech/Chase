@@ -25,9 +25,33 @@ export class AudioMixer {
   setMicStream(stream) {
     this.removeChannel('mic');
     if (!stream || !stream.getAudioTracks().length) return;
-    // clone so muting the capture track doesn't kill the analyser
     const src = this.ctx.createMediaStreamSource(stream);
-    this._addChannel('mic', 'MIC 1', src);
+    // clean room chain: rumble/hum highpass + broadcast compressor;
+    // bypassable so the raw chain stays available
+    this.cleanHP = this.ctx.createBiquadFilter();
+    this.cleanHP.type = 'highpass';
+    this.cleanHP.frequency.value = 90;
+    this.cleanComp = this.ctx.createDynamicsCompressor();
+    this.cleanComp.threshold.value = -28;
+    this.cleanComp.ratio.value = 3.5;
+    this.cleanComp.attack.value = 0.004;
+    this.cleanComp.release.value = 0.18;
+    src.connect(this.cleanHP);
+    this.cleanHP.connect(this.cleanComp);
+    this._micRaw = src;
+    this._micClean = this.cleanComp;
+    this._addChannel('mic', 'MIC 1', this._cleanupOn ? this._micClean : this._micRaw);
+  }
+
+  /** Toggle the noise clean room (re-patches the mic chain live). */
+  setCleanup(on) {
+    this._cleanupOn = on;
+    if (!this._micRaw) return;
+    const ch = this.channels.get('mic');
+    if (!ch) return;
+    try { this._micRaw.disconnect(ch.gain); } catch {}
+    try { this._micClean.disconnect(ch.gain); } catch {}
+    (on ? this._micClean : this._micRaw).connect(ch.gain);
   }
 
   _addChannel(id, label, sourceNode) {
@@ -72,6 +96,17 @@ export class AudioMixer {
     this.channels.get('mic')?.gain.gain.setTargetAtTime(state.capture.muted ? 0 : a.micGain, this.ctx.currentTime, 0.02);
     this.channels.get('jingle')?.gain.gain.setTargetAtTime(a.jingleGain, this.ctx.currentTime, 0.02);
     this.master.gain.setTargetAtTime(a.masterGain, this.ctx.currentTime, 0.02);
+  }
+
+  /** Soft noise gate: duck the mic when below the floor (clean room). */
+  gateTick() {
+    if (!this._cleanupOn || state.capture.muted) return;
+    const ch = this.channels.get('mic');
+    if (!ch) return;
+    const open = this.level('mic') > 0.015;
+    this._gateHold = open ? 6 : Math.max(0, (this._gateHold ?? 0) - 1);
+    const target = (open || this._gateHold > 0) ? state.audio.micGain : state.audio.micGain * 0.12;
+    ch.gain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.05);
   }
 
   /** Peak level 0..1 for a channel id or 'master'. */

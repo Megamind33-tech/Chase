@@ -30,6 +30,7 @@ export class CameraRig {
     this.drift = false;
     this.driftAmount = 1;  // parallax/drift strength
     this.moveDuration = 1.2;
+    this.followX = null; // AutoFrame: smoothed person-centre target
 
     this._cur = { pos: new THREE.Vector3(), look: new THREE.Vector3(), fov: 40 };
     this._from = null;
@@ -65,6 +66,11 @@ export class CameraRig {
   get moving() { return this._t < 1; }
 
   tick(dt, time, presenterX) {
+    // AutoFrame: glide framing toward the tracked person centre
+    const targetX = this.followX === null ? presenterX : this.followX;
+    presenterX = this._smoothX === undefined ? targetX
+      : (this._smoothX += (targetX - this._smoothX) * Math.min(dt * 2.2, 1));
+    this._smoothX = presenterX;
     if (this._t < 1 && this._to) {
       this._t = Math.min(1, this._t + dt / Math.max(this.moveDuration, 0.1));
       const k = easeInOut(this._t);

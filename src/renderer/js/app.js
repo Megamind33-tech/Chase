@@ -34,17 +34,19 @@ function applyShowPreset(presetId) {
 }
 
 async function setBgMode(mode) {
-  if (mode === 'ai') {
+  if (mode === 'ai' || mode === 'hybrid') {
     try {
       segmenter ||= new Segmenter();
       toast('Loading AI background removal…');
       await segmenter.init();
       segmenter.start(document.getElementById('cam-video'));
       studio.presenter.setMaskTexture(segmenter.texture);
-      toast('AI cutout active', 'ok');
+      toast(mode === 'hybrid' ? 'HYBRID BROADCAST KEY — chroma edge + AI gate active' : 'AI cutout active', 'ok');
     } catch (e) {
-      toast('AI cutout unavailable on this machine — using framed mode instead.', 'err', 5000);
-      mode = 'framed';
+      toast(mode === 'hybrid'
+        ? 'AI gate unavailable — falling back to pure chroma key.'
+        : 'AI cutout unavailable on this machine — using framed mode instead.', 'err', 5000);
+      mode = mode === 'hybrid' ? 'chroma' : 'framed';
     }
   } else if (segmenter) {
     segmenter.stop();
@@ -99,6 +101,7 @@ async function startStudio() {
     const loop = (t) => {
       const dt = Math.min((t - last) / 1000, 0.1);
       last = t;
+      studio.segBounds = segmenter?.bounds || null;
       studio.tick(t, dt);
       compositor.compose(t, dt);
       requestAnimationFrame(loop);

@@ -563,6 +563,16 @@ export function initEditor(ctx) {
   /* ---- audio pane ---- */
   function buildAudioPane(body) {
     $('browser-hint').textContent = 'Jingles and beds play into the JGL mixer channel.';
+    const clean = document.createElement('button');
+    clean.className = 'chip' + (state.audio.cleanup ? ' active' : '');
+    clean.style.marginBottom = '9px';
+    clean.textContent = 'Noise clean room (hum filter · compressor · gate)';
+    clean.addEventListener('click', () => {
+      state.audio.cleanup = clean.classList.toggle('active');
+      audio.setCleanup(state.audio.cleanup);
+      logEvent(state.audio.cleanup ? 'Audio clean room ON' : 'Audio clean room off');
+    });
+    body.appendChild(clean);
     const add = document.createElement('button');
     add.className = 'btn ghost slim';
     add.style.width = '100%';
@@ -1177,6 +1187,13 @@ export function initEditor(ctx) {
   bindSlider('cam-movedur', (v) => { state.camera.moveDuration = v; $('lbl-movedur').value = v + 's'; });
   bindSlider('cam-punch', (v) => { state.camera.punch = v; $('lbl-punch').value = v + '%'; });
   $('chk-drift').addEventListener('change', (e) => { state.camera.drift = e.target.checked; });
+  $('chk-autoframe').addEventListener('change', (e) => {
+    state.camera.autoFrame = e.target.checked;
+    if (e.target.checked && state.bgMode !== 'ai' && state.bgMode !== 'hybrid') {
+      toast('AutoFrame uses the AI mask — switch the key to Hybrid or AI matte.', 'err', 4500);
+    }
+    logEvent(e.target.checked ? 'AutoFrame ON — framing follows the presenter' : 'AutoFrame off');
+  });
   bindSlider('cam-driftamt', (v) => { state.camera.driftAmount = v; });
   bindSlider('pres-x', (v) => { state.presenter.x = v; });
   bindSlider('pres-scale', (v) => { state.presenter.scale = v; });
@@ -1280,6 +1297,49 @@ export function initEditor(ctx) {
     studio.presenter.applyEnhance(state.enhance, studio.lights.grade);
     studio.presenter.setWrapColor(SETS[state.setId].theme.trim);
   }
+
+  function applyRefine() {
+    studio.presenter.applyRefine(state.refine);
+    const seg = ctx.getSegmenter?.();
+    if (seg) seg.stability = state.refine.stability;
+  }
+  bindSlider('ref-feather', (v) => { state.refine.feather = v; $('o-feather').value = Math.round(v * 100) + '%'; applyRefine(); });
+  bindSlider('ref-gamma', (v) => { state.refine.gamma = v; $('o-gamma').value = Math.round(v * 100) + '%'; applyRefine(); });
+  bindSlider('ref-hair', (v) => { state.refine.hair = v; $('o-hair').value = Math.round(v * 100) + '%'; applyRefine(); });
+  bindSlider('ref-gate', (v) => { state.refine.gate = v; $('o-gate').value = Math.round(v * 100) + '%'; applyRefine(); });
+  bindSlider('ref-stab', (v) => { state.refine.stability = v; $('o-stab').value = Math.round(v * 100) + '%'; applyRefine(); });
+  bindSlider('ref-plate', (v) => { state.refine.plateThresh = v; $('o-plate').value = Math.round(v * 100) + '%'; applyRefine(); });
+
+  // clean plate: capture the empty studio as a difference reference
+  let plateAge = null;
+  $('btn-plate').addEventListener('click', () => {
+    const video = document.getElementById('cam-video');
+    if (!video.videoWidth) return toast('No live camera frame to capture.', 'err');
+    const cv = document.createElement('canvas');
+    cv.width = video.videoWidth; cv.height = video.videoHeight;
+    cv.getContext('2d').drawImage(video, 0, 0);
+    studio.presenter.setPlate(studio.canvasToTexture(cv));
+    plateAge = Date.now();
+    logEvent('Clean plate captured (' + cv.width + '×' + cv.height + ')', 'ok');
+    toast('Clean plate captured — wrinkles and rig now difference-keyed out.', 'ok', 4500);
+  });
+  $('btn-plate-clear').addEventListener('click', () => {
+    studio.presenter.setPlate(null);
+    plateAge = null;
+    toast('Clean plate cleared.');
+  });
+
+  // key monitor: live mode / confidence / plate status (real signals)
+  setInterval(() => {
+    const el = $('key-monitor');
+    if (!el) return;
+    const seg = ctx.getSegmenter?.();
+    const conf = (state.bgMode === 'ai' || state.bgMode === 'hybrid') && seg
+      ? Math.round((seg.confidence || 0) * 100) + '%' : 'n/a';
+    const modeLabel = { hybrid: 'HYBRID BROADCAST', chroma: 'CHROMA', ai: 'AI MATTE', framed: 'FRAMED' }[state.bgMode];
+    const plate = plateAge ? 'CAPTURED ' + Math.round((Date.now() - plateAge) / 60000) + 'm ago' : 'none';
+    el.innerHTML = `Key: <b>${modeLabel}</b> · Matte confidence: <b>${conf}</b> · Clean plate: <b>${plate}</b>`;
+  }, 1500);
 
   bindSlider('enh-erode', (v) => { state.enhance.erode = v; $('o-erode').value = Math.round(v * 100) + '%'; applyEnhance(); });
   bindSlider('enh-wrap', (v) => { state.enhance.wrap = v; $('o-wrap').value = Math.round(v * 100) + '%'; applyEnhance(); });
@@ -1572,6 +1632,7 @@ export function initEditor(ctx) {
       g.fillRect(0, H - h, cv.width, h);
     }
     if (audio._jingleEl && audio._jingleEl.ended) refreshJingleBtn();
+    audio.gateTick();
   }, 90);
 
   /* ---- destinations (bottom strip rows) ---- */
@@ -2089,6 +2150,15 @@ export function initEditor(ctx) {
     applyChroma();
     applyEnhance();
     applyCloth();
+    applyRefine();
+    $('ref-feather').value = state.refine.feather;
+    $('ref-gamma').value = state.refine.gamma;
+    $('ref-hair').value = state.refine.hair;
+    $('ref-gate').value = state.refine.gate;
+    $('ref-stab').value = state.refine.stability;
+    $('ref-plate').value = state.refine.plateThresh;
+    $('chk-autoframe').checked = !!state.camera.autoFrame;
+    audio.setCleanup(!!state.audio.cleanup);
     $('cloth-on').classList.toggle('active', state.cloth.on);
     $('cloth-key').value = state.cloth.key;
     $('cloth-to').value = state.cloth.to;

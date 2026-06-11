@@ -14,6 +14,7 @@ export const state = {
   bgMode: 'chroma', // chroma | ai | framed
   chroma: { color: '#1eb955', similarity: 0.30, smoothness: 0.08, spill: 0.6 },
   enhance: { exposure: 1.0, warmth: 0.0, saturation: 1.0, smoothing: 0.0, eyes: 0.0, erode: 0.0, wrap: 0.0 },
+  refine: { feather: 0.25, gamma: 0.15, hair: 0.2, gate: 0.35, stability: 0.35, plateThresh: 0.18 }, // edge refinement engine
   presenter: { x: 0, y: 0, scale: 1 },
   cloth: { on: false, key: '#3a3f4a', to: '#8e1424', tol: 0.12, soft: 0.08 }, // wardrobe recolor
   // Familiar-presenter angle packs + remote guest slot
@@ -25,7 +26,7 @@ export const state = {
   },
   lighting: { preset: 'newsNight', key: 1, fill: 0.6, back: 1.3, temp: -0.2, accent: 1.35, haze: 0.6, deskGlow: 1 },
   look: { bloom: 0.55, vignette: 0.5, floorReflection: 0.55, ledMedia: null },
-  camera: { active: 1, mode: 'cut', moveDuration: 1.2, punch: 0, fovScale: 1, drift: false, driftAmount: 1, customAngles: [] },
+  camera: { active: 1, mode: 'cut', moveDuration: 1.2, punch: 0, fovScale: 1, drift: false, driftAmount: 1, customAngles: [], autoFrame: false },
   preview: { camera: null, sceneId: null }, // staged PVW bus (not pushed live until TAKE)
   transition: { type: 'cut', duration: 0.6 }, // cut | move | fade | wipe
   objects: [], // { id, kind, x, z, rotY, scale, height, opacity, media?, visible }
@@ -43,6 +44,7 @@ export const state = {
   assets: [], // { id, name, source, ext, tris, memMB, liveSafe, warnings, media }
   audio: {
     micGain: 1,
+    cleanup: false, // noise clean room (highpass + compressor + gate)
     jingleGain: 0.8,
     masterGain: 1,
     jingles: [] // { name, path, url }
