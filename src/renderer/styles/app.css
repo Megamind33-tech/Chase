@@ -21,33 +21,33 @@
   --txt-dim: #a0aec0;
   --txt-faint: #64748b;
 
-  /* accents */
-  --blue: #2277ff;
-  --blue-hi: #4f9bff;
-  --blue-deep: #1257d4;
-  --cyan: #00c7ff;
-  --gold: #ffd24d;
-  --gold-deep: #d4a418;
-  --red: #e63946;
-  --red-deep: #b3202c;
-  --green: #2fc966;
+  /* accents — control-room discipline: colour is state, not decoration */
+  --blue: #2b72e0;
+  --blue-hi: #4f93ec;
+  --blue-deep: #1a4fb0;
+  --cyan: #2fa3c9;
+  --gold: #e0b54a;
+  --gold-deep: #b8902e;
+  --red: #d92b38;
+  --red-deep: #a31d28;
+  --green: #2aa85c;
 
   /* gradient rules (reference) */
-  --grad-primary: linear-gradient(135deg, #1257d4, #2277ff 55%, #00c7ff);
-  --grad-live: linear-gradient(180deg, #e63946, #b3202c);
-  --grad-gold: linear-gradient(135deg, #ffd24d, #d4a418);
+  --grad-primary: linear-gradient(135deg, #1a4fb0, #2b72e0 60%, #3e87e8);
+  --grad-live: linear-gradient(180deg, #d92b38, #a31d28);
+  --grad-gold: linear-gradient(135deg, #e0b54a, #b8902e);
   --grad-surface: linear-gradient(180deg, #18223420, #0d131e60);
 
-  /* glows */
-  --glow-blue: 0 0 0 1px rgba(34,119,255,.35), 0 0 14px rgba(34,119,255,.28);
-  --glow-cyan: 0 0 12px rgba(0,199,255,.35);
-  --glow-red: 0 0 14px rgba(230,57,70,.45);
-  --glow-gold: 0 0 14px rgba(255,210,77,.3);
+  /* glows — reserved for tallies and on-air state only */
+  --glow-blue: 0 0 0 1px rgba(43,114,224,.3);
+  --glow-cyan: 0 0 8px rgba(47,163,201,.25);
+  --glow-red: 0 0 12px rgba(217,43,56,.4);
+  --glow-gold: 0 0 0 1px rgba(224,181,74,.3);
 
-  --r-sm: 5px;
-  --r-md: 8px;
-  --r-lg: 12px;
-  --r-xl: 18px;
+  --r-sm: 2px;
+  --r-md: 3px;
+  --r-lg: 5px;
+  --r-xl: 8px;
   --shadow-1: 0 2px 10px rgba(0,0,0,.35);
   --shadow-2: 0 8px 28px rgba(0,0,0,.5);
   --shadow-3: 0 16px 56px rgba(0,0,0,.6);
