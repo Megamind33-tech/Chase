@@ -353,19 +353,22 @@ function paintLed(cv, theme, brand, headline, t) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, bandY - 30, W, 116);
   ctx.fillStyle = brand.accent || theme.trim;
-  ctx.fillRect(0, bandY - 4, W, 3);
+  ctx.fillRect(0, bandY - 3, W, 2);
   ctx.textBaseline = 'middle';
-  ctx.font = '800 56px "Segoe UI", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.fillText(headline || 'CHASE NEWS', 70, bandY + 44);
-  ctx.font = '700 26px "Segoe UI", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '300 52px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+  ctx.letterSpacing = '0.12em';
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillText((headline || 'CHASE NEWS').toUpperCase(), 70, bandY + 44);
+  ctx.font = '600 22px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+  ctx.letterSpacing = '0.3em';
+  ctx.fillStyle = 'rgba(255,255,255,0.42)';
   const name = (brand.name || 'CHASE NEWS').toUpperCase();
   ctx.fillText(name, W - 90 - ctx.measureText(name).width, bandY + 44);
+  ctx.letterSpacing = '0px';
   // pulsing live dot
   const pulse = 0.5 + 0.5 * Math.sin(time * 2.6);
-  ctx.fillStyle = `rgba(255,64,64,${0.5 + 0.5 * pulse})`;
-  ctx.beginPath(); ctx.arc(W - 50, bandY + 44, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = `rgba(232,52,58,${0.4 + 0.5 * pulse})`;
+  ctx.beginPath(); ctx.arc(W - 50, bandY + 44, 7, 0, Math.PI * 2); ctx.fill();
 }
 
 function skyline(ctx, W, H, theme, time) {
@@ -380,42 +383,75 @@ function skyline(ctx, W, H, theme, time) {
   ctx.globalAlpha = 1;
 
   const horizon = H * 0.66;
+  // light-pollution dome: warm-grey glow rising from the city core
+  const dome = ctx.createRadialGradient(W * 0.5, horizon + 30, 40, W * 0.5, horizon + 30, W * 0.55);
+  dome.addColorStop(0, 'rgba(214,182,140,0.16)');
+  dome.addColorStop(0.45, hexA(theme.ledB, 0.12));
+  dome.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = dome;
+  ctx.fillRect(0, 0, W, horizon + 60);
   // atmospheric haze band at the horizon (photographic depth)
-  const atm = ctx.createLinearGradient(0, horizon - 140, 0, horizon + 30);
+  const atm = ctx.createLinearGradient(0, horizon - 160, 0, horizon + 30);
   atm.addColorStop(0, 'rgba(0,0,0,0)');
-  atm.addColorStop(1, hexA(theme.ledB, 0.5));
+  atm.addColorStop(1, hexA(mix(theme.ledB, '#8d99ab', 0.5), 0.42));
   ctx.fillStyle = atm;
   ctx.fillRect(0, 0, W, horizon + 30);
 
-  // skyline: 4 depth layers, back layers hazed into the sky
+  // skyline: 4 depth layers, aerial-perspective desaturation toward the back
   for (let layer = 0; layer < 4; layer++) {
     const base = horizon + layer * H * 0.075;
-    const haze = 0.75 - layer * 0.17; // back layers fade toward sky colour
-    const col = mix(mix(theme.ledA, '#02040c', 0.35 + layer * 0.18), theme.ledB, Math.max(haze, 0) * 0.5);
+    const haze = 0.72 - layer * 0.2; // back layers dissolve into the haze
+    const slate = mix(theme.ledA, '#070a10', 0.5 + layer * 0.12);
+    const colTop = mix(slate, mix(theme.ledB, '#8d99ab', 0.55), Math.max(haze, 0) * 0.5);
+    const colBase = mix(colTop, '#c9a86a', layer === 3 ? 0.14 : 0.07); // street glow lifts the base
     let x = -30;
     let i = layer * 37;
     while (x < W + 60) {
       const bw = 26 + ((i * 73) % 70) - layer * 3;
       const bh = H * (0.1 + (((i * 47) % 100) / 100) * (0.34 - layer * 0.06));
-      ctx.fillStyle = col;
+      const bg2 = ctx.createLinearGradient(0, base - bh, 0, base + 30);
+      bg2.addColorStop(0, colTop);
+      bg2.addColorStop(1, colBase);
+      ctx.fillStyle = bg2;
       ctx.fillRect(x, base - bh, bw, bh + 160);
-      // rooftop detail + aviation beacons on tall front towers
+      // occasional setback profile breaks the box silhouette
+      if (layer >= 2 && (i % 3) === 0) {
+        ctx.fillRect(x + bw * 0.22, base - bh - bh * 0.12, bw * 0.56, bh * 0.12);
+      }
+      // rooftop plant + aviation beacons on tall front towers
       if (layer >= 2) {
-        ctx.fillRect(x + bw * 0.3, base - bh - 7, bw * 0.4, 7);
+        ctx.fillRect(x + bw * 0.34, base - bh - 5, bw * 0.32, 5);
         if (bh > H * 0.3 && (i % 4) === 0) {
-          const blink = 0.4 + 0.6 * Math.abs(Math.sin(time * 1.6 + i));
-          ctx.fillStyle = `rgba(255,70,70,${blink})`;
-          ctx.beginPath(); ctx.arc(x + bw / 2, base - bh - 9, 2.2, 0, Math.PI * 2); ctx.fill();
+          const blink = 0.3 + 0.7 * Math.abs(Math.sin(time * 1.6 + i));
+          ctx.fillStyle = `rgba(255,64,64,${blink * 0.8})`;
+          ctx.beginPath(); ctx.arc(x + bw / 2, base - bh - 8, 1.7, 0, Math.PI * 2); ctx.fill();
         }
       }
-      // dense small windows, warm/cool mix, front layers only
+      // windows: sparse pinpoints + the occasional fully lit floor
       if (layer === 3) {
-        for (let wy = base - bh + 8; wy < base - 10; wy += 9) {
-          for (let wx = x + 4; wx < x + bw - 5; wx += 7) {
-            const h2 = (wx * 13 + wy * 7 + i) % 31;
-            if (h2 < 9) {
-              ctx.fillStyle = h2 < 3 ? 'rgba(190,215,255,0.85)' : 'rgba(255,210,140,0.8)';
-              ctx.fillRect(wx, wy, 3, 4.5);
+        for (let wy = base - bh + 9; wy < base - 12; wy += 8) {
+          const floorLit = ((wy * 3 + i * 11) % 53) === 0;
+          if (floorLit) {
+            ctx.fillStyle = 'rgba(228,214,182,0.32)';
+            ctx.fillRect(x + 3, wy, bw - 6, 2.5);
+            continue;
+          }
+          for (let wx = x + 4; wx < x + bw - 4; wx += 6) {
+            const h2 = (wx * 13 + wy * 7 + i) % 41;
+            if (h2 < 7) {
+              const warm2 = h2 < 2;
+              ctx.fillStyle = warm2 ? 'rgba(235,205,150,0.7)' : 'rgba(178,200,228,0.5)';
+              ctx.fillRect(wx, wy, 2, 3);
+            }
+          }
+        }
+      } else if (layer === 2) {
+        // mid layer: faint window noise only
+        for (let wy = base - bh + 12; wy < base - 14; wy += 11) {
+          for (let wx = x + 5; wx < x + bw - 5; wx += 9) {
+            if ((wx * 7 + wy * 13 + i) % 67 < 4) {
+              ctx.fillStyle = 'rgba(200,212,232,0.22)';
+              ctx.fillRect(wx, wy, 1.6, 2.2);
             }
           }
         }
@@ -435,8 +471,8 @@ function skyline(ctx, W, H, theme, time) {
   for (let i = 0; i < 60; i++) {
     const x = (i * 167) % W;
     const shimmer = Math.abs(Math.sin(time * 0.9 + i * 2.1));
-    ctx.fillStyle = `rgba(${i % 2 ? '255,206,130' : '160,200,255'},${0.18 + shimmer * 0.2})`;
-    ctx.fillRect(x, wy0 + (i * 31) % (H - wy0 - 6), 22 + (i % 3) * 14, 1.6);
+    ctx.fillStyle = `rgba(${i % 2 ? '226,196,148' : '168,192,220'},${0.1 + shimmer * 0.14})`;
+    ctx.fillRect(x, wy0 + (i * 31) % (H - wy0 - 6), 18 + (i % 3) * 12, 1.2);
   }
 
   // gentle moving cloud band catching city light

@@ -20,9 +20,9 @@ export const SETS = {
     name: 'Apex Newsroom', cat: ['news'],
     desc: 'Global flagship news set — night skyline LED, cyan trim, glass desk',
     theme: {
-      ledStyle: 'skyline', ledA: '#0a2c6e', ledB: '#1486d8', sky: '#06122e',
-      trim: '#34c3ff', accent: '#2f7df6', warm: '#e8b220',
-      floor: '#0b1018', floorRefl: 0.55, desk: '#0d1422', deskFace: '#0e63d8',
+      ledStyle: 'skyline', ledA: '#0e1f3d', ledB: '#3c6ca6', sky: '#040810',
+      trim: '#3fa8d8', accent: '#2f6fc4', warm: '#d8a83c',
+      floor: '#0a0e15', floorRefl: 0.5, desk: '#0c111c', deskFace: '#10498c',
       wall: '#070b14', fog: '#050a16', column: '#0e1624',
       curved: true, towers: 3, truss: false
     }
