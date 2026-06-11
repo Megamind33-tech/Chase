@@ -348,6 +348,29 @@ app.whenReady().then(async () => {
   win.webContents.send('remote:cmd', { cmd: 'gfx', key: 'ticker', action: 'toggle' });
   console.log('stage 11 checks:', JSON.stringify(stage11));
 
+  // ---- stage 12: program formats (9:16 / 1:1) + fill+key aux window ----
+  const stage12 = await win.webContents.executeJavaScript(`(async () => {
+    const sel = document.getElementById('out-res');
+    const cv = document.getElementById('program-canvas');
+    sel.value = '1080x1920';
+    sel.dispatchEvent(new Event('change'));
+    await new Promise((r) => setTimeout(r, 900));
+    const portrait = cv.width === 1080 && cv.height === 1920;
+    const aspectChip = document.querySelector('.vp-aspect').textContent === '9:16';
+    const px = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    let lit = 0;
+    for (let i = 0; i < px.length; i += 8000) if (px[i] + px[i + 1] + px[i + 2] > 24) lit++;
+    document.getElementById('btn-fillkey').click();
+    await new Promise((r) => setTimeout(r, 700));
+    sel.value = '1920x1080';
+    sel.dispatchEvent(new Event('change'));
+    await new Promise((r) => setTimeout(r, 600));
+    const back = cv.width === 1920 && cv.height === 1080;
+    return { portrait, aspectChip, lit, back, fkBtn: !!document.getElementById('btn-fillkey') };
+  })()`);
+  stage12.auxWindow = BrowserWindow.getAllWindows().length >= 2;
+  console.log('stage 12 checks:', JSON.stringify(stage12));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -391,6 +414,8 @@ app.whenReady().then(async () => {
     && stage10.goLive && stage10.goCam && stage10.nextLive && stage10.nextCam
     && stage10.prompterOpen && stage10.prompterCue && stage10.prompterClosed
     && stage11.remoteBridge && stage11.apiBridge && stage11.apiRow && stage11.tickerFlipped
+    && stage12.portrait && stage12.aspectChip && stage12.lit > 20 && stage12.back
+    && stage12.fkBtn && stage12.auxWindow
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

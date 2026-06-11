@@ -1792,20 +1792,97 @@ export function initEditor(ctx) {
   });
 
   /* ---- stream panel (inspector) ---- */
+  function applyFormatChrome() {
+    const { width: w, height: h } = state.output;
+    canvas.style.aspectRatio = w + ' / ' + h;
+    document.querySelector('.vp-aspect').textContent =
+      w === h ? '1:1' : (h > w ? '9:16' : '16:9');
+    requestAnimationFrame(fitSafezone);
+  }
+  function fitSafezone() {
+    // pin the safe-zone guides to the canvas, not the viewport
+    const sz = $('safezone');
+    const r = canvas.getBoundingClientRect();
+    const wr = $('viewport-wrap').getBoundingClientRect();
+    sz.style.left = (r.left - wr.left) + 'px';
+    sz.style.top = (r.top - wr.top) + 'px';
+    sz.style.width = r.width + 'px';
+    sz.style.height = r.height + 'px';
+    sz.style.inset = 'auto';
+  }
+  window.addEventListener('resize', fitSafezone);
   $('out-res').addEventListener('change', (e) => {
+    if (outputs.recording || outputs.streaming) {
+      toast('Stop recording and streaming before changing the program format.', 'err');
+      e.target.value = state.output.width + 'x' + state.output.height;
+      return;
+    }
     const [w, h] = e.target.value.split('x').map(Number);
     state.output.width = w; state.output.height = h;
     ctx.resizeOutput(w, h);
+    applyFormatChrome();
     refreshResChip();
+    logEvent('Program format → ' + w + '×' + h);
   });
   $('out-fps').addEventListener('change', (e) => { state.output.fps = parseInt(e.target.value, 10); refreshResChip(); });
+
+  /* ---- fill+key aux window: graphics layer as an external keyer pair ---- */
+  let fkTimer = null;
+  $('btn-fillkey').addEventListener('click', () => {
+    const pop = window.open('', 'chase-fillkey', 'width=640,height=780');
+    if (!pop) { toast('Aux window was blocked by the platform.', 'err'); return; }
+    const oc = overlay.canvas;
+    const doc = pop.document;
+    doc.title = 'CHASE · GRAPHICS FILL+KEY';
+    doc.body.style.cssText = 'margin:0;background:#111;display:grid;grid-template-rows:auto 1fr auto 1fr;height:100vh;font:700 11px sans-serif;color:#888';
+    const label = (t) => { const d = doc.createElement('div'); d.textContent = t; d.style.cssText = 'padding:4px 8px;letter-spacing:.12em'; doc.body.appendChild(d); };
+    const mk = () => {
+      const c = doc.createElement('canvas');
+      c.width = oc.width; c.height = oc.height;
+      c.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000';
+      doc.body.appendChild(c);
+      return c;
+    };
+    label('FILL — graphics over black');
+    const fill = mk();
+    label('KEY — luma matte');
+    const key = mk();
+    const tmp = document.createElement('canvas');
+    tmp.width = oc.width; tmp.height = oc.height;
+    clearInterval(fkTimer);
+    fkTimer = setInterval(() => {
+      if (pop.closed) { clearInterval(fkTimer); fkTimer = null; return; }
+      if (fill.width !== oc.width || fill.height !== oc.height) {
+        fill.width = key.width = tmp.width = oc.width;
+        fill.height = key.height = tmp.height = oc.height;
+      }
+      const fc = fill.getContext('2d');
+      fc.fillStyle = '#000';
+      fc.fillRect(0, 0, fill.width, fill.height);
+      fc.drawImage(oc, 0, 0);
+      const tc = tmp.getContext('2d');
+      tc.clearRect(0, 0, tmp.width, tmp.height);
+      tc.drawImage(oc, 0, 0);
+      tc.globalCompositeOperation = 'source-in';
+      tc.fillStyle = '#fff';
+      tc.fillRect(0, 0, tmp.width, tmp.height);
+      tc.globalCompositeOperation = 'source-over';
+      const kc = key.getContext('2d');
+      kc.fillStyle = '#000';
+      kc.fillRect(0, 0, key.width, key.height);
+      kc.drawImage(tmp, 0, 0);
+    }, 33);
+    logEvent('Fill+Key aux window opened');
+  });
   $('out-bitrate').addEventListener('change', (e) => { state.output.bitrateK = parseInt(e.target.value, 10); });
   $('out-quality').addEventListener('change', (e) => {
     state.output.quality = e.target.value;
     studio.setQuality(e.target.value);
   });
   function refreshResChip() {
-    $('stat-res').textContent = (state.output.height === 1080 ? '1080p' : '720p') + state.output.fps;
+    const { width: w, height: h, fps } = state.output;
+    const label = w === h ? '1:1 ' + h + 'p' : h > w ? '9:16 ' + w + 'p' : (h === 1080 ? '1080p' : '720p');
+    $('stat-res').textContent = label + fps;
   }
 
   function buildDestEditor() {
@@ -2690,6 +2767,7 @@ export function initEditor(ctx) {
     const sz = $('safezone');
     sz.hidden = !sz.hidden;
     $('vp-safe').classList.toggle('on', !sz.hidden);
+    if (!sz.hidden) fitSafezone();
   });
 
   /* ================= KEYBOARD ================= */

@@ -51,34 +51,48 @@ to a full Broadcast Graphics Engine. Strict audit first, then phases.
   (viewport only — never composited into program).
 - GraphicsTriggerManager v1: Shift+1–9 playout hotkeys.
 
-### G2 — Editorial packs (data-driven layouts)
-- Election results card: party rows, vote bars, swing indicator —
-  bound to {{party_name}}/{{votes}}/{{percentage}} row sets.
-- Weather panel: location, temp, condition glyph set (drawn, not icons).
-- Finance strip: instrument, price, delta with up/down colour logic.
-- Music metadata card: {{song_title}}/{{artist_name}}/{{station_name}} —
-  ZAMCOPS royalty metadata ready ({{royalty_amount}}).
-- Full-screen takeover panel with row-based data layout.
+### G2 — Editorial packs ✅ SHIPPED
+- Election results: header + reporting badge, party rows with animated
+  vote bars, automatic leader highlight, per-row colour.
+- Weather panel: drawn condition glyphs (clear/cloud/rain/storm/snow),
+  temperature, location, high/low.
+- Market strip: instruments with price + signed delta colouring.
+- Now playing: song/artist/station + animated beat bars; ZAMCOPS royalty
+  metadata field ({{royalty_amount}}).
+- Full screen: full-frame takeover, kicker/title, sequential row reveal.
+- Comment card: handle + tag chip + wrapped body ({{comment_user}} /
+  {{comment_text}} drivable from the Control API).
+- 16 graphic types total, all token-bound, editable on air, presets.
 
-### G3 — AR graphics modes
-- Pin presets for AR objects: floor / wall / desk anchor snapping in
-  Builder; camera-facing billboard flag.
-- AR chart prop (bar/line, token-bound, change-detected repaint like the
-  AR Data Panel).
-- Presenter-side callout: AR panel that keeps safe distance from the
-  presenter plane using the segmentation bounds.
-- Honest tracking policy stays: virtual cameras = stable AR; physical
-  tracking is staged copy until a tracking source exists.
+### G3 — AR graphics modes ✅ SHIPPED
+- AR Chart prop: in-set bar chart, Label:Value rows, token-bound,
+  change-detected repaint, true depth/occlusion/reflection.
+- AR Callout: pill + stem, billboards to the active camera (yaw only),
+  keeps ≥1.15m visual distance from the presenter (smoothed offset,
+  never rewrites authored position).
+- AR Anchor pins: FLOOR / DESK / EYE LINE; billboard + presenter-safe
+  toggles in the inspector.
+- Honest tracking policy holds: virtual cameras = locked AR by
+  construction; physical-camera tracking is not simulated.
 
-### G4 — Trigger surfaces
-- Local HTTP control API (localhost only): /gfx/:key/in|out, /data/:field
-  — this is what Stream Deck, Companion and newsroom glue scripts speak.
-- Hotkey map editor.
-- Social/comment feed adapter (manual paste first, API later).
+### G4 — Trigger surfaces ✅ SHIPPED (API)
+- Control API on 127.0.0.1:7611 (falls forward to :7619): /api/status,
+  /api/gfx/<key>/in|out|toggle, /api/data/<field>?value=, /api/cue/next,
+  /api/cut/<n>, /api/take, /api/stinger. Stream Deck route = Companion
+  HTTP requests against these endpoints. All commands hit the operator
+  log. Status row in the destinations rack.
+- Still open: hotkey map editor (fixed Shift+1–9 map today), packaged
+  Companion module, direct social feed adapters (comment card binds via
+  Data Sources / Control API today).
 
-### G5 — Outputs (procurement / heavy)
-- Alpha/matte fill+key pair, 9:16 / 1:1 render targets (overlay layout
-  refactor — real work), NDI (SDK, Windows machine), virtual camera.
+### G5 — Outputs ✅ formats + fill/key · NDI/virtual cam procurement-gated
+- Program formats: 16:9 1080p/720p, 9:16 1080×1920, 1:1 1080×1080 —
+  full pipeline re-flow (camera aspect, render targets, graphics layer
+  re-anchors to the new frame). Blocked while recording/streaming.
+- Fill+Key aux window: graphics layer as FILL (over black) + KEY (luma
+  matte) for external keyers via window capture in OBS/vMix.
+- Procurement-gated (Windows machine + SDKs): NDI, virtual camera
+  driver, true alpha in the encoded stream.
 
 ## 4 · Language rules (enforced)
 Broadcast terms only: Template, Playout, Program, Preview, Layer, Data

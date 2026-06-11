@@ -341,6 +341,9 @@ export class Studio {
 
   setOutputSize(w, h) {
     this.width = w; this.height = h;
+    this.rig.setAspect(w / h);
+    this.designCamera.aspect = w / h;
+    this.designCamera.updateProjectionMatrix();
     this._applyScale();
   }
 

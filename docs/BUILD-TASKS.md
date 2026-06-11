@@ -163,6 +163,24 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
      modes + charts, local control API (Stream Deck route), fill+key and
      vertical outputs.
 
+## Phase 1i — Graphics G2–G5 build-out (✅ · docs/GRAPHICS-UPGRADE.md)
+
+24a. ✅ G2 editorial packs: election results (vote bars, leader
+     highlight), weather (drawn glyphs), market strip (delta colours),
+     now playing (ZAMCOPS-ready), full-screen takeover, comment card —
+     16 graphic types, all token-bound and editable on air.
+24b. ✅ G3 AR modes: AR chart prop, presenter-safe billboard callout,
+     FLOOR/DESK/EYE LINE anchors, billboard toggle, generic AR data
+     binding inspector.
+24c. ✅ G4 Control API: localhost HTTP trigger surface (gfx playout,
+     data writes, cue advance, cuts, take, stinger) — verified with real
+     HTTP calls; Stream Deck speaks this via Companion.
+24d. ✅ G5 outputs: 9:16 and 1:1 program formats with full pipeline
+     re-flow; Fill+Key aux window (graphics fill + luma matte) for
+     external keyers.
+24e. Procurement-gated, unchanged: NDI, virtual camera driver, encoded
+     alpha output, physical-camera tracking. Honest staging only.
+
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.
 - NDI SDK native module (N-API) → NDI input sources.

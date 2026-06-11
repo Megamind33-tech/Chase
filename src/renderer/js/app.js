@@ -58,6 +58,7 @@ async function setBgMode(mode) {
 
 function resizeOutput(w, h) {
   studio.setOutputSize(w, h);
+  overlay.setFormat(w, h);
   compositor.setSize(w, h);
 }
 

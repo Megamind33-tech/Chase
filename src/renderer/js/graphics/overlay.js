@@ -3,9 +3,12 @@
 // compositor layers over the 3D program. All animation is time-based.
 import { state, tok } from '../state.js';
 
-const W = 1920, H = 1080;
+// Frame size follows the program format (16:9 / 9:16 / 1:1) — every layout
+// in this engine is anchored to W/H and the title-safe insets, never to
+// absolute pixels, so straps re-flow when the format changes.
+let W = 1920, H = 1080;
 // Title-safe inset (90% of frame) — all strap graphics anchor to these.
-export const SAFE_X = Math.round(W * 0.05), SAFE_Y = Math.round(H * 0.05);
+export let SAFE_X = Math.round(W * 0.05), SAFE_Y = Math.round(H * 0.05);
 
 /* Broadcast easing curves */
 const clamp01 = (t) => Math.min(Math.max(t, 0), 1);
@@ -32,6 +35,15 @@ export class OverlayEngine {
     this.logoImg = null;
     this.tickerX = 0;
     this._lastT = 0;
+  }
+
+  /** Re-flow the whole graphics layer to a new program format. */
+  setFormat(w, h) {
+    W = w; H = h;
+    SAFE_X = Math.round(w * 0.05);
+    SAFE_Y = Math.round(h * 0.05);
+    this.canvas.width = w;
+    this.canvas.height = h;
   }
 
   setLogo(url) {
@@ -867,8 +879,9 @@ export class OverlayEngine {
     if (ph <= 0) return;
     const now = new Date();
     const txt = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-    // stack clear of the ticker and market strip
-    const lift = (state.graphics.ticker.on ? 70 : 0) + (state.graphics.finance.on ? 64 : 0);
+    // stack clear of the ticker, market strip and lower third
+    const lift = (state.graphics.ticker.on ? 70 : 0) + (state.graphics.finance.on ? 64 : 0)
+      + (state.graphics.lowerThird.on ? 118 : 0);
     ctx.save();
     ctx.globalAlpha = ph;
     ctx.fillStyle = 'rgba(8,10,16,0.8)';
