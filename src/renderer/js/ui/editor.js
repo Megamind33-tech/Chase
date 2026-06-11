@@ -17,7 +17,7 @@ export function initEditor(ctx) {
   const { studio, overlay, outputs, audio, compositor } = ctx;
 
   // ---- inject the custom icon system into the static shell ----
-  const NAV_ICONS = { sets: 'sets', props: 'cube', graphics: 'graphics', lighting: 'lighting', cameras: 'camera', audio: 'audio', scripts: 'scripts', plugins: 'plugins' };
+  const NAV_ICONS = { sets: 'sets', props: 'cube', graphics: 'graphics', lighting: 'lighting', cameras: 'camera', talent: 'talent', audio: 'audio', scripts: 'scripts', plugins: 'plugins' };
   document.querySelectorAll('.irail-btn').forEach((b) => {
     const el = b.querySelector('.irail-ico');
     if (el) el.outerHTML = icon(NAV_ICONS[b.dataset.nav] || 'cube');
@@ -56,7 +56,7 @@ export function initEditor(ctx) {
   /* ================= ICON RAIL + BROWSER ================= */
   const NAV_TITLES = {
     sets: 'Studio sets', props: '3D objects', graphics: 'Graphics & overlays',
-    lighting: 'Lighting moods', cameras: 'Virtual cameras', audio: 'Audio & jingles',
+    lighting: 'Lighting moods', cameras: 'Virtual cameras', talent: 'Talent & guest', audio: 'Audio & jingles',
     scripts: 'Scripts & rundowns', plugins: 'Plugins'
   };
 
@@ -90,6 +90,7 @@ export function initEditor(ctx) {
     else if (activeNav === 'graphics') buildGraphicsPane(body);
     else if (activeNav === 'lighting') buildLightingPane(body);
     else if (activeNav === 'cameras') buildCamerasPane(body);
+    else if (activeNav === 'talent') buildTalentPane(body);
     else if (activeNav === 'audio') buildAudioPane(body);
     else buildStagedPane(body, activeNav);
   }
@@ -372,6 +373,21 @@ export function initEditor(ctx) {
         st.className = 'l-state'; st.textContent = 'PGM'; st.style.color = '#ff9b9b';
         card.appendChild(st);
       }
+      const rear = document.createElement('button');
+      const isRear = state.talent.rearCams.includes(a.num);
+      rear.className = 'chip' + (isRear ? ' active' : '');
+      rear.style.marginLeft = 'auto';
+      rear.textContent = 'REAR';
+      rear.title = 'Cross-shot camera: plays the active presenter profile\'s pre-captured back loop';
+      rear.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = state.talent.rearCams.indexOf(a.num);
+        if (i >= 0) state.talent.rearCams.splice(i, 1);
+        else state.talent.rearCams.push(a.num);
+        rear.classList.toggle('active', i < 0);
+        applyAngleSource();
+      });
+      card.appendChild(rear);
       body.appendChild(card);
     }
     const staged = document.createElement('div');
@@ -380,6 +396,168 @@ export function initEditor(ctx) {
       camera update. Phone cameras already work today through DroidCam/Camo-style
       virtual webcams — pick them in the camera selector.</p>`;
     body.appendChild(staged);
+  }
+
+  /* ---- talent & guest pane ---- */
+  function buildTalentPane(body) {
+    $('browser-hint').textContent = 'Angle packs power rear cross-shots; the guest slot adds a second person.';
+    const t = state.talent;
+
+    const h1 = document.createElement('h3');
+    h1.style.cssText = 'font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--txt-dim);margin:4px 0 8px';
+    h1.textContent = 'PRESENTER PROFILES';
+    body.appendChild(h1);
+
+    if (!t.profiles.length) {
+      const es = document.createElement('div');
+      es.className = 'empty-state';
+      es.innerHTML = `${icon('talent')}<h5>No presenter profiles</h5>
+        <p>Capture a familiar presenter once — back and side loops — and Chase will show
+        them from behind on rear cross-shots while their live feed plays on front cameras.</p>`;
+      body.appendChild(es);
+    }
+    t.profiles.forEach((pr) => {
+      const card = document.createElement('div');
+      card.className = 'profile-card' + (t.activeProfile === pr.id ? ' active' : '');
+      card.innerHTML = `${icon('talent')}<span class="pc-name">${pr.name}</span>
+        <span class="pc-tags">${pr.back ? '<span class="pc-tag">BACK</span>' : ''}${pr.side ? '<span class="pc-tag">SIDE</span>' : ''}</span>
+        <button class="pc-x" title="Delete profile">✕</button>`;
+      card.addEventListener('click', (e) => {
+        if (e.target.classList.contains('pc-x')) {
+          state.talent.profiles = t.profiles.filter((x) => x.id !== pr.id);
+          if (t.activeProfile === pr.id) { t.activeProfile = null; applyAngleSource(); }
+          buildBrowser();
+          return;
+        }
+        t.activeProfile = t.activeProfile === pr.id ? null : pr.id;
+        applyAngleSource();
+        buildBrowser();
+        toast(t.activeProfile ? pr.name + ' is the active presenter — rear cams use their back loop.' : 'Profile deactivated — all cameras show the live feed.');
+      });
+      body.appendChild(card);
+    });
+    const cap = document.createElement('button');
+    cap.className = 'btn gold slim browser-foot-btn';
+    cap.innerHTML = icon('camera') + ' Capture new profile…';
+    cap.addEventListener('click', openCaptureWizard);
+    body.appendChild(cap);
+
+    const h2 = document.createElement('h3');
+    h2.style.cssText = 'font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--txt-dim);margin:16px 0 8px';
+    h2.textContent = 'GUEST SLOT (2ND PRESENTER)';
+    body.appendChild(h2);
+    const g = document.createElement('div');
+    g.innerHTML = `
+      <div class="chipset">
+        <button class="chip${t.guest.on ? ' active' : ''}" id="guest-on">Enable</button>
+        <button class="chip" id="guest-media">Load guest video…</button>
+      </div>
+      <div class="field slim"><label>Position</label><input type="range" id="guest-x" min="-2.5" max="2.5" step="0.01" value="${t.guest.x}"></div>
+      <div class="field slim"><label>Size</label><input type="range" id="guest-scale" min="0.5" max="1.8" step="0.01" value="${t.guest.scale}"></div>
+      <p class="hint">A keyed second person from a video file (recorded on green screen) —
+      place them opposite your live presenter for the two-shot discussion. A second live
+      camera input is the staged next step.</p>`;
+    body.appendChild(g);
+    g.querySelector('#guest-on').addEventListener('click', (e) => {
+      if (!t.guest.media) { toast('Load the guest video first.', 'err'); return; }
+      t.guest.on = e.target.classList.toggle('active');
+      logEvent(t.guest.on ? 'Guest slot ON' : 'Guest slot off');
+    });
+    g.querySelector('#guest-media').addEventListener('click', async () => {
+      const media = await window.chase.pickMedia('video');
+      if (!media) return;
+      t.guest.media = { url: media.url, path: media.path };
+      t.guest.on = true;
+      g.querySelector('#guest-on').classList.add('active');
+      logEvent('Guest video loaded: ' + media.name, 'ok');
+      toast(media.name + ' keyed into the guest slot — set their position opposite your presenter.', 'ok', 4500);
+    });
+    g.querySelector('#guest-x').addEventListener('input', (e) => { t.guest.x = parseFloat(e.target.value); });
+    g.querySelector('#guest-scale').addEventListener('input', (e) => { t.guest.scale = parseFloat(e.target.value); });
+  }
+
+  /* ---- capture wizard: records keyed loops from the live camera ---- */
+  let capDraft = null;
+  function openCaptureWizard() {
+    if (outputs.recording) return toast('Stop the program recording first — the wizard uses the recorder.', 'err', 4500);
+    if (!capture.stream?.active) return toast('No camera connected — the wizard records from the live camera.', 'err', 4500);
+    capDraft = { back: null, side: null };
+    $('cap-name').value = '';
+    $('cap-back-state').textContent = '—';
+    $('cap-back-state').className = 'cap-state';
+    $('cap-side-state').textContent = '—';
+    $('cap-side-state').className = 'cap-state';
+    $('cap-save').disabled = true;
+    $('cap-status').hidden = true;
+    $('modal-capture').hidden = false;
+  }
+
+  async function recordLoop(kind) {
+    const stateEl = $('cap-' + kind + '-state');
+    const btn = $('cap-' + kind + '-btn');
+    const path = await window.chase.recStart(($('cap-name').value.trim() || 'presenter') + '-' + kind + '.webm');
+    if (!path) return;
+    btn.disabled = true;
+    for (let c = 3; c > 0; c--) {
+      stateEl.textContent = 'IN ' + c;
+      stateEl.className = 'cap-state rec';
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    const rec = new MediaRecorder(new MediaStream(capture.stream.getVideoTracks()), {
+      mimeType: outputs.codec.mime || undefined, videoBitsPerSecond: 8_000_000
+    });
+    rec.ondataavailable = async (e) => { if (e.data.size) window.chase.recChunk(await e.data.arrayBuffer()); };
+    rec.start(500);
+    for (let cs = 8; cs > 0; cs--) {
+      stateEl.textContent = 'REC ' + cs + 's';
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    await new Promise((res) => { rec.onstop = res; rec.stop(); });
+    const saved = await window.chase.recStop();
+    btn.disabled = false;
+    if (saved) {
+      capDraft[kind] = { url: 'media://local/?p=' + encodeURIComponent(saved), path: saved };
+      stateEl.textContent = 'SAVED ✓';
+      stateEl.className = 'cap-state done';
+      $('cap-save').disabled = !capDraft.back;
+    } else {
+      stateEl.textContent = 'FAILED';
+      stateEl.className = 'cap-state';
+    }
+  }
+  $('cap-back-btn').addEventListener('click', () => recordLoop('back'));
+  $('cap-side-btn').addEventListener('click', () => recordLoop('side'));
+  $('cap-cancel').addEventListener('click', () => { $('modal-capture').hidden = true; });
+  $('cap-save').addEventListener('click', () => {
+    const name = $('cap-name').value.trim();
+    if (!name) {
+      $('cap-status').hidden = false;
+      $('cap-status').className = 'statusbox err';
+      $('cap-status').textContent = 'Give the presenter a name.';
+      return;
+    }
+    const id = 'prof' + Date.now();
+    state.talent.profiles.push({ id, name, back: capDraft.back, side: capDraft.side });
+    state.talent.activeProfile = id;
+    $('modal-capture').hidden = true;
+    applyAngleSource();
+    if (activeNav === 'talent') buildBrowser();
+    logEvent('Presenter profile captured: ' + name + (capDraft.side ? ' (back + side)' : ' (back)'), 'ok');
+    toast(name + ' saved and active — rear cameras now use their back loop.', 'ok', 4500);
+  });
+
+  /* ---- angle-aware source swap: live feed vs pre-captured back loop ---- */
+  function applyAngleSource() {
+    const t = state.talent;
+    const prof = t.profiles.find((p) => p.id === t.activeProfile);
+    const wantLoop = prof?.back && t.rearCams.includes(state.camera.active);
+    if (wantLoop) {
+      studio.presenter.useLoop(prof.back.url);
+      $('vp-precap').hidden = false;
+    } else {
+      studio.presenter.useLive();
+      $('vp-precap').hidden = true;
+    }
   }
 
   /* ---- audio pane ---- */
@@ -589,6 +767,7 @@ export function initEditor(ctx) {
     $('vp-cam').textContent = `CAM ${num} · ${(a?.name || '').toUpperCase()}`;
     if (activeNav === 'cameras') buildBrowser();
     if (!selectedId) buildStudioOverview();
+    applyAngleSource();
   }
 
   /* ---- UNDO / REDO (scene objects) ---- */

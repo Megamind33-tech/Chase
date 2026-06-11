@@ -164,6 +164,7 @@
       <button class="irail-btn" data-nav="graphics" title="Overlays, tickers, lower thirds"><span class="irail-ico">𝙏</span>Graphics</button>
       <button class="irail-btn" data-nav="lighting" title="Lighting moods"><span class="irail-ico">☀</span>Light</button>
       <button class="irail-btn" data-nav="cameras" title="Virtual cameras"><span class="irail-ico">▶</span>Cams</button>
+      <button class="irail-btn" data-nav="talent" title="Presenter profiles & guest slot"><span class="irail-ico">👤</span>Talent</button>
       <button class="irail-btn" data-nav="audio" title="Audio & jingles"><span class="irail-ico">♫</span>Audio</button>
       <div class="irail-spacer"></div>
       <button class="irail-btn staged" data-nav="scripts" title="Scripts & rundowns — staged rollout"><span class="irail-ico">≣</span>Scripts</button>
@@ -186,6 +187,7 @@
           <span class="vp-live" id="vp-live"><span class="vp-live-dot"></span>LIVE PREVIEW</span>
           <span class="vp-cam" id="vp-cam">CAM 1 · WIDE</span>
           <span class="vp-aspect">16:9</span>
+          <span class="vp-precap" id="vp-precap" hidden>PRE-CAP LOOP</span>
         </div>
         <div class="builder-bar" id="builder-bar" hidden>
           <div class="bb-group">
@@ -512,6 +514,32 @@
     <h2>Multi-view</h2>
     <div class="mv-grid" id="mv-grid"></div>
     <footer class="modal-foot"><button class="btn ghost" id="mv-close">Close</button></footer>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-capture" hidden>
+  <div class="modal">
+    <h2>Capture presenter profile</h2>
+    <p class="hint">One session per presenter. They stand on the green screen; Chase records
+    short keyed loops used automatically on rear cross-shot cameras. Hold a natural
+    listening posture — small movements are good, talking is not.</p>
+    <div class="field"><label>Presenter name</label>
+      <input type="text" id="cap-name" placeholder="e.g. Jane Mwangi" spellcheck="false"></div>
+    <div class="cap-row" id="cap-back-row">
+      <div class="cap-info"><b>BACK VIEW</b><span>Presenter faces away from camera · 8s</span></div>
+      <span class="cap-state" id="cap-back-state">—</span>
+      <button class="btn slim" id="cap-back-btn">● Record</button>
+    </div>
+    <div class="cap-row" id="cap-side-row">
+      <div class="cap-info"><b>SIDE VIEW</b><span>Presenter in profile, optional · 8s</span></div>
+      <span class="cap-state" id="cap-side-state">—</span>
+      <button class="btn slim" id="cap-side-btn">● Record</button>
+    </div>
+    <div class="statusbox" id="cap-status" hidden></div>
+    <footer class="modal-foot">
+      <button class="btn ghost" id="cap-cancel">Cancel</button>
+      <button class="btn primary" id="cap-save" disabled>Save profile</button>
+    </footer>
   </div>
 </div>
 

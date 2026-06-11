@@ -16,6 +16,13 @@ export const state = {
   enhance: { exposure: 1.0, warmth: 0.0, saturation: 1.0, smoothing: 0.0, eyes: 0.0, erode: 0.0, wrap: 0.0 },
   presenter: { x: 0, y: 0, scale: 1 },
   cloth: { on: false, key: '#3a3f4a', to: '#8e1424', tol: 0.12, soft: 0.08 }, // wardrobe recolor
+  // Familiar-presenter angle packs + remote guest slot
+  talent: {
+    profiles: [],        // { id, name, back: {url,path}|null, side: {url,path}|null }
+    activeProfile: null, // profile id driving the rear-view swap
+    rearCams: [5],       // camera numbers that show the pre-captured back loop
+    guest: { on: false, media: null, x: 1.15, y: 0, scale: 1 }
+  },
   lighting: { preset: 'newsNight', key: 1, fill: 0.6, back: 1.3, temp: -0.2, accent: 1.35, haze: 0.6, deskGlow: 1 },
   look: { bloom: 0.55, vignette: 0.5, floorReflection: 0.55, ledMedia: null },
   camera: { active: 1, mode: 'cut', moveDuration: 1.2, punch: 0, fovScale: 1, drift: false, driftAmount: 1, customAngles: [] },

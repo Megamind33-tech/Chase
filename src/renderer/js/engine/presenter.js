@@ -269,6 +269,29 @@ export class Presenter {
     this.material.uniforms.texel.value.set(1 / w, 1 / h);
   }
 
+  /** Switch the plane to a pre-captured loop (rear/side angle pack). */
+  useLoop(url) {
+    if (!this.loopVideo) {
+      this.loopVideo = document.createElement('video');
+      this.loopVideo.loop = true;
+      this.loopVideo.muted = true;
+      this.loopVideo.playsInline = true;
+      this.loopTexture = new THREE.VideoTexture(this.loopVideo);
+      this.loopTexture.colorSpace = THREE.SRGBColorSpace;
+    }
+    if (this.loopVideo.src !== url) this.loopVideo.src = url;
+    this.loopVideo.play().catch(() => {});
+    this.material.uniforms.map.value = this.loopTexture;
+    this.onLoop = true;
+  }
+
+  /** Back to the live camera feed. */
+  useLive() {
+    this.material.uniforms.map.value = this.texture;
+    if (this.loopVideo) this.loopVideo.pause();
+    this.onLoop = false;
+  }
+
   /** Yaw-billboard towards the active camera so the flat plane never shows edge-on. */
   tick(camera) {
     const dx = camera.position.x - this.group.position.x;

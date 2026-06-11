@@ -51,6 +51,15 @@ export class Studio {
     this.presenter = new Presenter(videoEl);
     this.scene.add(this.presenter.group);
 
+    // remote guest slot: a second keyed presenter fed by a video file
+    this.guestVideo = document.createElement('video');
+    this.guestVideo.loop = true;
+    this.guestVideo.muted = true;
+    this.guestVideo.playsInline = true;
+    this.guest = new Presenter(this.guestVideo);
+    this.guest.group.visible = false;
+    this.scene.add(this.guest.group);
+
     // post stack: bloom makes LED walls and trims genuinely glow
     this.composer = new EffectComposer(this.renderer);
     this.renderPass = new RenderPass(this.scene, this.rig.camera);
@@ -503,6 +512,24 @@ export class Studio {
     if (this._wallClock > 0.08) { this.set.paint(time); this._wallClock = 0; }
 
     this.presenter.applyPlacement(state.presenter);
+
+    // guest slot
+    const gst = state.talent?.guest;
+    if (gst?.on && gst.media) {
+      if (this.guestVideo.src !== gst.media.url) {
+        this.guestVideo.src = gst.media.url;
+        this.guestVideo.play().catch(() => {});
+      }
+      this.guest.group.visible = true;
+      this.guest.applyPlacement(gst);
+      this.guest.applyChroma(state.chroma);
+      this.guest.applyEnhance(state.enhance, this.lights.grade);
+      this.guest.setMode('chroma');
+      this.guest.tick(this.rig.camera);
+    } else {
+      this.guest.group.visible = false;
+      if (this.guestVideo.src) { this.guestVideo.pause(); }
+    }
     this.rig.punch = state.camera.punch;
     this.rig.fovScale = state.camera.fovScale ?? 1;
     this.rig.drift = state.camera.drift;

@@ -1295,3 +1295,34 @@ button:disabled:hover { background: inherit; border-color: var(--line); }
 .mat-row input[type="color"] { height: 24px; }
 .mat-row .field.slim { margin-bottom: 5px; }
 .chip.picking { background: var(--grad-gold); color: #2a2008; border-color: transparent; animation: blink 1.2s infinite; }
+
+
+/* v11 — familiar presenter angle packs + guest slot */
+.vp-precap {
+  font-size: 10px; font-weight: 800; letter-spacing: .1em; color: #ffc46e;
+  background: rgba(40,28,6,.85); border: 1px solid rgba(255,210,77,.5);
+  padding: 4px 10px; border-radius: 12px; backdrop-filter: blur(5px);
+  animation: blink 1.6s infinite;
+}
+.cap-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 7px;
+  border: 1px solid var(--line-soft); border-radius: var(--r-md); background: var(--bg-1);
+}
+.cap-info { flex: 1; }
+.cap-info b { display: block; font-size: 11px; letter-spacing: .08em; }
+.cap-info span { font-size: 10.5px; color: var(--txt-faint); }
+.cap-state { font-size: 10px; font-weight: 800; color: var(--txt-faint); min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.cap-state.done { color: var(--green); }
+.cap-state.rec { color: #ff9ba3; animation: blink 1s infinite; }
+.profile-card {
+  display: flex; align-items: center; gap: 9px; padding: 9px 10px; margin-bottom: 7px;
+  border: 1px solid var(--line-soft); border-radius: var(--r-md); background: var(--bg-2);
+  cursor: pointer; transition: all .14s;
+}
+.profile-card:hover { border-color: var(--line-hi); }
+.profile-card.active { border-color: rgba(0,199,255,.5); background: rgba(0,199,255,.06); }
+.profile-card .pc-name { font-size: 12px; font-weight: 700; flex: 1; }
+.profile-card .pc-tags { display: flex; gap: 4px; }
+.profile-card .pc-tag { font-size: 8px; font-weight: 800; letter-spacing: .06em; border: 1px solid #1d4d2e; color: #7ee2a4; padding: 2px 6px; border-radius: 7px; }
+.profile-card .pc-x { background: none; border: none; color: var(--txt-faint); cursor: pointer; }
+.profile-card .pc-x:hover { color: #ff8d96; }

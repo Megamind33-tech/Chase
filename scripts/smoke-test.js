@@ -161,6 +161,25 @@ app.whenReady().then(async () => {
   })()`);
   console.log('stage 4 checks:', JSON.stringify(stage4));
 
+  // ---- stage 5: familiar presenter system ----
+  const stage5 = await win.webContents.executeJavaScript(`(async () => {
+    document.querySelector('.irail-btn[data-nav="talent"]').click();
+    await new Promise((r) => setTimeout(r, 500));
+    const talentPane = document.getElementById('browser-title').textContent.includes('Talent');
+    const captureBtn = !!document.querySelector('#browser-body .btn.gold');
+    const guestControls = !!document.getElementById('guest-on') && !!document.getElementById('guest-x');
+    document.querySelector('#browser-body .btn.gold').click();
+    await new Promise((r) => setTimeout(r, 400));
+    const wizardOpen = !document.getElementById('modal-capture').hidden;
+    document.getElementById('cap-cancel').click();
+    document.querySelector('.irail-btn[data-nav="cameras"]').click();
+    await new Promise((r) => setTimeout(r, 400));
+    const rearToggles = document.querySelectorAll('#browser-body .chip').length;
+    return { talentPane, captureBtn, guestControls, wizardOpen, rearToggles,
+      precapBadge: !!document.getElementById('vp-precap') };
+  })()`);
+  console.log('stage 5 checks:', JSON.stringify(stage5));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -187,6 +206,8 @@ app.whenReady().then(async () => {
     && stage4.ingestModal && stage4.erodeSlider && stage4.wrapSlider && stage4.autofit
     && stage4.hdriBtn && stage4.safetyItems === 6 && stage4.safetyOk >= 4
     && stage4.clothOn && stage4.clothControls && stage4.matBox
+    && stage5.talentPane && stage5.captureBtn && stage5.guestControls
+    && stage5.wizardOpen && stage5.rearToggles >= 7 && stage5.precapBadge
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6
