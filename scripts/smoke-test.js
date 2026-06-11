@@ -279,11 +279,18 @@ app.whenReady().then(async () => {
     arCard.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     await new Promise((r) => setTimeout(r, 800));
     const arInputs = document.querySelectorAll('#obj-materials input').length;
-    const arHeader = (document.querySelector('#obj-materials h3')?.textContent || '').includes('AR Panel');
+    const arHeader = (document.querySelector('#obj-materials h3')?.textContent || '').includes('AR Object');
+    const anchorChips = document.querySelectorAll('#obj-materials .chip').length;
+    // AR callout: billboards to camera by default, presenter-safe control present
+    const callCard = cards.find((c) => c.textContent.includes('AR Callout'));
+    callCard.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 800));
+    const calloutBb = !!document.getElementById('obj-billboard')?.checked;
     // latency / dropped-frame chip wired into the topbar
     const latChip = !!document.getElementById('stat-latency');
     return { armSet, tookOnAir, armCleared, drawerOpen, saveBtn, presetChips,
-      ltFields, safeOn, hotkeyTicker, propCards, arInputs, arHeader, latChip };
+      ltFields, safeOn, hotkeyTicker, propCards, arInputs, arHeader,
+      anchorChips, calloutBb, latChip };
   })()`);
   console.log('stage 9 checks:', JSON.stringify(stage9));
 
@@ -361,8 +368,9 @@ app.whenReady().then(async () => {
     && stage8.dataRows >= 3 && stage8.gfxTypes === 16
     && stage9.armSet && stage9.tookOnAir && stage9.armCleared
     && stage9.drawerOpen && stage9.saveBtn && stage9.presetChips === 1
-    && stage9.propCards === 7 && stage9.arInputs === 3 && stage9.arHeader && stage9.latChip
+    && stage9.propCards === 9 && stage9.arInputs === 4 && stage9.arHeader && stage9.latChip
     && stage9.ltFields && stage9.safeOn && stage9.hotkeyTicker
+    && stage9.anchorChips === 3 && stage9.calloutBb
     && stage10.capBtn && stage10.nextBtn && stage10.rows === 2
     && stage10.goLive && stage10.goCam && stage10.nextLive && stage10.nextCam
     && stage10.prompterOpen && stage10.prompterCue && stage10.prompterClosed

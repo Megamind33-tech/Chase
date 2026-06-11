@@ -15,6 +15,8 @@ export function buildProp(kind, theme, brand, media, prebuilt) {
     case 'lightbar': g = lightbarProp(theme, brand); break;
     case 'plant': g = plantProp(); break;
     case 'arpanel': g = arPanelProp(theme, brand); break;
+    case 'archart': g = arChartProp(theme, brand); break;
+    case 'callout': g = calloutProp(theme, brand); break;
     case 'model': g = modelProp(media, prebuilt); break;
     default: g = plinthProp(theme);
   }
@@ -115,6 +117,138 @@ function arPanelProp(theme, brand) {
     ctx.font = '600 40px "Segoe UI", system-ui, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
     ctx.fillText(tok(f.sub), 42, 320);
+    tex.needsUpdate = true;
+  };
+  g.userData.repaint();
+  return g;
+}
+
+// AR bar chart: token-bound "Label:Value" rows drawn to a canvas plane —
+// a real scene object with depth, occlusion and reflections.
+function arChartProp(theme, brand) {
+  const g = new THREE.Group();
+  const cv = document.createElement('canvas');
+  cv.width = 720; cv.height = 520;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.44, 1.04),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide })
+  );
+  panel.position.y = 1.55;
+  g.add(panel);
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5, 1.1, 0.03),
+    new THREE.MeshStandardMaterial({
+      color: '#0b0d12', metalness: 0.7, roughness: 0.35,
+      emissive: theme.trim || '#2277ff', emissiveIntensity: 0.3
+    })
+  );
+  frame.position.set(0, 1.55, -0.025);
+  g.add(frame);
+
+  g.userData.arFields = {
+    title: 'VOTE SHARE',
+    bars: '{{party_name}}:{{percentage}}, UNITED ALLIANCE:34, GREEN COALITION:12, OTHERS:6'
+  };
+  let lastPaint = '';
+  g.userData.repaint = () => {
+    const f = g.userData.arFields;
+    const key = tok(f.title) + '|' + tok(f.bars) + '|' + state.brand.primary + state.brand.accent;
+    if (key === lastPaint) return;
+    lastPaint = key;
+    const ctx = cv.getContext('2d');
+    const gr = ctx.createLinearGradient(0, 0, 0, 520);
+    gr.addColorStop(0, 'rgba(10,15,26,0.96)');
+    gr.addColorStop(1, 'rgba(6,9,16,0.96)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, 720, 520);
+    ctx.fillStyle = state.brand.primary;
+    ctx.fillRect(0, 0, 720, 70);
+    ctx.fillStyle = '#fff';
+    ctx.textBaseline = 'middle';
+    ctx.font = '800 34px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(f.title).toUpperCase(), 36, 38);
+    const rows = tok(f.bars).split(',').map((s) => {
+      const [label, val] = s.split(':');
+      return { label: (label || '').trim(), val: parseFloat(val) || 0 };
+    }).filter((r) => r.label).slice(0, 5);
+    const max = Math.max(1, ...rows.map((r) => r.val));
+    rows.forEach((r, i) => {
+      const ry = 108 + i * 84;
+      ctx.font = '700 26px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(r.label.toUpperCase().slice(0, 22), 36, ry);
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ctx.fillRect(36, ry + 18, 540, 22);
+      ctx.fillStyle = i === rows.findIndex((x) => x.val === max) ? state.brand.accent : state.brand.primary;
+      ctx.fillRect(36, ry + 18, 540 * (r.val / max), 22);
+      ctx.font = '800 30px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(r.val % 1 ? r.val.toFixed(1) : r.val), 684, ry + 28);
+      ctx.textAlign = 'left';
+    });
+    tex.needsUpdate = true;
+  };
+  g.userData.repaint();
+  return g;
+}
+
+// Presenter callout: floating pill with stem — billboards to the active
+// camera and keeps safe distance from the presenter (set in studio.tick).
+function calloutProp(theme, brand) {
+  const g = new THREE.Group();
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 140;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const pill = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.15, 0.315),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide })
+  );
+  pill.position.y = 1.78;
+  g.add(pill);
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.006, 0.006, 0.34, 8),
+    new THREE.MeshBasicMaterial({ color: brand.accent || theme.trim, toneMapped: false })
+  );
+  stem.position.y = 1.45;
+  g.add(stem);
+  const dot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.018, 12, 12),
+    new THREE.MeshBasicMaterial({ color: brand.accent || theme.trim, toneMapped: false })
+  );
+  dot.position.y = 1.28;
+  g.add(dot);
+
+  g.userData.arFields = { text: '{{guest_name}}', tag: 'SPEAKING' };
+  let lastPaint = '';
+  g.userData.repaint = () => {
+    const f = g.userData.arFields;
+    const key = tok(f.text) + '|' + tok(f.tag) + '|' + state.brand.accent;
+    if (key === lastPaint) return;
+    lastPaint = key;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, 512, 140);
+    ctx.fillStyle = 'rgba(8,11,18,0.94)';
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 504, 132, 26);
+    ctx.fill();
+    ctx.strokeStyle = state.brand.accent;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 504, 132, 26);
+    ctx.stroke();
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 44px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(tok(f.text), 34, 56);
+    const tag = tok(f.tag).toUpperCase();
+    if (tag && tag !== '—') {
+      ctx.fillStyle = state.brand.accent;
+      ctx.font = '800 24px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText(tag, 34, 104);
+    }
     tex.needsUpdate = true;
   };
   g.userData.repaint();

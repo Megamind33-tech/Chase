@@ -156,6 +156,7 @@ export class Studio {
     group.userData.id = id;
     group.userData.kind = kind;
     const data = existing || { id, kind, x, z, rotY: 0, scale: 1, height: 0, opacity: 1, media: null, visible: true };
+    if (kind === 'callout' && !existing) { data.billboard = true; data.avoidPresenter = true; }
     this.objectsRoot.add(group);
     this.objects.set(id, group);
     if (data.media && group.userData.setMedia) group.userData.setMedia(data.media.url, data.media.type);
@@ -512,6 +513,22 @@ export class Studio {
     for (const [, g] of this.objects) {
       g.userData.mixer?.update(dt);
       if (repaintDue) g.userData.repaint?.();
+      const data = state.objects.find((o) => o.id === g.userData.id);
+      if (!data) continue;
+      // billboard mode: yaw toward the active camera (yaw only — stays upright)
+      if (data.billboard) {
+        const cp = this.rig.camera.position;
+        g.rotation.y = Math.atan2(cp.x - g.position.x, cp.z - g.position.z);
+      }
+      // presenter-safe distance: visual offset only, never rewrites data.x
+      if (data.avoidPresenter) {
+        const minGap = 1.15;
+        const dx = data.x - state.presenter.x;
+        let want = 0;
+        if (Math.abs(dx) < minGap) want = (dx >= 0 ? minGap : -minGap) - dx;
+        g.userData._avoid = (g.userData._avoid || 0) + (want - (g.userData._avoid || 0)) * Math.min(1, dt * 4);
+        g.position.x = data.x + g.userData._avoid;
+      }
     }
 
     // animated LED surfaces at ~12fps

@@ -154,7 +154,9 @@ export const PROPS = {
   plinth:   { name: 'Plinth',         desc: 'Display pedestal, lit edge', ico: 'cube' },
   lightbar: { name: 'Floor light bar', desc: 'Accent strip in brand colour', ico: 'lighting' },
   plant:    { name: 'Studio plant',   desc: 'Greenery for talk formats', ico: 'plant' },
-  arpanel:  { name: 'AR Data Panel',  desc: 'Floating in-set panel · {{token}} bindable', ico: 'gauge' }
+  arpanel:  { name: 'AR Data Panel',  desc: 'Floating in-set panel · {{token}} bindable', ico: 'gauge' },
+  archart:  { name: 'AR Chart',       desc: 'In-set bar chart · Label:Value rows, {{token}} bindable', ico: 'health' },
+  callout:  { name: 'AR Callout',     desc: 'Presenter-side pill · billboards to camera, keeps safe distance', ico: 'talent' }
 };
 
 export const GRAPHICS = {

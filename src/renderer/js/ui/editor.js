@@ -1319,28 +1319,66 @@ export function initEditor(ctx) {
   function buildMaterialsModule(data) {
     const box = $('obj-materials');
     box.innerHTML = '';
-    if (data.kind === 'arpanel') {
-      const g = studio.objects.get(data.id);
-      const f = g?.userData.arFields;
-      if (!f) return;
+    const arGroup = studio.objects.get(data.id);
+    if (arGroup?.userData.arFields) {
+      const f = arGroup.userData.arFields;
       data.arFields = data.arFields || { ...f };
       const h = document.createElement('h3');
       h.className = 'spaced';
-      h.textContent = 'AR Panel · Data Binding';
+      h.textContent = 'AR Object · Data Binding';
       box.appendChild(h);
-      for (const [fk, label] of [['kicker', 'Kicker'], ['value', 'Value'], ['sub', 'Sub line']]) {
+      for (const fk of Object.keys(f)) {
         const d = document.createElement('div');
         d.className = 'field slim';
-        d.innerHTML = `<label>${label}</label><input type="text" value="${(f[fk] || '').replace(/"/g, '&quot;')}" spellcheck="false">`;
+        d.innerHTML = `<label>${fk[0].toUpperCase() + fk.slice(1)}</label><input type="text" value="${(f[fk] || '').replace(/"/g, '&quot;')}" spellcheck="false">`;
         d.querySelector('input').addEventListener('input', (e) => {
           f[fk] = e.target.value;
           data.arFields[fk] = e.target.value;
         });
         box.appendChild(d);
       }
+      // pin anchors + tracking behaviour
+      const h2 = document.createElement('h3');
+      h2.className = 'spaced';
+      h2.textContent = 'AR Anchor';
+      box.appendChild(h2);
+      const chips = document.createElement('div');
+      chips.className = 'chipset';
+      for (const [label, height] of [['FLOOR', 0], ['DESK', 0.78], ['EYE LINE', 1.55]]) {
+        const c = document.createElement('button');
+        c.className = 'chip';
+        c.textContent = label;
+        c.addEventListener('click', () => {
+          data.height = height;
+          studio.syncObject(data);
+          $('obj-height').value = height;
+          $('o-h').value = height.toFixed(2);
+          toast('AR anchor: ' + label.toLowerCase());
+        });
+        chips.appendChild(c);
+      }
+      box.appendChild(chips);
+      const bb = document.createElement('label');
+      bb.className = 'checkrow';
+      bb.innerHTML = `<input type="checkbox" id="obj-billboard" ${data.billboard ? 'checked' : ''}> Billboard — face the active camera`;
+      bb.querySelector('input').addEventListener('change', (e) => {
+        data.billboard = e.target.checked;
+        if (!e.target.checked) studio.syncObject(data);
+      });
+      box.appendChild(bb);
+      if (data.kind === 'callout') {
+        const av = document.createElement('label');
+        av.className = 'checkrow';
+        av.innerHTML = `<input type="checkbox" ${data.avoidPresenter ? 'checked' : ''}> Keep safe distance from presenter`;
+        av.querySelector('input').addEventListener('change', (e) => {
+          data.avoidPresenter = e.target.checked;
+          if (!e.target.checked) studio.syncObject(data);
+        });
+        box.appendChild(av);
+      }
       const hint = document.createElement('p');
       hint.className = 'hint';
-      hint.textContent = 'Fields accept {{tokens}} from Data Sources.';
+      hint.textContent = 'Fields accept {{tokens}} from Data Sources. Virtual cameras hold AR locked by construction — physical-camera tracking is not simulated.';
       box.appendChild(hint);
       return;
     }
