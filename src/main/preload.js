@@ -39,5 +39,9 @@ contextBridge.exposeInMainWorld('chase', {
   logPath: () => ipcRenderer.invoke('log:path'),
   dataOpenText: () => ipcRenderer.invoke('data:openText'),
 
-  appInfo: () => ipcRenderer.invoke('app:info')
+  appInfo: () => ipcRenderer.invoke('app:info'),
+
+  // Control API (localhost HTTP trigger surface)
+  apiInfo: () => ipcRenderer.invoke('api:info'),
+  onRemote: (cb) => ipcRenderer.on('remote:cmd', (e, msg) => cb(msg))
 });

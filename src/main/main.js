@@ -37,6 +37,42 @@ protocol.registerSchemesAsPrivileged([
 let win = null;
 const streamer = new Streamer(() => win);
 
+// ---- Control API: localhost HTTP trigger surface ----
+// Stream Deck (via Companion), newsroom scripts and feed glue speak plain
+// HTTP. Bound to 127.0.0.1 only — never exposed off the machine.
+let apiPort = 0;
+function startControlApi() {
+  const http = require('http');
+  const tryPort = (port) => {
+    if (port > 7619) return; // give up quietly after 10 attempts
+    const server = http.createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      const send = (code, obj) => { res.statusCode = code; res.end(JSON.stringify(obj)); };
+      let u;
+      try { u = new URL(req.url, 'http://127.0.0.1'); } catch { return send(400, { error: 'bad url' }); }
+      const p = u.pathname.split('/').filter(Boolean);
+      if (p[0] !== 'api') return send(404, { error: 'unknown path' });
+      if (!win) return send(503, { error: 'no window' });
+      const relay = (msg, ack) => { win.webContents.send('remote:cmd', msg); send(200, { ok: true, ...ack }); };
+      if (p[1] === 'status') return send(200, { app: 'CHASE STUDIO PRO', ok: true, port: apiPort });
+      if (p[1] === 'gfx' && p[2] && ['in', 'out', 'toggle'].includes(p[3])) {
+        return relay({ cmd: 'gfx', key: p[2], action: p[3] }, { gfx: p[2], action: p[3] });
+      }
+      if (p[1] === 'data' && p[2]) {
+        return relay({ cmd: 'data', field: p[2], value: u.searchParams.get('value') ?? '' }, { field: p[2] });
+      }
+      if (p[1] === 'cue' && p[2] === 'next') return relay({ cmd: 'cueNext' }, {});
+      if (p[1] === 'cut' && p[2]) return relay({ cmd: 'cut', camera: Number(p[2]) }, { camera: Number(p[2]) });
+      if (p[1] === 'take') return relay({ cmd: 'take' }, {});
+      if (p[1] === 'stinger') return relay({ cmd: 'stinger' }, {});
+      send(404, { error: 'unknown command' });
+    });
+    server.on('error', () => tryPort(port + 1));
+    server.listen(port, '127.0.0.1', () => { apiPort = port; });
+  };
+  tryPort(7611);
+}
+
 // ---- local recording state (segmented, crash-safe) ----
 let recStream = null;
 let recPath = null;     // base path chosen by the operator
@@ -70,6 +106,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  startControlApi();
   // Serve the app bundle (renderer + node_modules) over app://bundle/.
   protocol.handle('app', async (request) => {
     const url = new URL(request.url);
@@ -249,4 +286,5 @@ function registerIpc() {
     platform: process.platform,
     ffmpeg: streamer.ffmpegAvailable()
   }));
+  ipcMain.handle('api:info', () => ({ port: apiPort, on: apiPort > 0 }));
 }

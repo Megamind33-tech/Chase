@@ -42,6 +42,7 @@ app.whenReady().then(async () => {
     ipcMain.handle(ch, () => null);
   }
   ipcMain.handle('project:recent', () => []);
+  ipcMain.handle('api:info', () => ({ port: 7611, on: true }));
   ipcMain.handle('sys:health', () => ({ cpuPercent: 12, memMB: 800, sysMemMB: 16384 }));
   ipcMain.handle('app:info', () => ({ version: 'smoke', platform: process.platform, ffmpeg: true }));
 
@@ -332,6 +333,21 @@ app.whenReady().then(async () => {
   })()`);
   console.log('stage 10 checks:', JSON.stringify(stage10));
 
+  // ---- stage 11: Control API command relay (gfx toggle over remote:cmd) ----
+  const tickerBefore11 = await win.webContents.executeJavaScript(
+    `document.querySelectorAll('#gfx-list li')[1].querySelector('.ly-vis').classList.contains('on')`);
+  win.webContents.send('remote:cmd', { cmd: 'gfx', key: 'ticker', action: 'toggle' });
+  win.webContents.send('remote:cmd', { cmd: 'data', field: 'percentage', value: '51' });
+  await new Promise((r) => setTimeout(r, 600));
+  const stage11 = await win.webContents.executeJavaScript(`({
+    remoteBridge: typeof window.chase.onRemote === 'function',
+    apiBridge: typeof window.chase.apiInfo === 'function',
+    apiRow: !!document.getElementById('dest-api'),
+    tickerFlipped: document.querySelectorAll('#gfx-list li')[1].querySelector('.ly-vis').classList.contains('on') !== ${tickerBefore11}
+  })`);
+  win.webContents.send('remote:cmd', { cmd: 'gfx', key: 'ticker', action: 'toggle' });
+  console.log('stage 11 checks:', JSON.stringify(stage11));
+
   if (process.env.SMOKE_SHOTS) {
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -374,6 +390,7 @@ app.whenReady().then(async () => {
     && stage10.capBtn && stage10.nextBtn && stage10.rows === 2
     && stage10.goLive && stage10.goCam && stage10.nextLive && stage10.nextCam
     && stage10.prompterOpen && stage10.prompterCue && stage10.prompterClosed
+    && stage11.remoteBridge && stage11.apiBridge && stage11.apiRow && stage11.tickerFlipped
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6

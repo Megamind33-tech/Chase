@@ -2005,6 +2005,7 @@ export function initEditor(ctx) {
 
   /* ---- destinations (bottom strip rows) ---- */
   const destStates = {}; // id -> status
+  let apiPort = 0;
   function buildDestRows() {
     const list = $('dest-list');
     list.innerHTML = '';
@@ -2030,7 +2031,23 @@ export function initEditor(ctx) {
       <span class="dr-state">HLS RELAY · NEXT UPDATE</span>`;
     web.title = 'Website embed output ships with the HLS relay update — until then, embed your YouTube live player.';
     list.appendChild(web);
+    // Control API — live localhost trigger surface
+    const api = document.createElement('div');
+    api.className = 'dest-row';
+    api.id = 'dest-api';
+    api.innerHTML = `<span class="dr-ico">${icon('signal')}</span><span class="dr-led"></span>
+      <span class="dr-name">CONTROL API</span>
+      <span class="dr-state">${apiPort ? '127.0.0.1:' + apiPort + ' · LISTENING' : 'STARTING…'}</span>`;
+    api.title = 'HTTP trigger surface for Stream Deck (Companion), newsroom scripts and data feeds. Localhost only. Endpoints: /api/gfx/<key>/in|out|toggle · /api/data/<field>?value= · /api/cue/next · /api/cut/<n> · /api/take · /api/stinger';
+    list.appendChild(api);
   }
+  window.chase.apiInfo?.().then((i) => {
+    apiPort = i?.port || 0;
+    if (apiPort) {
+      logEvent('Control API listening on 127.0.0.1:' + apiPort);
+      buildDestRows();
+    }
+  }).catch(() => {});
   setInterval(() => { if (outputs.streaming) buildDestRows(); }, 2000);
 
   /* ================= MULTI-VIEW ================= */
@@ -2704,6 +2721,40 @@ export function initEditor(ctx) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); doUndo(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); doRedo(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveProject(); }
+  });
+
+  /* ---- Control API: commands arriving over the localhost trigger surface ---- */
+  window.chase.onRemote?.((msg) => {
+    if (msg.cmd === 'gfx' && GRAPHICS[msg.key]) {
+      if (msg.key === 'stinger') { overlay.fireStinger(); }
+      else {
+        const on = msg.action === 'toggle' ? !state.graphics[msg.key].on : msg.action === 'in';
+        overlay.toggle(msg.key, on);
+        scheduleAutoOut(msg.key);
+        refreshGfxList();
+      }
+      logEvent('Control API: ' + msg.key + ' ' + msg.action);
+    } else if (msg.cmd === 'data' && msg.field) {
+      state.data.fields[msg.field] = msg.value;
+      logEvent('Control API: data ' + msg.field + ' = ' + msg.value);
+    } else if (msg.cmd === 'cueNext') {
+      const rd = state.rundown;
+      if (rd.cues.length) goCue(Math.min(rd.live + 1, rd.cues.length - 1),
+        activeNav === 'scripts' ? $('browser-body') : null);
+      logEvent('Control API: cue next');
+    } else if (msg.cmd === 'cut' && allAngles().some((a) => a.num === msg.camera)) {
+      const t = state.transition.type;
+      state.transition.type = 'cut';
+      switchCam(msg.camera);
+      state.transition.type = t;
+      logEvent('Control API: cut CAM ' + msg.camera);
+    } else if (msg.cmd === 'take') {
+      takeProgram('take');
+      logEvent('Control API: take');
+    } else if (msg.cmd === 'stinger') {
+      overlay.fireStinger();
+      logEvent('Control API: stinger');
+    }
   });
 
   /* ================= REFRESH FROM STATE ================= */
