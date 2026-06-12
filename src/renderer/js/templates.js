@@ -104,6 +104,18 @@ export const SETS = {
       curved: true, towers: 2, truss: false
     }
   },
+  blank: {
+    name: 'Empty Stage', cat: ['news', 'talkshow', 'education', 'podcast', 'concert', 'church', 'sports', 'politics'],
+    desc: 'Bare stage — floor, cyc shell and light rig only. Build your own studio or drop in an imported environment.',
+    theme: {
+      blank: true,
+      ledStyle: 'panels', ledA: '#0a0e14', ledB: '#1a2230', sky: '#05070b',
+      trim: '#56627a', accent: '#56627a', warm: '#8a8270',
+      floor: '#0a0d12', floorRefl: 0.45, desk: '#0c1018', deskFace: '#1a2230',
+      wall: '#06080c', fog: '#05070a', column: '#0d1118',
+      curved: false, towers: 0, truss: false
+    }
+  },
   forum: {
     name: 'Forum Studio', cat: ['education', 'talkshow'],
     desc: 'Clean explainer & theater set — teal panels, bright neutral light',
@@ -125,7 +137,8 @@ export const PRESETS = {
   politics:  { name: 'Election',   set: 'mandate', mood: 'dramatic',  angle: 2, gfx: { ticker: true, banner: true }, headline: 'DECISION DESK' },
   church:    { name: 'Church',     set: 'grace',   mood: 'worship',   angle: 2, gfx: { lowerThird: true }, headline: 'SUNDAY SERVICE' },
   education: { name: 'Education',  set: 'forum',   mood: 'flat',      angle: 5, gfx: { title: true }, headline: 'THE CLASSROOM' },
-  concert:   { name: 'Concert',    set: 'pulse',   mood: 'concert',   angle: 1, gfx: { logoBug: true }, headline: 'LIVE IN CONCERT' }
+  concert:   { name: 'Concert',    set: 'pulse',   mood: 'concert',   angle: 1, gfx: { logoBug: true }, headline: 'LIVE IN CONCERT' },
+  custom:    { name: 'Build your own', set: 'blank', mood: 'flat',     angle: 1, gfx: {}, headline: '' }
 };
 
 export const LIGHT_MOODS = {

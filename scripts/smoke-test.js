@@ -71,8 +71,8 @@ app.whenReady().then(async () => {
     bridge: typeof window.chase === 'object' && typeof window.chase.streamStart === 'function'
   })`);
   console.log('stage 1 checks:', JSON.stringify(checks));
-  const stage1 = errors.length === 0 && checks.launcherVisible && checks.setCards === 9
-    && checks.presetCards === 8 && checks.bridge;
+  const stage1 = errors.length === 0 && checks.launcherVisible && checks.setCards === 10
+    && checks.presetCards === 9 && checks.bridge;
 
   // ---- stage 2: wizard → studio with the fake webcam ----
   await win.webContents.executeJavaScript(`(async () => {
@@ -434,7 +434,7 @@ app.whenReady().then(async () => {
     && stage2.litSamples > 20 && stage2.camTiles === 6 && stage2.cam3Live
     && stage2.pvwStaged && stage2.takeBtn && stage2.blackBtn && stage2.arBtn
     && stage2.scenes === 1 && stage2.macros === 4 && stage2.transBtns === 6
-    && stage2.mixerChannels === 3 && stage2.setBrowserCards === 9;
+    && stage2.mixerChannels === 3 && stage2.setBrowserCards === 10;
   if (!ok) {
     console.error('SMOKE TEST FAILED');
     errors.forEach((e) => console.error('  error:', e));

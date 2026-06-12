@@ -266,6 +266,20 @@ segmentation, 4K-in/1080p-out crop pipeline, virtual camera output.
      validation clean, placed at true scale, camera cuts work, program
      renders, zero renderer errors.
 
+## Phase 1n — Empty Stage: build-from-zero starting world (✅)
+
+29a. ✅ 10th set "Empty Stage": a bare 3D world — neutral reflective
+     floor, dark cyclorama shell, halo light rig. No desk, no LED wall,
+     no towers. Listed in every category and in the launcher wizard.
+29b. ✅ "Build your own" show preset: wizard path straight into the
+     empty world with flat neutral lighting, wide camera, no graphics.
+29c. ✅ All set APIs (brand, LED media, desk glow, floor reflection)
+     stay safe on the empty stage — architecture is built but hidden,
+     and LED/desk repaints early-out for zero wasted CPU.
+29d. ✅ Verified: wizard cards present, bare stage renders clean, an
+     imported 12m environment placed into the empty world at true scale
+     with cameras cutting and zero renderer errors.
+
 ## Procurement (approved, requires Windows build machine)
 - Code-signing certificate (EV/OV) → signed NSIS installer.
 - NDI SDK native module (N-API) → NDI input sources.

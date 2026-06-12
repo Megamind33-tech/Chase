@@ -21,6 +21,7 @@ export function buildSet(theme, brand, headline, opts = {}) {
       color: new THREE.Color(theme.floor).multiplyScalar(2.4),
       clipBias: 0.003
     });
+    reflector.userData._blankKeep = true;
     reflector.rotation.x = -Math.PI / 2;
     reflector.position.y = -0.001;
     group.add(reflector);
@@ -33,6 +34,7 @@ export function buildSet(theme, brand, headline, opts = {}) {
       transparent: true, opacity: reflector ? 1 - theme.floorRefl : 1
     })
   );
+  floorTint.userData._blankKeep = true;
   floorTint.rotation.x = -Math.PI / 2;
   floorTint.position.y = 0.001;
   group.add(floorTint);
@@ -54,12 +56,14 @@ export function buildSet(theme, brand, headline, opts = {}) {
     new THREE.CylinderGeometry(15.5, 15.5, 12, 48, 1, true),
     new THREE.MeshStandardMaterial({ color: theme.wall, roughness: 0.95, side: THREE.BackSide })
   );
+  shell.userData._blankKeep = true;
   shell.position.y = 5.5;
   group.add(shell);
   const ceiling = new THREE.Mesh(
     new THREE.CircleGeometry(15.5, 48),
     new THREE.MeshStandardMaterial({ color: theme.wall, roughness: 0.95 })
   );
+  ceiling.userData._blankKeep = true;
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = 7.4;
   group.add(ceiling);
@@ -151,6 +155,7 @@ export function buildSet(theme, brand, headline, opts = {}) {
       new THREE.TorusGeometry(4.4, 0.05, 8, 80),
       new THREE.MeshBasicMaterial({ color: theme.trim, transparent: true, opacity: 0.85, toneMapped: false })
     );
+    halo.userData._blankKeep = true;
     halo.rotation.x = Math.PI / 2;
     halo.position.y = 5.9;
     group.add(halo);
@@ -159,6 +164,7 @@ export function buildSet(theme, brand, headline, opts = {}) {
     halo2.scale.setScalar(1.45);
     halo2.material = halo.material.clone();
     halo2.material.opacity = 0.3;
+    halo2.userData._blankKeep = true;
     halo2.position.y = 6.4;
     group.add(halo2);
     accents.push(halo2);
@@ -303,6 +309,8 @@ export function buildSet(theme, brand, headline, opts = {}) {
       wall.material.needsUpdate = true;
     },
     paint(t) {
+      if (theme.blank) return; // nothing painted on an empty stage
+
       if (!this._ledVideo && !this._ledImage && wall.material.map === ledTexture) {
         paintLed(ledCanvas, theme, this.brand, this.headline, t);
         ledTexture.needsUpdate = true;
@@ -330,12 +338,22 @@ export function buildSet(theme, brand, headline, opts = {}) {
       reflector?.dispose?.();
     }
   };
+  // Empty Stage: hide every piece of built architecture — floor, cyc
+  // shell and the halo light rig stay. Imported environments and props
+  // become the studio; every set API keeps working on the hidden parts.
+  if (theme.blank) {
+    for (const child of group.children) {
+      if (!child.userData._blankKeep) child.visible = false;
+    }
+  }
+
   // real shadow pass: architecture casts onto a soft catcher over the
   // reflective floor (PCF-filtered key-light shadows)
   const catcher = new THREE.Mesh(
     new THREE.CircleGeometry(17, 48),
     new THREE.ShadowMaterial({ opacity: 0.38 })
   );
+  catcher.userData._blankKeep = true;
   catcher.rotation.x = -Math.PI / 2;
   catcher.position.y = 0.012;
   catcher.receiveShadow = true;
