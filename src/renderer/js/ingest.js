@@ -9,6 +9,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { SCREEN_NAME_RE } from './engine/props.js';
 
 export const BUDGET = {
   triWarn: 200_000,     // above: RENDER HEAVY warning, not live-safe by default
@@ -24,7 +25,7 @@ export async function ingestModel(media) {
   const report = {
     name: media.name, path: media.path, url: media.url, ext,
     source: { glb: 'GLB export', gltf: 'GLTF export', fbx: 'FBX export (Unreal/Unity/Maya/C4D)', obj: 'OBJ export' }[ext] || 'Model import',
-    tris: 0, meshes: 0, materials: 0, textures: 0, maxTex: 0,
+    tris: 0, meshes: 0, materials: 0, textures: 0, maxTex: 0, screens: 0,
     animations: 0, skinned: false, sizeM: 0, memMB: 0,
     warnings: [], converted: 0, compressed: 0,
     status: 'ok', liveSafe: true, object: null
@@ -61,6 +62,8 @@ export async function ingestModel(media) {
     if (o.isMesh) {
       report.meshes++;
       if (o.isSkinnedMesh) report.skinned = true;
+      const mats0 = Array.isArray(o.material) ? o.material : [o.material];
+      if (SCREEN_NAME_RE.test(o.name + ' ' + mats0.map((m) => m?.name || '').join(' '))) report.screens++;
       const g = o.geometry;
       if (g) {
         const idx = g.index ? g.index.count : g.attributes.position?.count || 0;

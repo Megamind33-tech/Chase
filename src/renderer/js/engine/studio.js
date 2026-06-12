@@ -205,6 +205,18 @@ export class Studio {
       const prev = group.userData.onReady;
       group.userData.onReady = (g2) => { prev?.(g2); this.applyAllMatOverrides(data, this.brandFactory || null); };
     }
+    if (kind === 'model' && data.screenMedia) {
+      const applyScreens = (g2) => {
+        if (!g2.userData.setScreenMedia) return;
+        for (const [i, sm] of Object.entries(data.screenMedia)) {
+          if (sm) g2.userData.setScreenMedia(+i, sm.url, sm.type);
+        }
+      };
+      if (group.userData.loading) {
+        const prev = group.userData.onReady;
+        group.userData.onReady = (g2) => { prev?.(g2); applyScreens(g2); };
+      } else applyScreens(group);
+    }
     if (!existing) state.objects.push(data);
     this.syncObject(data);
     return data;

@@ -57,6 +57,76 @@ function addContactShadow(g, strength) {
 //  - environment: a complete pre-built set — real-world scale is KEPT if
 //    plausible (2.5–40m footprint); silly export units are fitted to a
 //    9m studio footprint instead of shrinking the studio into a toy.
+// Mesh / material names that mark a surface as a video screen inside an
+// imported set — the naming convention every 3D tool exports naturally.
+export const SCREEN_NAME_RE = /screen|monitor|display|led|video|media|tv/i;
+
+/** Planar-project UVs for screen meshes exported without them, using the
+    two largest bounding-box axes so the picture fills the panel. */
+function ensureUVs(mesh) {
+  const geo = mesh.geometry;
+  if (!geo?.attributes.position || geo.attributes.uv) return;
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox;
+  const size = new THREE.Vector3();
+  bb.getSize(size);
+  const [aU, aV] = ['x', 'y', 'z'].sort((a, b) => size[b] - size[a]);
+  const pos = geo.attributes.position;
+  const uv = new Float32Array(pos.count * 2);
+  const get = { x: (i) => pos.getX(i), y: (i) => pos.getY(i), z: (i) => pos.getZ(i) };
+  for (let i = 0; i < pos.count; i++) {
+    uv[i * 2] = (get[aU](i) - bb.min[aU]) / (size[aU] || 1);
+    uv[i * 2 + 1] = (get[aV](i) - bb.min[aV]) / (size[aV] || 1);
+  }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+}
+
+// Find LED/TV surfaces inside an imported set and expose one-click media
+// hookup: userData.screens (names for the UI) + setScreenMedia(i, url, type).
+function wireScreens(g, model) {
+  const slots = [];
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const label = o.name + ' ' + mats.map((m) => m?.name || '').join(' ');
+    if (SCREEN_NAME_RE.test(label)) {
+      slots.push({
+        name: (o.name || '').replace(/[_\-.]+/g, ' ').trim() || 'Screen ' + (slots.length + 1),
+        mesh: o, original: o.material, video: null
+      });
+    }
+  });
+  if (!slots.length) return;
+  g.userData.screens = slots;
+  g.userData.setScreenMedia = (i, url, type) => {
+    const s = slots[i];
+    if (!s) return;
+    if (s.video) { s.video.pause(); s.video.remove(); s.video = null; }
+    if (!url) { s.mesh.material = s.original; return; }
+    ensureUVs(s.mesh);
+    const mat = new THREE.MeshBasicMaterial({ toneMapped: false });
+    if (type === 'video') {
+      s.video = document.createElement('video');
+      s.video.src = url; s.video.loop = true; s.video.muted = true;
+      s.video.play().catch(() => {});
+      const tex = new THREE.VideoTexture(s.video);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      mat.map = tex;
+    } else {
+      new THREE.TextureLoader().load(url, (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        mat.map = tex; mat.needsUpdate = true;
+      });
+    }
+    s.mesh.material = mat;
+  };
+  const prevDispose = g.userData.dispose;
+  g.userData.dispose = () => {
+    prevDispose?.();
+    for (const s of slots) if (s.video) { s.video.pause(); s.video.remove(); }
+  };
+}
+
 function normaliseModel(g, model, ph, clips, env = false) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -73,6 +143,7 @@ function normaliseModel(g, model, ph, clips, env = false) {
   model.position.z -= (box2.min.z + box2.max.z) / 2;
   if (ph) g.remove(ph);
   g.add(model);
+  wireScreens(g, model);
   g.userData.loading = false;
   g.userData.onReady?.(g);
   if (clips?.length) {

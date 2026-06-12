@@ -287,6 +287,7 @@ export function initEditor(ctx) {
         <div class="ir-cell"><span>Textures</span><b>${report.textures}${report.maxTex ? ' · ' + report.maxTex + 'px' : ''}</b></div>
         <div class="ir-cell"><span>Animations</span><b>${report.animations}${report.skinned ? ' · rigged' : ''}</b></div>
         <div class="ir-cell"><span>Est. GPU</span><b>${report.memMB} MB</b></div>
+        <div class="ir-cell"><span>LED screens</span><b>${report.screens || 0}</b></div>
       </div>`}
       ${report.warnings.map((w) => `<div class="ir-warn${blocked ? ' blocked' : ''}">${icon('warn')}<span>${w}</span></div>`).join('')}
       ${!report.warnings.length ? `<div class="ir-ok">${icon('check')} Validation passed — normalised, Chase-safe materials, ready for the studio.</div>` : ''}
@@ -324,6 +325,11 @@ export function initEditor(ctx) {
       toast(env
         ? report.name + ' placed as the studio environment — check cameras 1–6, then nudge or scale it in the inspector.'
         : report.name + ' ingested.', 'ok', env ? 6000 : 3000);
+      const nScreens = studio.objects.get(data.id)?.userData.screens?.length || 0;
+      if (nScreens) {
+        logEvent(`${nScreens} LED screen${nScreens > 1 ? 's' : ''} detected in ${report.name}`, 'ok');
+        toast(`${nScreens} LED screen${nScreens > 1 ? 's' : ''} detected — connect media in the inspector under "LED screens".`, 'ok', 7000);
+      }
     };
     $('ingest-cancel').onclick = () => { $('modal-ingest').hidden = true; };
   }
@@ -1472,8 +1478,48 @@ export function initEditor(ctx) {
     const g = studio.objects.get(data.id);
     if (g?.userData.loading) {
       box.innerHTML = '<p class="hint">Materials appear when the model finishes loading…</p>';
-      g.userData.onReady = () => { if (selectedId === data.id) buildMaterialsModule(data); };
+      const prev = g.userData.onReady;
+      g.userData.onReady = (g2) => { prev?.(g2); if (selectedId === data.id) buildMaterialsModule(data); };
       return;
+    }
+    const screens = g?.userData.screens || [];
+    if (screens.length) {
+      const h = document.createElement('h3');
+      h.className = 'spaced';
+      h.textContent = 'LED screens · connect media';
+      box.appendChild(h);
+      data.screenMedia = data.screenMedia || {};
+      screens.forEach((s, i) => {
+        const sm = data.screenMedia[i];
+        const row = document.createElement('div');
+        row.className = 'mat-row';
+        row.innerHTML = `
+          <div class="mr-head">${icon('screen')}${s.name}${sm ? ` <span class="ir-src">${sm.name || 'connected'}</span>` : ''}</div>
+          <div class="row gap">
+            <button class="btn primary slim" data-act="connect">${sm ? 'Change media…' : 'Connect media…'}</button>
+            ${sm ? '<button class="btn ghost slim" data-act="clear">Clear</button>' : ''}
+          </div>`;
+        row.querySelector('[data-act="connect"]').addEventListener('click', async () => {
+          const media = await window.chase.pickMedia('any');
+          if (!media) return;
+          data.screenMedia[i] = { url: media.url, type: media.type, path: media.path, name: media.name };
+          g.userData.setScreenMedia(i, media.url, media.type);
+          logEvent(`Screen feed: ${media.name} → ${s.name}`, 'ok');
+          toast(media.name + ' → ' + s.name, 'ok');
+          buildMaterialsModule(data);
+        });
+        row.querySelector('[data-act="clear"]')?.addEventListener('click', () => {
+          delete data.screenMedia[i];
+          g.userData.setScreenMedia(i, null);
+          toast(s.name + ' cleared');
+          buildMaterialsModule(data);
+        });
+        box.appendChild(row);
+      });
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.textContent = 'Screens were auto-detected from the set. Click Connect, pick a video or image — it plays on the panel instantly and is saved with the project.';
+      box.appendChild(hint);
     }
     const mats = studio.getMaterials(data.id);
     if (!mats.length) return;

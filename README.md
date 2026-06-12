@@ -52,6 +52,25 @@ Staged honestly (visible but labelled, no fake buttons): IP/NDI + second
 camera, Zoom/Teams virtual camera, website embed player, scripts/rundowns,
 plugins.
 
+## Bring your own set (pre-built 3D environments)
+
+Already have a finished studio set from Blender, Cinema 4D, Maya, Unreal or a
+marketplace? Two clicks:
+
+1. **Studio → Import environment (GLB)** — the file is validated (triangles,
+   textures, memory), normalised to real-world scale and placed. Tick **"Use
+   imported environment only"** in the inspector to hide the built-in set so
+   only your structures show. Lights, cameras, keying and graphics keep
+   working.
+2. **LED / TV screens connect themselves.** Any mesh named like `Screen`,
+   `TV`, `LED`, `Display`, `Monitor` or `Video` in your export is auto-detected
+   as a video panel (the import report shows the count). Select the set, open
+   **"LED screens · connect media"** in the inspector, click **Connect
+   media…**, pick a video or image — it plays on the panel instantly and is
+   saved with the project. No UV mapping, no material editing, no node graphs.
+
+GLB is the most reliable format; FBX and OBJ also ingest.
+
 ## Quick start
 
 ```bash
